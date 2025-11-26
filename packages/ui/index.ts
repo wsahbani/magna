@@ -1,2 +1,65 @@
-// components
-export * from "./components";
+// UI Components
+export { Button, buttonVariants } from "./components/ui/button"
+export { Input } from "./components/ui/input"
+export { Textarea } from "./components/ui/textarea"
+export { Label } from "./components/ui/label"
+export {
+  Select,
+  SelectGroup,
+  SelectValue,
+  SelectTrigger,
+  SelectContent,
+  SelectLabel,
+  SelectItem,
+  SelectSeparator,
+  SelectScrollUpButton,
+  SelectScrollDownButton,
+} from "./components/ui/select"
+export { 
+  Card, 
+  CardHeader, 
+  CardFooter, 
+  CardTitle, 
+  CardDescription, 
+  CardContent 
+} from "./components/ui/card"
+export {
+  Dialog,
+  DialogPortal,
+  DialogOverlay,
+  DialogClose,
+  DialogTrigger,
+  DialogContent,
+  DialogHeader,
+  DialogFooter,
+  DialogTitle,
+  DialogDescription,
+} from "./components/ui/dialog"
+export {
+  Heading1,
+  Heading2,
+  Heading3,
+  BodyLarge,
+  Body,
+  BodySmall,
+  Caption,
+  Text
+} from "./components/ui/typography"
+
+// Process Management Components
+export { WorkspaceCard, WorkspaceGrid } from "./components/workspace-card"
+export { ProcessCard, ProcessGrid } from "./components/process-card"
+export { 
+  ProcessNode, 
+  StartEventNode, 
+  EndEventNode, 
+  GatewayNode,
+  nodeTypes 
+} from "./components/reactflow-nodes"
+
+// Utilities
+export { cn } from "./lib/utils"
+
+// Legacy components (for backward compatibility)
+export { Counter } from "./components/counter"
+export { Header } from "./components/header"
