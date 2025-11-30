@@ -113,13 +113,7 @@ export const useCreateSipocConnection = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (data: {
-      sourceElementId: string
-      targetElementId: string
-      sourceSipocId: string
-      targetSipocId: string
-      description?: string
-    }) => sipocApi.createConnection(data),
+    mutationFn: sipocApi.createConnection,
     onSuccess: (_data, variables) => {
       // Invalidate connections for both source and target elements
       queryClient.invalidateQueries({ 

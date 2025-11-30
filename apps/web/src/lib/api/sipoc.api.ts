@@ -118,7 +118,14 @@ class SipocApiService {
     description?: string
   }) {
     try {
-      return await post('/sipoc-connections', data)
+      return await post('/sipoc-connections', {
+        sourceElementId: data.sourceElementId,
+        targetElementId: data.targetElementId,
+        sipoc_id: data.sourceSipocId,
+        source_sipoc_id: data.sourceSipocId,
+        target_sipoc_id: data.targetSipocId,
+        description: data.description,
+      })
     } catch (error) {
       throw new Error(handleApiError(error))
     }
