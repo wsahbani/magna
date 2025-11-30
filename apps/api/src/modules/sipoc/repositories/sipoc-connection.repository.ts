@@ -49,6 +49,8 @@ export class SipocConnectionRepository {
     description?: string;
     status?: string;
     sipoc_id: string;
+    source_sipoc_id: string;
+    target_sipoc_id: string;
   }): Promise<SipocConnection> {
     return this.prisma.sipocConnection.create({
       data: {

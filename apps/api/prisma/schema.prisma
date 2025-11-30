@@ -1157,6 +1157,8 @@ model SipocDiagram {
   user               User              @relation("UserSipoc", fields: [createdBy], references: [id])
   elements           SipocElement[]
   connections        SipocConnection[]
+  outgoingConnections SipocConnection[] @relation("FromSipoc")
+  incomingConnections SipocConnection[] @relation("ToSipoc")
   history            SipocHistory[]
   permissions        SipocPermission[] @relation("PermissionSipoc")
   comments           SipocComment[]
@@ -1217,11 +1219,17 @@ model SipocConnection {
   
   // Relations
   sipoc_id          String
+  source_sipoc_id   String
+  target_sipoc_id   String
   sipoc             SipocDiagram @relation(fields: [sipoc_id], references: [sipoc_id], onDelete: Cascade)
+  sourceSipoc       SipocDiagram @relation("FromSipoc", fields: [source_sipoc_id], references: [sipoc_id], onDelete: Cascade)
+  targetSipoc       SipocDiagram @relation("ToSipoc", fields: [target_sipoc_id], references: [sipoc_id], onDelete: Cascade)
   sourceElement     SipocElement @relation("FromElement", fields: [source_element_id], references: [id], onDelete: Cascade)
   targetElement     SipocElement @relation("ToElement", fields: [target_element_id], references: [id], onDelete: Cascade)
   
   @@index([sipoc_id])
+  @@index([source_sipoc_id])
+  @@index([target_sipoc_id])
   @@index([source_element_id])
   @@index([target_element_id])
   @@map("sipoc_connections")

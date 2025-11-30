@@ -17,4 +17,10 @@ export class CreateConnectionDto {
 
   @IsString()
   sipoc_id: string;
+
+  @IsString()
+  source_sipoc_id: string;
+
+  @IsString()
+  target_sipoc_id: string;
 }

@@ -14,6 +14,14 @@ export class CreateSipocConnectionDto {
   sipoc_id: string;
 
   @IsString()
+  @IsNotEmpty()
+  source_sipoc_id: string;
+
+  @IsString()
+  @IsNotEmpty()
+  target_sipoc_id: string;
+
+  @IsString()
   @IsOptional()
   description?: string;
 }

@@ -13,6 +13,8 @@ export class SipocConnectionService {
       source_element_id: dto.sourceElementId,
       target_element_id: dto.targetElementId,
       sipoc_id: dto.sipoc_id,
+      source_sipoc_id: dto.source_sipoc_id,
+      target_sipoc_id: dto.target_sipoc_id,
       description: dto.description,
       status: 'active',
     });

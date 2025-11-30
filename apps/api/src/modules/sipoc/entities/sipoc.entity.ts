@@ -47,6 +47,8 @@ export interface SipocConnection {
   description?: string;
   status: string;
   sipoc_id: string;
+  source_sipoc_id: string;
+  target_sipoc_id: string;
   createdAt: Date;
   updatedAt: Date;
 }
