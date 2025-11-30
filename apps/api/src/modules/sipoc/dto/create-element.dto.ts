@@ -41,5 +41,5 @@ export class CreateElementDto {
   duration?: string;
 
   @IsString()
-  versionId: string;
+  sipoc_id: string;
 }

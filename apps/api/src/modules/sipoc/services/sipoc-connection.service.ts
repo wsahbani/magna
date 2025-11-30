@@ -12,7 +12,7 @@ export class SipocConnectionService {
     return this.sipocConnectionRepository.create({
       source_element_id: dto.sourceElementId,
       target_element_id: dto.targetElementId,
-      versionId: dto.versionId,
+      sipoc_id: dto.sipoc_id,
       description: dto.description,
       status: 'active',
     });
@@ -22,8 +22,8 @@ export class SipocConnectionService {
     return this.sipocConnectionRepository.findByElementId(elementId);
   }
 
-  async findConnectionsByVersion(versionId: string) {
-    return this.sipocConnectionRepository.findByVersionId(versionId);
+  async findConnectionsByVersion(sipoc_id: string) {
+    return this.sipocConnectionRepository.findBySipocId(sipoc_id);
   }
 
   async deleteConnection(connectionId: string) {

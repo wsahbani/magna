@@ -16,5 +16,5 @@ export class CreateConnectionDto {
   status?: string;
 
   @IsString()
-  versionId: string;
+  sipoc_id: string;
 }

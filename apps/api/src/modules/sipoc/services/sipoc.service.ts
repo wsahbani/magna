@@ -70,8 +70,8 @@ export class SipocService {
   }
 
   // Element Operations
-  async findElements(versionId: string): Promise<SipocElement[]> {
-    return this.sipocElementRepository.findByVersionId(versionId);
+  async findElements(sipoc_id: string): Promise<SipocElement[]> {
+    return this.sipocElementRepository.findBySipocId(sipoc_id);
   }
 
   async createElement(
@@ -110,7 +110,7 @@ export class SipocService {
    */
   async findSimilarElements(
     sourceTitle: string,
-    currentVersionId: string,
+    currentSipocId: string,
     similarityThreshold: number = 0.3,
   ) {
     // Clean and prepare the search term
@@ -119,7 +119,7 @@ export class SipocService {
 
     // Find all elements except those in the current version
     const allElements = await this.sipocElementRepository.findAllExcept(
-      currentVersionId,
+      currentSipocId,
     );
 
     // Calculate similarity for each element
@@ -137,10 +137,10 @@ export class SipocService {
             title: element.title,
             description: element.description,
             type: element.type,
-            versionId: element.versionId,
+            sipoc_id: element.sipoc_id,
           },
           version: {
-            versionId: element.versionId,
+            sipoc_id: element.sipoc_id,
             // We'll need to join this data
             title: '', // Will be populated below
           },
@@ -211,17 +211,17 @@ export class SipocService {
   }
 
   async reorderElements(
-    versionId: string,
+    sipoc_id: string,
     reorderDto: ReorderElementsDto,
   ): Promise<SipocElement[]> {
     // Validate all elements belong to this version
-    const elements = await this.sipocElementRepository.findByVersionId(versionId);
+    const elements = await this.sipocElementRepository.findBySipocId(sipoc_id);
     const elementIds = new Set(elements.map((e) => e.id));
 
     for (const item of reorderDto.elements) {
       if (!elementIds.has(item.id)) {
         throw new BadRequestException(
-          `Element ${item.id} does not belong to version ${versionId}`,
+          `Element ${item.id} does not belong to sipoc ${sipoc_id}`,
         );
       }
     }
@@ -230,12 +230,12 @@ export class SipocService {
     await this.sipocElementRepository.updateMany(reorderDto.elements);
 
     // Return updated elements
-    return this.sipocElementRepository.findByVersionId(versionId);
+    return this.sipocElementRepository.findBySipocId(sipoc_id);
   }
 
   // Connection Operations
-  async findConnections(versionId: string): Promise<SipocConnection[]> {
-    return this.sipocConnectionRepository.findByVersionId(versionId);
+  async findConnections(sipoc_id: string): Promise<SipocConnection[]> {
+    return this.sipocConnectionRepository.findBySipocId(sipoc_id);
   }
 
   async createConnection(

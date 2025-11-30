@@ -1145,66 +1145,27 @@ model SipocDiagram {
   description        String?
   process_owner      String?
   department         String?
+  status             String            @default("draft") // draft, published, archived
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
   is_template        Boolean           @default(false)
   createdBy          String
   processId          String?
   
-  // Versioning
-  currentDraftId     String?           @unique
-  currentPublishedId String?           @unique
-  
   // Relations
   process            Process?          @relation(fields: [processId], references: [id])
   user               User              @relation("UserSipoc", fields: [createdBy], references: [id])
-  versions           SipocVersion[]
-  currentDraft       SipocVersion?     @relation("CurrentDraft", fields: [currentDraftId], references: [id])
-  currentPublished   SipocVersion?     @relation("CurrentPublished", fields: [currentPublishedId], references: [id])
+  elements           SipocElement[]
+  connections        SipocConnection[]
+  history            SipocHistory[]
   permissions        SipocPermission[] @relation("PermissionSipoc")
   comments           SipocComment[]
   tags               SipocTag[]
   
+  @@index([status])
   @@map("sipoc_diagrams")
 }
 
-model SipocVersion {
-  id               String        @id @default(uuid())
-  documentId       String        @unique @default(uuid()) @db.Uuid
-  sipoc_id         String
-  version          Int
-  status           SipocStatus   @default(DRAFT)
-  title            String
-  description      String?
-  releasedAt       DateTime?
-  changesLog       String?
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
-  
-  // Relations
-  sipoc            SipocDiagram       @relation(fields: [sipoc_id], references: [sipoc_id], onDelete: Cascade)
-  elements         SipocElement[]
-  connections      SipocConnection[]
-  history          SipocHistory[]
-  
-  // Draft relations
-  asDraft          SipocDiagram[]     @relation("CurrentDraft")
-  asPublished      SipocDiagram[]     @relation("CurrentPublished")
-  
-  @@unique([sipoc_id, version])
-  @@index([sipoc_id, status])
-  @@map("sipoc_versions")
-}
-
-enum SipocStatus {
-  DRAFT
-  REVIEW
-  APPROVED
-  PUBLISHED
-  ARCHIVED
-  
-  @@map("sipoc_status")
-}
 model SipocElement {
   id          String      @id @default(uuid())
   documentId  String      @unique @default(uuid()) @db.Uuid
@@ -1223,15 +1184,13 @@ model SipocElement {
   responsibleRole String? // For process
   duration        String? // For process
   
-  // Versioning - now points to SipocVersion
-  versionId       String
-  version         SipocVersion      @relation(fields: [versionId], references: [id], onDelete: Cascade)
-  
-  // Relationships
+  // Relations
+  sipoc_id        String
+  sipoc           SipocDiagram      @relation(fields: [sipoc_id], references: [sipoc_id], onDelete: Cascade)
   outgoing        SipocConnection[] @relation("FromElement")
   incoming        SipocConnection[] @relation("ToElement")
   
-  @@index([versionId])
+  @@index([sipoc_id])
   @@index([type])
   @@map("sipoc_elements")
 }
@@ -1256,33 +1215,32 @@ model SipocConnection {
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
   
-  // Versioning - now points to SipocVersion
-  versionId         String
-  version           SipocVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
-  
+  // Relations
+  sipoc_id          String
+  sipoc             SipocDiagram @relation(fields: [sipoc_id], references: [sipoc_id], onDelete: Cascade)
   sourceElement     SipocElement @relation("FromElement", fields: [source_element_id], references: [id], onDelete: Cascade)
   targetElement     SipocElement @relation("ToElement", fields: [target_element_id], references: [id], onDelete: Cascade)
   
-  @@index([versionId])
+  @@index([sipoc_id])
   @@index([source_element_id])
   @@index([target_element_id])
   @@map("sipoc_connections")
 }
 model SipocHistory {
-  history_id         Int      @id @default(autoincrement())
-  documentId         String   @unique @default(uuid()) @db.Uuid
-  versionId          String
+  history_id         Int          @id @default(autoincrement())
+  documentId         String       @unique @default(uuid()) @db.Uuid
+  sipoc_id           String
   changed_by         String
-  changed_at         DateTime @default(now())
+  changed_at         DateTime     @default(now())
   change_description String?
   change_type        String?
   previous_state     Json?
   new_state          Json?
 
-  version    SipocVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  sipoc      SipocDiagram @relation(fields: [sipoc_id], references: [sipoc_id], onDelete: Cascade)
   changedBy  User         @relation("SipocHistoryUser", fields: [changed_by], references: [id])
   
-  @@index([versionId])
+  @@index([sipoc_id])
   @@index([changed_at])
   @@map("sipoc_history")
 }

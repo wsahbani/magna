@@ -148,48 +148,15 @@ export enum SipocStatus {
   ARCHIVED = 'ARCHIVED',
 }
 
-export interface SipocVersion {
-  id: string;
-  documentId: string;
-  sipoc_id: string;
-  version: number;
-  status: SipocStatus;
-  title: string;
-  description?: string;
-  releasedAt?: string;
-  changesLog?: string;
-  createdAt: string;
-  updatedAt: string;
-  elements?: SipocElement[];
-  connections?: SipocConnection[];
-  history?: SipocHistory[];
-}
-
 export interface SipocHistory {
   history_id: number;
   documentId: string;
-  versionId: string;
+  sipoc_id: string;
   changed_by: string;
   changed_at: string;
   change_description?: string;
   change_type?: string;
   previous_state?: any;
   new_state?: any;
-}
-
-export interface CreateSipocVersionDto {
-  title: string;
-  description?: string;
-  changesLog?: string;
-}
-
-export interface UpdateSipocVersionDto {
-  title?: string;
-  description?: string;
-  changesLog?: string;
-}
-
-export interface PublishVersionDto {
-  changesLog?: string;
 }
 

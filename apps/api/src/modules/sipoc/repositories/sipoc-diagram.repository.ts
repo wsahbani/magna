@@ -16,12 +16,6 @@ export class SipocDiagramRepository {
         ...(filters?.processId && { processId: filters.processId }),
       },
       include: {
-        versions: {
-          orderBy: { version: 'desc' },
-          take: 5,
-        },
-        currentDraft: true,
-        currentPublished: true,
         tags: {
           include: {
             tag: true,
@@ -38,28 +32,10 @@ export class SipocDiagramRepository {
     return this.prisma.sipocDiagram.findUnique({
       where: { sipoc_id },
       include: {
-        versions: {
-          orderBy: { version: 'desc' },
-          include: {
-            elements: {
-              orderBy: { position: 'asc' },
-            },
-          },
+        elements: {
+          orderBy: { position: 'asc' },
         },
-        currentDraft: {
-          include: {
-            elements: {
-              orderBy: { position: 'asc' },
-            },
-          },
-        },
-        currentPublished: {
-          include: {
-            elements: {
-              orderBy: { position: 'asc' },
-            },
-          },
-        },
+        connections: true,
         tags: {
           include: {
             tag: true,
@@ -106,10 +82,9 @@ export class SipocDiagramRepository {
       description?: string;
       process_owner?: string;
       department?: string;
+      status?: string;
       is_template?: boolean;
       processId?: string;
-      currentDraftId?: string;
-      currentPublishedId?: string;
     },
   ): Promise<SipocDiagram> {
     return this.prisma.sipocDiagram.update({
@@ -128,28 +103,10 @@ export class SipocDiagramRepository {
     return this.prisma.sipocDiagram.findFirst({
       where: { processId },
       include: {
-        versions: {
-          orderBy: { version: 'desc' },
-          include: {
-            elements: {
-              orderBy: { position: 'asc' },
-            },
-          },
+        elements: {
+          orderBy: { position: 'asc' },
         },
-        currentDraft: {
-          include: {
-            elements: {
-              orderBy: { position: 'asc' },
-            },
-          },
-        },
-        currentPublished: {
-          include: {
-            elements: {
-              orderBy: { position: 'asc' },
-            },
-          },
-        },
+        connections: true,
       },
     });
   }

@@ -16,9 +16,9 @@ export class SipocConnectionController {
     return this.sipocConnectionService.findConnectionsByElement(elementId);
   }
 
-  @Get('version/:versionId')
-  async getConnectionsByVersion(@Param('versionId') versionId: string) {
-    return this.sipocConnectionService.findConnectionsByVersion(versionId);
+  @Get('sipoc/:sipocId')
+  async getConnectionsByVersion(@Param('sipocId') sipocId: string) {
+    return this.sipocConnectionService.findConnectionsByVersion(sipocId);
   }
 
   @Get(':connectionId')

@@ -6,10 +6,10 @@ import { SipocConnection } from '../entities/sipoc.entity';
 export class SipocConnectionRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findByVersionId(versionId: string): Promise<SipocConnection[]> {
+  async findBySipocId(sipoc_id: string): Promise<SipocConnection[]> {
     return this.prisma.sipocConnection.findMany({
       where: {
-        versionId,
+        sipoc_id,
       },
       include: {
         sourceElement: true,
@@ -48,7 +48,7 @@ export class SipocConnectionRepository {
     target_element_id: string;
     description?: string;
     status?: string;
-    versionId: string;
+    sipoc_id: string;
   }): Promise<SipocConnection> {
     return this.prisma.sipocConnection.create({
       data: {

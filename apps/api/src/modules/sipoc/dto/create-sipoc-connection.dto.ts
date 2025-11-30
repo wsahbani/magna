@@ -11,7 +11,7 @@ export class CreateSipocConnectionDto {
 
   @IsString()
   @IsNotEmpty()
-  versionId: string;
+  sipoc_id: string;
 
   @IsString()
   @IsOptional()

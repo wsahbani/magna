@@ -6,9 +6,9 @@ import { SipocElement, ElementType } from '../entities/sipoc.entity';
 export class SipocElementRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findByVersionId(versionId: string): Promise<any> {
+  async findBySipocId(sipoc_id: string): Promise<any> {
     return this.prisma.sipocElement.findMany({
-      where: { versionId },
+      where: { sipoc_id },
       orderBy: { position: 'asc' },
     });
   }
@@ -30,7 +30,7 @@ export class SipocElementRepository {
     qualityCriteria?: string;
     responsibleRole?: string;
     duration?: string;
-    versionId: string;
+    sipoc_id: string;
   }):  Promise<any> {
     return this.prisma.sipocElement.create({
       data,
@@ -78,11 +78,11 @@ export class SipocElementRepository {
   }
 
   async findByType(
-    versionId: string,
+    sipoc_id: string,
     type: ElementType,
   ): Promise<any> {
     return this.prisma.sipocElement.findMany({
-      where: { versionId, type },
+      where: { sipoc_id, type },
       orderBy: { position: 'asc' },
     });
   }
@@ -91,11 +91,11 @@ export class SipocElementRepository {
    * Find all elements except those from a specific version
    * Used for similarity search across different versions
    */
-  async findAllExcept(versionId: string): Promise<any> {
+  async findAllExcept(sipoc_id: string): Promise<any> {
     return this.prisma.sipocElement.findMany({
       where: {
-        versionId: {
-          not: versionId,
+        sipoc_id: {
+          not: sipoc_id,
         },
       },
       select: {
@@ -103,7 +103,7 @@ export class SipocElementRepository {
         title: true,
         description: true,
         type: true,
-        versionId: true,
+        sipoc_id: true,
       },
     });
   }

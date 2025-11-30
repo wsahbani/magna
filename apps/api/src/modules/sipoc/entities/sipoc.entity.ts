@@ -13,13 +13,12 @@ export interface SipocDiagram {
   description?: string;
   process_owner?: string;
   department?: string;
+  status: string;
   createdAt: Date;
   updatedAt: Date;
   is_template: boolean;
   createdBy: string;
   processId?: string;
-  currentDraftId?: string;
-  currentPublishedId?: string;
 }
 
 export interface SipocElement {
@@ -35,7 +34,7 @@ export interface SipocElement {
   qualityCriteria?: string;
   responsibleRole?: string;
   duration?: string;
-  versionId: string;
+  sipoc_id: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -47,7 +46,9 @@ export interface SipocConnection {
   target_element_id: string;
   description?: string;
   status: string;
-  versionId: string;
+  sipoc_id: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface SipocTag {
@@ -59,7 +60,7 @@ export interface SipocTag {
 export interface SipocHistory {
   history_id: number;
   documentId: string;
-  versionId: string;
+  sipoc_id: string;
   changed_by: string;
   changed_at: Date;
   change_description?: string;
