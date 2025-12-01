@@ -29,7 +29,7 @@ const SuggestionDropdown: React.FC<SuggestionDropdownProps> = ({
 }) => {
   const { data: suggestions, isLoading } = useSimilarElements(
     currentSipocId,
-    element.title,
+    element?.title,
     0.3
   );
 
@@ -73,7 +73,7 @@ const SuggestionDropdown: React.FC<SuggestionDropdownProps> = ({
               >
                 <div className="flex items-start justify-between gap-1 mb-1">
                   <Caption className="font-medium text-gray-900 truncate flex-1">
-                    {suggestion.element.title}
+                    {suggestion.element?.title}
                   </Caption>
                   <ExternalLink className="w-2.5 h-2.5 text-gray-400 opacity-0 group-hover/item:opacity-100 transition-opacity flex-shrink-0" />
                 </div>
@@ -89,7 +89,7 @@ const SuggestionDropdown: React.FC<SuggestionDropdownProps> = ({
                     <span>{scorePercentage}%</span>
                   </div>
                   <span className="text-gray-500 truncate">
-                    de {suggestion.sipoc.title}
+                    de {suggestion.sipoc?.title}
                   </span>
                 </div>
               </button>
@@ -348,10 +348,11 @@ export const SipocFlowRow: React.FC<SipocFlowRowProps> = ({
   };
 
   const handleSuggestionClick = useCallback((suggestion: SimilarElement, sourceElementId: string) => {
+    console.log('suggestion', suggestion);
     // Create relation with suggested element
     onCreateRelation(
       sourceElementId,
-      suggestion.sipoc.sipoc_id,
+      suggestion.element.sipoc_id,
       suggestion.element.id,
       `Connexion suggérée par IA (${Math.round(suggestion.similarityScore * 100)}% similarité)`
     );

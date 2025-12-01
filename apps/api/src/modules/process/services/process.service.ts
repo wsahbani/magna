@@ -7,6 +7,7 @@ import { ProcessQueryDto } from '../dto/process-query.dto';
 import { ProcessEntity } from '../entities/process.entity';
 import { ProcessStatus, ProcessType } from '@prisma/client';
 import { SipocService } from '../../sipoc/services/sipoc.service';
+import { FipService } from '../../fip/services/fip.service';
 
 @Injectable()
 export class ProcessService {
@@ -16,6 +17,7 @@ export class ProcessService {
     private readonly processRepository: ProcessRepository,
     private readonly prisma: PrismaService,
     private readonly sipocService: SipocService,
+    private readonly fipService: FipService,
   ) {}
 
   /**
@@ -86,6 +88,30 @@ export class ProcessService {
         this.logger.error(`Failed to create SIPOC diagram for process: ${createdProcess.id}`, error);
         // Don't fail the process creation if SIPOC creation fails
       }
+    }
+
+    // Create FIP (Fiche Identité Processus) for all process types
+    this.logger.log(`Creating FIP for process: ${createdProcess.id}`);
+    try {
+      await this.fipService.create(
+        {
+          processId: createdProcess.id,
+          status: 'draft',
+          objectives: createProcessDto.objectives || '',
+          scope: createProcessDto.applicationScope || '',
+          indicators: [],
+          stakeholders: [],
+          risks: [],
+          opportunities: [],
+          resources: [],
+          performanceTargets: [],
+        },
+        userId,
+      );
+      this.logger.log(`FIP created successfully for process: ${createdProcess.id}`);
+    } catch (error) {
+      this.logger.error(`Failed to create FIP for process: ${createdProcess.id}`, error);
+      // Don't fail the process creation if FIP creation fails
     }
 
     return createdProcess;

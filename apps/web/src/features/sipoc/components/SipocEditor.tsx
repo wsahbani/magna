@@ -1,10 +1,12 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import { useNavigate } from '@tanstack/react-router';
 import { useSipocStore } from '../store/sipocStore';
 import { useSipocDiagrams, useCreateSipocConnection } from '../hooks/useSipoc';
 import { SipocFlowBoard } from '../board/SipocFlowBoard';
 import { SipocImportModal } from './SipocImportModal';
 import { Button, Heading2, BodySmall, Caption } from '@repo/ui';
 import { ElementType, SipocElement } from '../types/sipoc.types';
+import { exportSipocToPdf } from '../utils/sipoc-pdf-export';
 import { 
   Save, 
   Send, 
@@ -13,7 +15,9 @@ import {
   Building2,
   AlertCircle,
   Loader2,
-  FileDown
+  FileDown,
+  FileText,
+  ClipboardList
 } from 'lucide-react';
 
 interface SipocEditorProps {
@@ -27,9 +31,11 @@ export const SipocEditor: React.FC<SipocEditorProps> = ({
   onSave,
   onPublish 
 }) => {
+  const navigate = useNavigate();
   const [isSaving, setIsSaving] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
 
   const {
     diagrams,
@@ -208,6 +214,33 @@ export const SipocEditor: React.FC<SipocEditorProps> = ({
     setHasUnsavedChanges(true);
   }, [fetchElements, sipocId]);
 
+  // Handle PDF export
+  const handleExportPdf = useCallback(async () => {
+    if (!diagram) {
+      return;
+    }
+
+    setIsExportingPdf(true);
+    try {
+      await exportSipocToPdf({
+        diagram,
+        elements: diagramElements,
+      });
+    } catch (error) {
+      console.error('Failed to export PDF:', error);
+      // Error is already handled in the export function
+    } finally {
+      setIsExportingPdf(false);
+    }
+  }, [diagram, diagramElements]);
+
+  // Handle FIP navigation
+  const handleViewFip = useCallback(() => {
+    if (diagram?.processId) {
+      navigate({ to: '/processes/$processId/fip', params: { processId: diagram.processId } });
+    }
+  }, [diagram, navigate]);
+
   // Loading state
   if (isLoading) {
     return (
@@ -311,6 +344,34 @@ export const SipocEditor: React.FC<SipocEditorProps> = ({
               {hasUnsavedChanges && (
                 <Caption className="text-orange-600 mr-2">Modifications non enregistrées</Caption>
               )}
+              {diagram.processId && (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleViewFip}
+                >
+                  <ClipboardList className="w-4 h-4 mr-2" />
+                  Voir FIP
+                </Button>
+              )}
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={handleExportPdf}
+                disabled={isExportingPdf}
+              >
+                {isExportingPdf ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Export...
+                  </>
+                ) : (
+                  <>
+                    <FileText className="w-4 h-4 mr-2" />
+                    Exporter PDF
+                  </>
+                )}
+              </Button>
               <Button 
                 variant="outline" 
                 size="sm"

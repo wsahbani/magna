@@ -158,6 +158,7 @@ model User {
   sipocPermissions       SipocPermission[]   @relation("SipocPermissionUser")
   sipocPermissionsGranted SipocPermission[]  @relation("SipocPermissionGrantedBy")
   sipocComments          SipocComment[]      @relation("SipocCommentUser")
+  fipCards               ProcessIdentityCard[] @relation("UserFip")
 }
 
 model Role {
@@ -261,7 +262,8 @@ model Process {
   @@index([departmentId])
   @@index([type, level])
   @@map("processes")
-  sipocDiagrams SipocDiagram[]
+  sipocDiagrams      SipocDiagram[]
+  identityCard       ProcessIdentityCard?
 }
 
 enum ProcessPriority {
@@ -1295,4 +1297,36 @@ enum ElementType {
   process
   output
   customer
+}
+
+// ====================================
+// PROCESS IDENTITY CARD (FIP)
+// ====================================
+
+model ProcessIdentityCard {
+  fip_id             String   @id @default(uuid())
+  documentId         String   @unique @default(uuid()) @db.Uuid
+  processId          String   @unique // One-to-one with Process
+  status             String   @default("draft") // draft, published, archived
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  createdBy          String
+
+  // FIP Specific Fields
+  objectives         String?  // Objectifs du processus
+  scope              String?  // Périmètre d'application
+  indicators         Json?   // Indicateurs de performance/KPIs
+  stakeholders       Json?   // Acteurs et responsabilités
+  risks              Json?   // Risques identifiés
+  opportunities      Json?   // Opportunités
+  resources          Json?   // Ressources nécessaires
+  performanceTargets Json?   // Cibles de performance
+
+  // Relations
+  process Process @relation(fields: [processId], references: [id], onDelete: Cascade)
+  user    User    @relation("UserFip", fields: [createdBy], references: [id])
+
+  @@index([processId])
+  @@index([status])
+  @@map("process_identity_cards")
 }

@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../../features/auth'
 import { appConfig } from '../../config'
+import { LogoOrange } from '@repo/ui/components/logo-orange'
 
 interface NavItem {
   label: string
@@ -88,7 +89,7 @@ export function Sidebar({ collapsed = false, onCollapse, mobileOpen = false, onM
           {!collapsed && (
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg flex items-center justify-center shadow-lg">
-                <span className="text-white font-bold text-xl">{appConfig.logo.icon}</span>
+                <LogoOrange />
               </div>
               <div className="flex flex-col">
                 <span className="font-bold text-white text-base tracking-wide">{appConfig.name}</span>

@@ -9,7 +9,11 @@
             "type": "node-terminal",
             "request": "launch",
             "command": "pnpm dev",
-            "cwd": "${workspaceFolder}"
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "NODE_ENV": "development",
+                "DATABASE_URL": "postgresql://postgres:postgres@localhost:5432/magna_turbo"
+            }
         },
         {
             "name": "Turbo: Dev Web",

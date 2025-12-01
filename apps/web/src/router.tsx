@@ -8,6 +8,7 @@ import ProcessesPage from './features/processes/pages/ProcessesPage'
 import FlowDetailPage from './features/processes/pages/FlowDetailPage'
 import SipocDetailPage from './features/processes/pages/SipocDetailPage'
 import BpmnDetailPage from './features/processes/pages/BpmnDetailPage'
+import FipDetailPage from './features/fip/pages/FipDetailPage'
 import { SipocListPage, SipocEditor } from './features/sipoc'
 
 // Check if user is authenticated
@@ -160,7 +161,22 @@ const sipocListRoute = createRoute({
   ),
 })
 
-// New SIPOC editor route - protected route
+// FIP detail route - protected route
+const fipDetailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/processes/$processId/fip',
+  beforeLoad: () => {
+    if (!isAuthenticated()) {
+      throw redirect({ to: '/login' })
+    }
+  },
+  component: () => (
+    <AdminLayout>
+      <FipDetailPage />
+    </AdminLayout>
+  ),
+})
+
 // Create route tree
 const routeTree = rootRoute.addChildren([
   loginRoute,
@@ -172,6 +188,7 @@ const routeTree = rootRoute.addChildren([
   sipocDetailRoute,
   bpmnDetailRoute,
   sipocListRoute,
+  fipDetailRoute,
 ])
 
 // Create and export router instance
