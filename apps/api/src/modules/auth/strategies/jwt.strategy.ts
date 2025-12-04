@@ -24,6 +24,15 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         lastName: true,
         isActive: true,
         departmentId: true,
+        groupId: true,
+        isAdmin: true,
+        group: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+          },
+        },
       },
     });
 
@@ -33,11 +42,14 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
     // Return user info that will be available via @CurrentUser() decorator
     return {
-      sub: user.id,
+      userId: user.id,
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
       departmentId: user.departmentId,
+      groupId: user.groupId,
+      group: user.group,
+      isAdmin: user.isAdmin,
     };
   }
 }

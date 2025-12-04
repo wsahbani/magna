@@ -19,6 +19,7 @@ import {
   ChevronRight,
   LogOut,
   X,
+  Shield,
 } from 'lucide-react'
 import { useAuth } from '../../features/auth'
 import { appConfig } from '../../config'
@@ -39,6 +40,7 @@ const navigationItems: NavItem[] = [
   { label: 'Projects', icon: FolderKanban, href: '/projects' },
   { label: 'Tags', icon: Tags, href: '/tags' },
   { label: 'Users', icon: Users, href: '/users' },
+  { label: 'Groups', icon: Shield, href: '/groups' },
   { label: 'Notifications', icon: Bell, href: '/notifications', badge: 3 },
   { label: 'Settings', icon: Settings, href: '/settings' },
 ]

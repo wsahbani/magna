@@ -137,6 +137,18 @@ model User {
   resetToken     String?
   resetTokenExp  DateTime?
 
+  // OpenID Connect (Orange SSO)
+  orangeId       String?   @unique // Orange SSO unique identifier
+  provider       String?   @default("local") // local, orange-openid
+  providerData   Json? // Additional provider data
+  
+  // Admin flag - only admins can manage users and groups
+  isAdmin        Boolean   @default(false)
+  
+  // Group Assignment (Un utilisateur appartient à un seul groupe)
+  groupId        String?
+  group          Group?    @relation(fields: [groupId], references: [id])
+
   // Relations
   departmentId       String?
   department         Department?           @relation(fields: [departmentId], references: [id])
@@ -159,6 +171,43 @@ model User {
   sipocPermissionsGranted SipocPermission[]  @relation("SipocPermissionGrantedBy")
   sipocComments          SipocComment[]      @relation("SipocCommentUser")
   fipCards               ProcessIdentityCard[] @relation("UserFip")
+}
+
+// ====================================
+// GROUP MANAGEMENT (Groupes métier)
+// ====================================
+
+model Group {
+  id          String   @id @default(cuid())
+  name        String   @unique // e.g., "Groupe RH", "Groupe Commercial", "Groupe Qualité"
+  code        String   @unique // Short code: "RH", "COM", "QUAL"
+  description String?
+  color       String?  @default("#EA580C") // Orange by default
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  users       User[] // Users belonging to this group
+  permissions GroupPermission[] // Group-level permissions
+
+  @@map("groups")
+}
+
+// Group Permissions (optional: for fine-grained access control)
+model GroupPermission {
+  id         String   @id @default(cuid())
+  groupId    String
+  resource   String   // e.g., "processes", "workspaces", "users"
+  action     String   // e.g., "create", "read", "update", "delete"
+  conditions Json?    // Optional conditions for permission
+  createdAt  DateTime @default(now())
+
+  // Relations
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, resource, action])
+  @@map("group_permissions")
 }
 
 model Role {

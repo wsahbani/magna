@@ -4,7 +4,7 @@
  */
 
 import { useState } from 'react'
-import { Plus, Search, Grid, List } from 'lucide-react'
+import { Plus, Search, Grid, List, Building2 } from 'lucide-react'
 import { useNavigate } from '@tanstack/react-router'
 import { Button } from '@repo/ui/components/ui/button'
 import { Input } from '@repo/ui/components/ui/input'
@@ -14,8 +14,8 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogClose,
 } from '@repo/ui/components/ui/dialog'
+import { PageWrapper } from '../../../components/layout/PageWrapper'
 import { WorkspaceCard } from '../components/WorkspaceCard'
 import { WorkspaceForm } from '../components/WorkspaceForm'
 import {
@@ -97,26 +97,26 @@ export function WorkspacesPage() {
   const workspaces = workspacesData?.data || []
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Workspaces</h1>
-          <p className="text-gray-600 mt-1">
-            Gérez la structure organisationnelle de votre entreprise
-          </p>
-        </div>
+    <PageWrapper
+      title="Workspaces"
+      description="Gérez la structure organisationnelle de votre entreprise"
+      breadcrumbs={[
+        {
+          label: 'Workspaces',
+          icon: <Building2 className="w-4 h-4" />,
+        },
+      ]}
+      actions={
         <Button onClick={handleCreate} className="bg-orange-600 hover:bg-orange-700">
           <Plus className="h-4 w-4 mr-2" />
           Nouveau Workspace
         </Button>
-      </div>
-
+      }
+    >
       {/* Form Dialog */}
       {showForm && (
         <Dialog open={showForm} onOpenChange={setShowForm}>
           <DialogContent className="max-w-2xl">
-            <DialogClose onClose={() => setShowForm(false)} />
             <DialogHeader>
               <DialogTitle>
                 {selectedWorkspace ? 'Modifier le Workspace' : 'Nouveau Workspace'}
@@ -311,6 +311,6 @@ export function WorkspacesPage() {
           </Button>
         </div>
       )}
-    </div>
+    </PageWrapper>
   )
 }

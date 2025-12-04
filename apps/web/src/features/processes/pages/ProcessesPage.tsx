@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, BodySmall, Button } from '@repo/ui'
+import { PageWrapper } from '../../../components/layout/PageWrapper'
+import { FileText, Plus } from 'lucide-react'
 import { ProcessPageHeader } from '../components/ProcessPageHeader'
 import { ProcessFilters } from '../components/ProcessFilters'
 import { ViewModeToggle } from '../components/ViewModeToggle'
@@ -82,10 +84,19 @@ export default function ProcessesPage() {
   }
 
   return (
-    <div className="space-y-4 p-3">
-      {/* Header */}
-      <ProcessPageHeader onCreateClick={() => setIsCreateDialogOpen(true)} />
-
+    <PageWrapper
+      title="Processus"
+      description="Gérez vos processus métier (Processus, Procédures, Instructions)"
+      breadcrumbs={[
+        { label: 'Processus', icon: <FileText className="w-4 h-4" /> },
+      ]}
+      actions={
+        <Button onClick={() => setIsCreateDialogOpen(true)} className="bg-orange-600 hover:bg-orange-700">
+          <Plus className="h-4 w-4 mr-2" />
+          Nouveau Processus
+        </Button>
+      }
+    >
       {/* Filters & View Mode */}
       <div className="flex flex-col md:flex-row gap-4 items-end">
         <div className="flex-1 w-full">
@@ -185,6 +196,6 @@ export default function ProcessesPage() {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageWrapper>
   )
 }

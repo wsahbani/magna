@@ -4,7 +4,26 @@
 
 This is a **Process Management System** built with **NestJS**, **Prisma**, and **React** in a **Turborepo monorepo**. The system manages business processes following the PYX4 methodology for process modeling and documentation.
 
-## 🆕 Recent Enhancements
+## � Form Styling System (NEW!)
+
+Modern form components with visual validation based on the design system:
+
+- **[Quick Start](./form-styling-quickstart.md)** - Get started in 5 minutes ⚡
+- **[Complete Guide](./form-styling-guide.md)** - Detailed documentation with examples 📚
+- **[Before/After](./form-transformation-guide.md)** - See the improvements 📊
+- **[Visual Result](./VISUAL_RESULT.md)** - ASCII mockup of final result 🎨
+- **[Implementation](./FORM_STYLE_IMPLEMENTATION.md)** - Technical overview 🔧
+
+**New Components**: `ValidatedInput`, `ValidatedSelect` with automatic green checkmarks ✅
+## 📐 Layout Components (NEW!)
+
+Reusable layout components for consistent page structure:
+
+- **[PageWrapper Guide](./page-wrapper-component.md)** - Complete documentation 📚
+- **[Quick Summary](./PAGE_WRAPPER_SUMMARY.md)** - TL;DR version ⚡
+
+**New Component**: `PageWrapper` with breadcrumbs, title, description, and actions 🎯
+## �🆕 Recent Enhancements
 
 ### Flow Builder with Advanced Features
 - ✅ **Resizable Nodes**: All nodes can be resized with min/max constraints

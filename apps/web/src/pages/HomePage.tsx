@@ -10,6 +10,8 @@ import {
   Input,
   Label
 } from '@repo/ui'
+import { PageWrapper } from '../components/layout/PageWrapper'
+import { Home } from 'lucide-react'
 
 // Sample data
 const sampleWorkspaces = [
@@ -54,17 +56,14 @@ export function HomePage() {
   const [selectedProcess, setSelectedProcess] = useState<string>()
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <div className="max-w-7xl mx-auto space-y-8">
-        {/* Header */}
-        <div className="text-center space-y-4">
-          <h1 className="text-4xl font-bold text-gray-900">
-            🚀 Orange Process Management
-          </h1>
-          <p className="text-lg text-gray-600">
-            <strong>Step 2:</strong> TanStack Router Setup Complete!
-          </p>
-        </div>
+    <PageWrapper
+      title="🚀 Orange Process Management"
+      description="TanStack Router Setup Complete!"
+      breadcrumbs={[
+        { label: 'Accueil', icon: <Home className="w-4 h-4" /> },
+      ]}
+      maxWidth="6xl"
+    >
 
         {/* Status Card */}
         <Card>
@@ -117,7 +116,6 @@ export function HomePage() {
             onProcessView={(id) => alert(`View process: ${id}`)}
           />
         </div>
-      </div>
-    </div>
+    </PageWrapper>
   )
 }

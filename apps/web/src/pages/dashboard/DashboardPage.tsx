@@ -4,6 +4,7 @@
  */
 
 import { Card, CardContent, CardHeader, CardTitle } from '@repo/ui'
+import { PageWrapper } from '../../components/layout/PageWrapper'
 import {
   TrendingUp,
   FileText,
@@ -13,6 +14,7 @@ import {
   AlertCircle,
   Workflow,
   Activity,
+  LayoutDashboard,
 } from 'lucide-react'
 
 interface StatCard {
@@ -98,13 +100,13 @@ const pendingReviews = [
 
 export function DashboardPage() {
   return (
-    <div className="space-y-6">
-      {/* Page Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-600 mt-1">Welcome back! Here's what's happening today.</p>
-      </div>
-
+    <PageWrapper
+      title="Dashboard"
+      description="Bienvenue ! Voici ce qui se passe aujourd'hui."
+      breadcrumbs={[
+        { label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
+      ]}
+    >
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((stat) => {
@@ -279,6 +281,6 @@ export function DashboardPage() {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </PageWrapper>
   )
 }

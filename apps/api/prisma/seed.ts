@@ -22,11 +22,68 @@ async function main() {
     'roles',
     'units',
     'users',
+    'groups',
+    'group_permissions',
   ];
 
   await prisma.$executeRawUnsafe(
     `TRUNCATE TABLE ${tablesToTruncate.map((table) => `"${table}"`).join(', ')} RESTART IDENTITY CASCADE;`,
   );
+
+  // ====================================
+  // SEED GROUPS (Business Units)
+  // ====================================
+  console.log('🏢 Seeding groups...');
+  
+  const groups = [
+    {
+      name: 'Groupe RH',
+      code: 'RH',
+      description: 'Ressources Humaines - Gestion du personnel et recrutement',
+      color: '#EA580C',
+    },
+    {
+      name: 'Groupe Commercial',
+      code: 'COM',
+      description: 'Équipe Commerciale - Ventes et relations clients',
+      color: '#10B981',
+    },
+    {
+      name: 'Groupe Qualité',
+      code: 'QUAL',
+      description: 'Gestion Qualité - Normes et certifications',
+      color: '#3B82F6',
+    },
+    {
+      name: 'Groupe IT',
+      code: 'IT',
+      description: 'Informatique - Infrastructure et développement',
+      color: '#8B5CF6',
+    },
+    {
+      name: 'Groupe Finance',
+      code: 'FIN',
+      description: 'Finance et Comptabilité',
+      color: '#F59E0B',
+    },
+    {
+      name: 'Groupe Marketing',
+      code: 'MKT',
+      description: 'Marketing et Communication',
+      color: '#EC4899',
+    },
+  ];
+
+  const createdGroups: any = {};
+  for (const group of groups) {
+    const created = await prisma.group.create({
+      data: group,
+    });
+    createdGroups[group.code] = created;
+    console.log(`  ✅ Created group: ${group.name} (${group.code})`);
+  }
+
+  console.log(`✅ Created ${groups.length} groups`);
 
   // Create Orange Group workspaces
   const orangeGroup = await prisma.workspace.create({
@@ -109,7 +166,7 @@ async function main() {
     },
   });
 
-  // Create users with new model structure
+  // Create users with new model structure (with groups)
   const users = await Promise.all([
     prisma.user.create({
       data: {
@@ -119,9 +176,12 @@ async function main() {
         displayName: 'Alice J.',
         position: 'Process Manager',
         departmentId: itDepartment.id,
+        groupId: createdGroups.IT.id,
+        provider: 'local',
         isActive: true,
         emailVerified: true,
         hashedPassword,
+        isAdmin: true, // Alice is admin
       },
     }),
     prisma.user.create({
@@ -131,6 +191,8 @@ async function main() {
         lastName: 'Smith',
         position: 'IT Director',
         departmentId: itDepartment.id,
+        groupId: createdGroups.IT.id,
+        provider: 'local',
         isActive: true,
         emailVerified: true,
         hashedPassword,
@@ -143,12 +205,16 @@ async function main() {
         lastName: 'Brown',
         position: 'HR Manager',
         departmentId: hrDepartment.id,
+        groupId: createdGroups.RH.id,
+        provider: 'local',
         isActive: true,
         emailVerified: true,
         hashedPassword,
       },
     }),
   ]);
+
+  console.log(`✅ Created ${users.length} users with groups assigned`);
 
   // Create workspace members
   await Promise.all([

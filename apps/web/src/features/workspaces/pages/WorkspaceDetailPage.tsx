@@ -1,6 +1,7 @@
 import { useParams, useNavigate } from '@tanstack/react-router'
 import { ArrowLeft, Building2, Plus, Users, FileText, Heading4Icon } from 'lucide-react'
-import { Button, Heading1, Heading3, Body, BodySmall, Caption, Text, Heading2 } from '@repo/ui'
+import { Button, Heading1, Heading3, Body, BodySmall, Caption } from '@repo/ui'
+import { PageWrapper } from '../../../components/layout/PageWrapper'
 import { ProcessCard } from '../../processes/components/ProcessCard'
 import { useWorkspace } from '../hooks/useWorkspaces'
 import { useProcesses } from '../../processes/hooks/useProcesses'
@@ -105,41 +106,23 @@ export default function WorkspaceDetailPage() {
   const processes = processesData?.data || []
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-start justify-between">
-        <div className="flex items-start gap-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate({ to: '/workspaces' })}
-            className="mt-1"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <div>
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-3 bg-orange-100 rounded-lg">
-                <Building2 className="w-6 h-6 text-orange-600" />
-              </div>
-              <div>
-                <Heading1 className="text-gray-900">{workspace.name}</Heading1>
-                <Caption className="font-mono">{workspace.code}</Caption>
-              </div>
-            </div>
-            {workspace.description && (
-              <Body className="text-gray-600 mt-2 ml-16">{workspace.description}</Body>
-            )}
-          </div>
-        </div>
+    <PageWrapper
+      title={workspace.name}
+      description={workspace.description || `Code: ${workspace.code} | Type: ${workspace.type}`}
+      breadcrumbs={[
+        { label: 'Workspaces', href: '/workspaces', icon: <Building2 className="w-4 h-4" /> },
+        { label: workspace.name, icon: <Building2 className="w-4 h-4" /> },
+      ]}
+      actions={
         <Button
           onClick={() => setIsCreateDialogOpen(true)}
-          className="bg-orange-600 hover:bg-orange-700 text-white"
+          className="bg-orange-600 hover:bg-orange-700"
         >
           <Plus className="w-4 h-4 mr-2" />
-          <Body as="span">Nouveau processus</Body>
+          Nouveau processus
         </Button>
-      </div>
+      }
+    >
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -278,7 +261,7 @@ export default function WorkspaceDetailPage() {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageWrapper>
   )
 }
 

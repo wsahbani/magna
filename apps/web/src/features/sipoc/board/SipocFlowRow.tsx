@@ -139,7 +139,7 @@ const ConnectionLinks: React.FC<ConnectionLinksProps> = ({ targetSipocs, connect
             className="w-full flex items-center gap-1 group/link"
           >
             <button
-              onClick={() => navigate({ to: '/processes/sipoc/$id', params: { id:sipocId } })}
+              onClick={() => navigate({ to: '/processes/sipoc/$id', params: { id:sipocId } ,search :{sipoc :true} })}
               className="flex-1 flex items-center gap-1.5 px-2 py-1 text-xs rounded border border-blue-200 bg-blue-50 hover:bg-blue-100 hover:border-blue-300 transition-all"
             >
               <Link2 className="w-3 h-3 text-blue-600 flex-shrink-0" />

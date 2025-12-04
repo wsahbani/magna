@@ -215,4 +215,60 @@ export class AuthService {
       role: 'INTERNE', // TODO: Get from actual user role/workspace role
     };
   }
+
+  /**
+   * Get OIDC profile with stored tokens
+   */
+  async getOidcProfile(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: { group: true, department: true },
+    });
+
+    if (!user || user.provider !== 'orange-openid') {
+      throw new Error('User not found or not an OIDC user');
+    }
+
+    const providerData = user.providerData as any;
+    return {
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        orangeId: user.orangeId,
+        group: user.group,
+      },
+      oidcProfile: providerData?.profile || {},
+      tokens: providerData?.tokens || {},
+    };
+  }
+
+  /**
+   * Refresh OIDC tokens (placeholder - implement token refresh logic)
+   */
+  async refreshOidcTokens(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user || user.provider !== 'orange-openid') {
+      throw new Error('User not found or not an OIDC user');
+    }
+
+    const providerData = user.providerData as any;
+    const refreshToken = providerData?.tokens?.refreshToken;
+
+    if (!refreshToken) {
+      throw new Error('No refresh token available');
+    }
+
+    // TODO: Implement actual token refresh with OIDC provider
+    // This is a placeholder - you need to call the token endpoint with refresh_token
+    
+    return {
+      message: 'Token refresh not implemented yet',
+      refreshToken,
+    };
+  }
 }

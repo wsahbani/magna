@@ -9,7 +9,9 @@ import FlowDetailPage from './features/processes/pages/FlowDetailPage'
 import SipocDetailPage from './features/processes/pages/SipocDetailPage'
 import BpmnDetailPage from './features/processes/pages/BpmnDetailPage'
 import FipDetailPage from './features/fip/pages/FipDetailPage'
-import { SipocListPage, SipocEditor } from './features/sipoc'
+import { SipocListPage } from './features/sipoc'
+import { UsersPage } from './features/users'
+import { GroupsPage } from './features/groups/pages/GroupsPage'
 
 // Check if user is authenticated
 const isAuthenticated = () => {
@@ -177,6 +179,38 @@ const fipDetailRoute = createRoute({
   ),
 })
 
+// Users route - protected route (Admin only in backend)
+const usersRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/users',
+  beforeLoad: () => {
+    if (!isAuthenticated()) {
+      throw redirect({ to: '/login' })
+    }
+  },
+  component: () => (
+    <AdminLayout>
+      <UsersPage />
+    </AdminLayout>
+  ),
+})
+
+// Groups route - protected route (Admin only in backend)
+const groupsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/groups',
+  beforeLoad: () => {
+    if (!isAuthenticated()) {
+      throw redirect({ to: '/login' })
+    }
+  },
+  component: () => (
+    <AdminLayout>
+      <GroupsPage />
+    </AdminLayout>
+  ),
+})
+
 // Create route tree
 const routeTree = rootRoute.addChildren([
   loginRoute,
@@ -189,6 +223,8 @@ const routeTree = rootRoute.addChildren([
   bpmnDetailRoute,
   sipocListRoute,
   fipDetailRoute,
+  usersRoute,
+  groupsRoute,
 ])
 
 // Create and export router instance

@@ -42,7 +42,7 @@ var DialogContent = React.forwardRef(function (_a, ref) {
 DialogContent.displayName = DialogPrimitive.Content.displayName;
 var DialogHeader = function (_a) {
     var className = _a.className, props = __rest(_a, ["className"]);
-    return (_jsx("div", __assign({ className: cn("flex flex-col space-y-1.5 text-center sm:text-left", className) }, props)));
+    return (_jsx("div", __assign({ className: cn("flex flex-col space-y-1.5 text-center sm:text-left bg-black", className) }, props)));
 };
 DialogHeader.displayName = "DialogHeader";
 var DialogFooter = function (_a) {

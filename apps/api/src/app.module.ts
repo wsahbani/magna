@@ -7,6 +7,8 @@ import { AuthModule } from './modules/auth/auth.module';
 import { WorkspaceModule } from './modules/workspace/workspace.module';
 import { SipocModule } from './modules/sipoc/sipoc.module';
 import { FipModule } from './modules/fip/fip.module';
+import { UsersModule } from './modules/users/users.module';
+import { GroupsModule } from './modules/groups/groups.module';
 import { PrismaModule } from './database/prisma.module';
 import { ConfigModule } from '@nestjs/config';
 @Module({
@@ -14,7 +16,15 @@ import { ConfigModule } from '@nestjs/config';
     ConfigModule.forRoot({
       isGlobal: true,
     }),
-    PrismaModule,AuthModule, ProcessModule, WorkspaceModule, SipocModule, FipModule],
+    PrismaModule,
+    AuthModule,
+    ProcessModule,
+    WorkspaceModule,
+    SipocModule,
+    FipModule,
+    UsersModule,
+    GroupsModule,
+  ],
   controllers: [AppController],
   providers: [AppService, PrismaService],
 })

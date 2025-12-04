@@ -3,6 +3,8 @@ export { Button, buttonVariants } from "./components/ui/button"
 export { Input } from "./components/ui/input"
 export { Textarea } from "./components/ui/textarea"
 export { Label } from "./components/ui/label"
+export { Badge, badgeVariants } from "./components/ui/badge"
+export { Switch } from "./components/ui/switch"
 export {
   Select,
   SelectGroup,
@@ -56,6 +58,10 @@ export {
   GatewayNode,
   nodeTypes 
 } from "./components/reactflow-nodes"
+
+// Form Components with Validation
+export { ValidatedInput } from "./components/validated-input"
+export { ValidatedSelect } from "./components/validated-select"
 
 // Utilities
 export { cn } from "./lib/utils"
