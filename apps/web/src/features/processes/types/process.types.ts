@@ -34,9 +34,14 @@ export enum ProcessType {
 
 export interface Process {
   id: string
-  name: string
-  description?: string
+  macroId?: string // Nouveau : relation vers MacroProcess
   code: string
+  title: string // Nouveau : titre Qualigram
+  name: string // Conservé pour compatibilité
+  description?: string
+  objectif?: string // Nouveau
+  perimetre?: string // Nouveau
+  finalite?: string // Nouveau
   level: ProcessLevel
   type: ProcessType
   status: ProcessStatus
@@ -48,8 +53,17 @@ export interface Process {
   createdAt: string
   updatedAt: string
   publishedAt?: string
+  approvalDate?: string // Nouveau
+  nextReviewDate?: string // Nouveau
+  reviewFrequency?: number // Nouveau
   parent?: Process
   children?: Process[]
+  macro?: {
+    id: string
+    name: string
+    code: string
+    color?: string
+  }
   workspace?: {
     id: string
     name: string
@@ -66,6 +80,10 @@ export interface Process {
     nodes: number
     edges: number
     versions: number
+    actors: number
+    processIOs: number
+    processIndicators: number
+    processRisks: number
   }
 }
 
@@ -80,7 +98,7 @@ export interface ProcessNode {
     x: number
     y: number
   }
-  data?: any
+  data?: Record<string, unknown>
   role?: {
     id: string
     name: string
@@ -109,9 +127,14 @@ export interface ProcessVersion {
 }
 
 export interface CreateProcessDto {
-  name: string
-  description?: string
+  macroId?: string // Nouveau
   code: string
+  title: string // Nouveau
+  name?: string // Conservé pour compatibilité
+  description?: string
+  objectif?: string // Nouveau
+  perimetre?: string // Nouveau
+  finalite?: string // Nouveau
   level: ProcessLevel
   workspaceId?: string
   parentId?: string
@@ -136,6 +159,7 @@ export interface ProcessListParams {
   search?: string
   level?: ProcessLevel
   status?: ProcessStatus
+  macroId?: string // Nouveau : filtre par MacroProcess
   workspaceId?: string
   parentId?: string
 }
@@ -171,4 +195,64 @@ export interface FlowEdge {
   label?: string
   type?: string
   animated?: boolean
+}
+
+// Nouveaux types pour les métadonnées Qualigram
+export interface ProcessActor {
+  id: string
+  processId: string
+  name: string
+  type: 'ROLE' | 'DEPARTMENT' | 'EXTERNAL' | 'SYSTEM'
+  role?: string
+  responsibilities?: string
+  order: number
+}
+
+export interface ProcessIO {
+  id: string
+  processId: string
+  name: string
+  description?: string
+  type?: string
+  isInput: boolean
+  order: number
+}
+
+export interface Indicator {
+  id: string
+  processId: string
+  name: string
+  description?: string
+  formula?: string
+  target?: string
+  frequency?: string
+  unit?: string
+  order: number
+}
+
+export interface Risk {
+  id: string
+  processId: string
+  description: string
+  level: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
+  probability?: number
+  impact?: number
+  mitigation?: string
+  owner?: string
+  order: number
+}
+
+export interface LinkedDocument {
+  id: string
+  processId?: string
+  procedureId?: string
+  name: string
+  reference?: string
+  type: 'INPUT' | 'OUTPUT' | 'REFERENCE' | 'TEMPLATE' | 'RECORD'
+  url?: string
+  filePath?: string
+  version?: string
+  order: number
+  createdAt: string
+  updatedAt: string
 }

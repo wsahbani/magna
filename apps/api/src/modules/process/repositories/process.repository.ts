@@ -19,8 +19,22 @@ export class ProcessRepository {
     return this.prisma.process.findUnique({
       where: { id },
       include: {
-        parent: true,
-        children: true,
+        processMap: {
+          select: {
+            id: true,
+            title: true,
+            code: true,
+          },
+        },
+        procedures: {
+          select: {
+            id: true,
+            title: true,
+            code: true,
+            status: true,
+          },
+          take: 10,
+        },
         createdBy: {
           select: {
             id: true,
@@ -30,17 +44,23 @@ export class ProcessRepository {
             email: true,
           },
         },
-        versions: {
-          take: 5,
-          orderBy: { version: 'desc' },
+        flowDiagram: {
+          select: {
+            id: true,
+            level: true,
+            nodes: { select: { id: true } },
+            edges: { select: { id: true } },
+          },
         },
-        currentDraft: true,
-        currentPublished: true,
         _count: {
           select: {
+            procedures: true,
             comments: true,
             assignments: true,
-            versions: true,
+            actors: true,
+            processIOs: true,
+            processIndicators: true,
+            processRisks: true,
           },
         },
       },
@@ -54,15 +74,15 @@ export class ProcessRepository {
     
     if (query.type) where.type = query.type;
     if (query.status) where.status = query.status;
-    if (query.level) where.level = query.level;
-    if (query.parentId) where.parentId = query.parentId;
+    if (query.processMapId) where.processMapId = query.processMapId;
     if (query.createdById) where.createdById = query.createdById;
-    if (query.workspaceId) where.workspaceId = query.workspaceId
+    if (query.workspaceId) where.workspaceId = query.workspaceId;
+    
     if (query.search) {
       where.OR = [
-        { name: { contains: query.search, mode: 'insensitive' } },
+        { title: { contains: query.search, mode: 'insensitive' } },
         { description: { contains: query.search, mode: 'insensitive' } },
-        { authorName: { contains: query.search, mode: 'insensitive' } },
+        { code: { contains: query.search, mode: 'insensitive' } },
       ];
     }
 
@@ -76,18 +96,18 @@ export class ProcessRepository {
           email: true,
         },
       },
-      parent: {
+      processMap: {
         select: {
           id: true,
-          name: true,
-          type: true,
+          title: true,
+          code: true,
         },
       },
       _count: {
         select: {
-          children: true,
-          versions: true,
+          procedures: true,
           comments: true,
+          assignments: true,
         },
       },
     };
@@ -108,35 +128,39 @@ export class ProcessRepository {
     return new PaginatedResponse(data, total, query.page, query.limit);
   }
 
-  async findByNameAndVersion(name: string, version: number): Promise<ProcessEntity | null> {
-    return this.prisma.process.findFirst({
-      where: { name, version },
+  async findByCodeAndProcessMap(code: string, processMapId: string): Promise<ProcessEntity | null> {
+    return this.prisma.process.findUnique({
+      where: {
+        processMapId_code: {
+          processMapId,
+          code,
+        },
+      },
     });
   }
 
-  async findRootProcesses(): Promise<any[]> {
+  async findProcessesByProcessMap(processMapId: string): Promise<any[]> {
     return this.prisma.process.findMany({
       where: {
-        parentId: null,
-        level: 1,
+        processMapId,
       },
       include: {
-        children: {
+        procedures: {
           select: {
             id: true,
-            name: true,
-            type: true,
-            level: true,
+            title: true,
+            code: true,
+            status: true,
           },
         },
         _count: {
           select: {
-            children: true,
+            procedures: true,
           },
         },
       },
       orderBy: {
-        name: 'asc',
+        code: 'asc',
       },
     });
   }
@@ -159,26 +183,35 @@ export class ProcessRepository {
   }
 
   async updateStatus(id: string, status: ProcessStatus): Promise<ProcessEntity> {
+    const updateData: any = {
+      status,
+    };
+
+    if (status === ProcessStatus.PUBLISHED) {
+      updateData.publishedAt = new Date();
+    }
+    if (status === ProcessStatus.ARCHIVED) {
+      updateData.archivedAt = new Date();
+    }
+
     return this.prisma.process.update({
       where: { id },
-      data: {
-        status,
-        modifiedAt: new Date(),
-        ...(status === ProcessStatus.PUBLISHED && { publishedAt: new Date() }),
-        ...(status === ProcessStatus.ARCHIVED && { archivedAt: new Date() }),
-      },
+      data: updateData,
     });
   }
 
-  async getProcessHierarchy(rootId: string): Promise<ProcessWithRelations | null> {
-    return this.prisma.process.findUnique({
-      where: { id: rootId },
+  async getProcessHierarchy(processMapId: string): Promise<any> {
+    return this.prisma.processMap.findUnique({
+      where: { id: processMapId },
       include: {
-        children: {
+        processes: {
           include: {
-            children: {
-              include: {
-                children: true, // Support up to 4 levels deep
+            procedures: {
+              select: {
+                id: true,
+                title: true,
+                code: true,
+                status: true,
               },
             },
           },

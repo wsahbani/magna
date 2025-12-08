@@ -1,0 +1,574 @@
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { PrismaService } from '../../../database/prisma.service';
+import { SaveNodeDto, SaveEdgeDto, FlowAction } from '../../process/dto/save-flow.dto';
+import { SaveProcessMapFlowDto } from '../dto/save-process-map-flow.dto';
+import { FlowNodeType } from '@prisma/client';
+import { ProcessService } from '../../process/services/process.service';
+import { DiagramService } from '../../procedure/services/diagram.service';
+
+/**
+ * ProcessMap Flow Service
+ * Handles saving and retrieving ReactFlow diagrams for ProcessMap (level 1)
+ * Automatically creates Process entities when PROCESS_NODE is dropped
+ */
+@Injectable()
+export class ProcessMapFlowService {
+  private readonly logger = new Logger(ProcessMapFlowService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly processService: ProcessService,
+    private readonly diagramService: DiagramService,
+  ) {}
+
+  /**
+   * Get flow diagram for a ProcessMap (level 1)
+   */
+  async getFlow(processMapId: string) {
+    this.logger.log(`Getting flow for ProcessMap: ${processMapId}`);
+
+    const processMap = await this.prisma.processMap.findUnique({
+      where: { id: processMapId },
+    });
+
+    if (!processMap) {
+      throw new NotFoundException(`ProcessMap ${processMapId} not found`);
+    }
+
+    // Get FlowDiagram for this ProcessMap (level 1)
+    const flowDiagram = await this.prisma.flowDiagram.findFirst({
+      where: {
+        processMapId,
+        level: 1,
+      },
+      include: {
+        nodes: true,
+        edges: true,
+      },
+    });
+
+    if (!flowDiagram) {
+      // Return empty flow if no diagram exists yet
+      return {
+        processMapId,
+        diagramId: null,
+        nodes: [],
+        edges: [],
+      };
+    }
+    
+    return {
+      processMapId,
+      diagramId: flowDiagram.id,
+      nodes: flowDiagram.nodes.map(this.mapFlowNodeToReactFlow),
+      edges: flowDiagram.edges.map(this.mapFlowEdgeToReactFlow),
+    };
+  }
+
+  /**
+   * Save flow diagram for ProcessMap (level 1)
+   * Automatically creates Process entities when PROCESS_NODE is dropped
+   */
+  async saveFlow(saveFlowDto: SaveProcessMapFlowDto, userId: string) {
+    this.logger.log(`Saving flow for ProcessMap: ${saveFlowDto.processMapId}`);
+
+    if (!saveFlowDto.processMapId) {
+      throw new NotFoundException('processMapId is required');
+    }
+
+    const processMap = await this.prisma.processMap.findUnique({
+      where: { id: saveFlowDto.processMapId },
+    });
+
+    if (!processMap) {
+      throw new NotFoundException(`ProcessMap ${saveFlowDto.processMapId} not found`);
+    }
+
+    // Get or create FlowDiagram for this ProcessMap (level 1)
+    let flowDiagram = await this.prisma.flowDiagram.findFirst({
+      where: {
+        processMapId: saveFlowDto.processMapId,
+        level: 1,
+      },
+    });
+
+    if (!flowDiagram) {
+      flowDiagram = await this.prisma.flowDiagram.create({
+        data: {
+          level: 1,
+          processId: saveFlowDto.processMapId,
+          processMapId: saveFlowDto.processMapId,
+        },
+      });
+    }
+
+    // Save in transaction to ensure consistency
+    return await this.prisma.$transaction(async (tx) => {
+      // Get all existing nodes and edges from database
+      const existingNodes = await tx.flowNode.findMany({
+        where: { diagramId: flowDiagram.id },
+        select: { rfId: true, id: true },
+      });
+      const existingEdges = await tx.flowEdge.findMany({
+        where: { diagramId: flowDiagram.id },
+        select: { rfId: true, id: true },
+      });
+
+      // Create maps for quick lookup
+      const existingRfIds = new Set(existingNodes.map((n) => n.rfId));
+      const rfIdToDbId = new Map(existingNodes.map((n) => [n.rfId, n.id]));
+      const existingEdgeRfIds = new Set(existingEdges.map((e) => e.rfId));
+      const edgeRfIdToDbId = new Map(existingEdges.map((e) => [e.rfId, e.id]));
+
+      // Get rfIds from incoming nodes and edges
+      const incomingNodeRfIds = new Set(
+        saveFlowDto.nodes.filter((n) => n.id).map((n) => n.id!),
+      );
+      const incomingEdgeRfIds = new Set(
+        saveFlowDto.edges.filter((e) => e.id).map((e) => e.id!),
+      );
+
+      // Detect nodes to delete: present in DB but not in incoming data
+      // OR explicitly marked with DELETE action
+      const nodesToDeleteRfIds = new Set<string>();
+      
+      // Add nodes explicitly marked for deletion
+      saveFlowDto.nodes
+        .filter((n) => n.action === FlowAction.DELETE && n.id)
+        .forEach((n) => nodesToDeleteRfIds.add(n.id!));
+      
+      // Add nodes that exist in DB but are not in incoming data (implicit deletion)
+      existingNodes.forEach((node) => {
+        if (!incomingNodeRfIds.has(node.rfId)) {
+          nodesToDeleteRfIds.add(node.rfId);
+        }
+      });
+
+      // Detect edges to delete: present in DB but not in incoming data
+      // OR explicitly marked with DELETE action
+      const edgesToDeleteRfIds = new Set<string>();
+      
+      // Add edges explicitly marked for deletion
+      saveFlowDto.edges
+        .filter((e) => e.action === FlowAction.DELETE && e.id)
+        .forEach((e) => edgesToDeleteRfIds.add(e.id!));
+      
+      // Add edges that exist in DB but are not in incoming data (implicit deletion)
+      existingEdges.forEach((edge) => {
+        if (!incomingEdgeRfIds.has(edge.rfId)) {
+          edgesToDeleteRfIds.add(edge.rfId);
+        }
+      });
+
+      // Delete nodes that are no longer in the flow
+      if (nodesToDeleteRfIds.size > 0) {
+        await tx.flowNode.deleteMany({
+          where: {
+            diagramId: flowDiagram.id,
+            rfId: { in: Array.from(nodesToDeleteRfIds) },
+          },
+        });
+        this.logger.log(`Deleted ${nodesToDeleteRfIds.size} nodes from flow`);
+      }
+
+      // Delete edges that are no longer in the flow
+      if (edgesToDeleteRfIds.size > 0) {
+        await tx.flowEdge.deleteMany({
+          where: {
+            diagramId: flowDiagram.id,
+            rfId: { in: Array.from(edgesToDeleteRfIds) },
+          },
+        });
+        this.logger.log(`Deleted ${edgesToDeleteRfIds.size} edges from flow`);
+      }
+
+      // Filter out deleted nodes/edges from processing
+      const nodesToProcess = saveFlowDto.nodes.filter(
+        (n) => !n.id || !nodesToDeleteRfIds.has(n.id),
+      );
+      const edgesToProcess = saveFlowDto.edges.filter(
+        (e) => !e.id || !edgesToDeleteRfIds.has(e.id),
+      );
+
+      // Process nodes by action (excluding deleted ones)
+      const nodesToAdd = nodesToProcess.filter(
+        (n) =>
+          n.action === FlowAction.ADD ||
+          (!n.action && (!n.id || !existingRfIds.has(n.id))),
+      );
+      const nodesToUpdate = nodesToProcess.filter(
+        (n) =>
+          n.action === FlowAction.EDIT ||
+          (!n.action && n.id && existingRfIds.has(n.id) && !nodesToDeleteRfIds.has(n.id)),
+      );
+
+      // Create new nodes - auto-create Process if PROCESS_NODE
+      const nodeRfIdMapping: Record<string, string> = {};
+      const createdNodesWithMapping = await Promise.all(
+        nodesToAdd.map(async (node) => {
+          const rfId = node.id || `node-${Date.now()}-${Math.random()}`;
+          
+          // Auto-create Process if mainProcess, supportProcess, or managementProcess is dropped
+          let referencedEntityId: string | undefined;
+          if (
+            node.type === 'PROCESS_NODE' || 
+            node.type === 'process' ||
+            node.type === 'mainProcess' ||
+            node.type === 'supportProcess' ||
+            node.type === 'managementProcess'
+          ) {
+            try {
+              const newProcess = await this.processService.create(
+                {
+                  code: `PROC-${Date.now()}`,
+                  title: node.label || 'Nouveau Processus',
+                  description: node.data?.description || node.description,
+                  processMapId: saveFlowDto.processMapId!,
+                  workspaceId: processMap.workspaceId,
+                  departmentId: processMap.departmentId || undefined,
+                },
+                userId,
+              );
+              referencedEntityId = newProcess.id;
+            } catch (error) {
+              this.logger.error(`Failed to auto-create Process for node ${rfId}:`, error);
+              // Continue without referenced entity
+            }
+          }
+
+          const created = await this.createFlowNode(
+            tx,
+            flowDiagram.id,
+            node,
+            rfId,
+            referencedEntityId,
+          );
+          if (node.id && node.id !== rfId) {
+            nodeRfIdMapping[node.id] = created.rfId;
+          }
+          return created;
+        }),
+      );
+
+      // Update existing nodes
+      const updatedNodes = await Promise.all(
+        nodesToUpdate.map(async (node) => {
+          const dbId = rfIdToDbId.get(node.id!);
+          if (!dbId) {
+            throw new NotFoundException(`Node with rfId "${node.id}" not found`);
+          }
+          return this.updateFlowNode(tx, dbId, node);
+        }),
+      );
+
+      // Process edges by action (excluding deleted ones)
+      const edgesToAdd = edgesToProcess.filter(
+        (e) =>
+          e.action === FlowAction.ADD ||
+          (!e.action && (!e.id || !existingEdgeRfIds.has(e.id))),
+      );
+      const edgesToUpdate = edgesToProcess.filter(
+        (e) =>
+          e.action === FlowAction.EDIT ||
+          (!e.action && e.id && existingEdgeRfIds.has(e.id) && !edgesToDeleteRfIds.has(e.id)),
+      );
+
+      // Create new edges - update source/target rfIds if they were remapped
+      const createdEdgesWithMapping = await Promise.all(
+        edgesToAdd.map(async (edge) => {
+          const rfId = edge.id || `edge-${Date.now()}-${Math.random()}`;
+          const updatedEdge = {
+            ...edge,
+            source: nodeRfIdMapping[edge.source] || edge.source,
+            target: nodeRfIdMapping[edge.target] || edge.target,
+          };
+          return await this.createFlowEdge(tx, flowDiagram.id, updatedEdge, rfId);
+        }),
+      );
+
+      // Update existing edges
+      const updatedEdges = await Promise.all(
+        edgesToUpdate.map((edge) => {
+          const dbId = edgeRfIdToDbId.get(edge.id!);
+          if (!dbId) {
+            throw new NotFoundException(`Edge with rfId "${edge.id}" not found`);
+          }
+          const updatedEdge = {
+            ...edge,
+            source: nodeRfIdMapping[edge.source] || edge.source,
+            target: nodeRfIdMapping[edge.target] || edge.target,
+          };
+          return this.updateFlowEdge(tx, dbId, updatedEdge);
+        }),
+      );
+
+      const allNodes = [...createdNodesWithMapping, ...updatedNodes];
+      const allEdges = [...createdEdgesWithMapping, ...updatedEdges];
+
+      this.logger.log(
+        `Flow saved: ${allNodes.length} nodes (${createdNodesWithMapping.length} new, ${updatedNodes.length} updated, ${nodesToDeleteRfIds.size} deleted), ` +
+          `${allEdges.length} edges (${createdEdgesWithMapping.length} new, ${updatedEdges.length} updated, ${edgesToDeleteRfIds.size} deleted)`,
+      );
+
+      return {
+        diagramId: flowDiagram.id,
+        nodesCount: allNodes.length,
+        edgesCount: allEdges.length,
+      };
+    });
+  }
+
+  /**
+   * Create a FlowNode in the database
+   */
+  private async createFlowNode(
+    tx: any,
+    diagramId: string,
+    node: SaveNodeDto,
+    rfId: string,
+    referencedEntityId?: string,
+  ) {
+    const flowNodeType = this.mapNodeTypeToFlowNodeType(node.type);
+
+    return tx.flowNode.create({
+      data: {
+        diagramId,
+        rfId,
+        type: flowNodeType,
+        label: node.label,
+        position: {
+          x: node.positionX,
+          y: node.positionY,
+        },
+        entityType: referencedEntityId ? 'PROCESS' : undefined,
+        referencedEntityId,
+        data: {
+          originalType: node.type, // Store original node type for ReactFlow mapping
+          description: node.description,
+          width: node.width,
+          height: node.height,
+          zIndex: node.zIndex,
+          parentNodeId: node.data?.parentNode || node.parentNodeId, // Store parentNode from ReactFlow
+          groupId: node.groupId,
+          sourcePosition: node.sourcePosition,
+          targetPosition: node.targetPosition,
+          isConnectable: node.isConnectable ?? true,
+          isDraggable: node.isDraggable ?? true,
+          isSelectable: node.isSelectable ?? true,
+          style: node.style,
+          ...(node.data || {}),
+        },
+      },
+    });
+  }
+
+  /**
+   * Update an existing FlowNode in the database
+   */
+  private async updateFlowNode(tx: any, nodeId: string, node: SaveNodeDto) {
+    const flowNodeType = this.mapNodeTypeToFlowNodeType(node.type);
+
+    // Get existing node to preserve dimensions if not provided
+    const existingNode = await tx.flowNode.findUnique({
+      where: { id: nodeId },
+      select: { data: true },
+    });
+
+    const existingData = (existingNode?.data as any) || {};
+
+    return tx.flowNode.update({
+      where: { id: nodeId },
+      data: {
+        type: flowNodeType,
+        label: node.label,
+        position: {
+          x: node.positionX,
+          y: node.positionY,
+        },
+        data: {
+          originalType: node.type, // Store original node type for ReactFlow mapping
+          description: node.description,
+          // Preserve width/height if provided, otherwise keep existing values
+          width: node.width !== undefined && node.width !== null ? node.width : (node.data?.width ?? existingData.width),
+          height: node.height !== undefined && node.height !== null ? node.height : (node.data?.height ?? existingData.height),
+          zIndex: node.zIndex,
+          parentNodeId: node.data?.parentNode || node.parentNodeId, // Store parentNode from ReactFlow
+          groupId: node.groupId,
+          sourcePosition: node.sourcePosition,
+          targetPosition: node.targetPosition,
+          isConnectable: node.isConnectable ?? true,
+          isDraggable: node.isDraggable ?? true,
+          isSelectable: node.isSelectable ?? true,
+          style: node.style,
+          ...(node.data || {}),
+        },
+      },
+    });
+  }
+
+  /**
+   * Create a FlowEdge in the database
+   */
+  private async createFlowEdge(
+    tx: any,
+    diagramId: string,
+    edge: SaveEdgeDto,
+    rfId: string,
+  ) {
+    return tx.flowEdge.create({
+      data: {
+        diagramId,
+        rfId,
+        sourceRfId: edge.source,
+        targetRfId: edge.target,
+        label: edge.label,
+        condition: edge.data?.condition,
+        data: {
+          type: edge.type || 'SEQUENCE_FLOW',
+          animated: edge.animated ?? false,
+          pathType: edge.pathType || 'SMOOTH_STEP',
+          sourceHandle: edge.sourceHandle,
+          targetHandle: edge.targetHandle,
+          style: edge.style,
+          ...(edge.data || {}),
+        },
+      },
+    });
+  }
+
+  /**
+   * Update an existing FlowEdge in the database
+   */
+  private async updateFlowEdge(tx: any, edgeId: string, edge: SaveEdgeDto) {
+    return tx.flowEdge.update({
+      where: { id: edgeId },
+      data: {
+        sourceRfId: edge.source,
+        targetRfId: edge.target,
+        label: edge.label,
+        condition: edge.data?.condition,
+        data: {
+          type: edge.type || 'SEQUENCE_FLOW',
+          animated: edge.animated ?? false,
+          pathType: edge.pathType || 'SMOOTH_STEP',
+          sourceHandle: edge.sourceHandle,
+          targetHandle: edge.targetHandle,
+          style: edge.style,
+          ...(edge.data || {}),
+        },
+      },
+    });
+  }
+
+  /**
+   * Map database FlowNode to ReactFlow format
+   */
+  private mapFlowNodeToReactFlow(node: any) {
+    const nodeData = (node.data as any) || {};
+    const position = (node.position as any) || { x: 0, y: 0 };
+
+    // Use originalType if available (for Qualigram nodes), otherwise use the DB type
+    const reactFlowType = nodeData.originalType || node.type.toLowerCase();
+
+    // Restore width and height at the top level for ReactFlow NodeResizer
+    const reactFlowNode: any = {
+      id: node.rfId,
+      type: reactFlowType,
+      position: {
+        x: position.x || 0,
+        y: position.y || 0,
+      },
+      data: {
+        label: node.label,
+        description: nodeData.description,
+        processId: node.referencedEntityId,
+        width: nodeData.width,
+        height: nodeData.height,
+        zIndex: nodeData.zIndex,
+        parentNodeId: nodeData.parentNodeId,
+        groupId: nodeData.groupId,
+        sourcePosition: nodeData.sourcePosition,
+        targetPosition: nodeData.targetPosition,
+        isConnectable: nodeData.isConnectable ?? true,
+        isDraggable: nodeData.isDraggable ?? true,
+        isSelectable: nodeData.isSelectable ?? true,
+        style: nodeData.style || {},
+        ...nodeData,
+      },
+    };
+
+    // Restore width and height at top level if they exist (for NodeResizer)
+    if (nodeData.width !== undefined && nodeData.width !== null) {
+      reactFlowNode.width = nodeData.width;
+    }
+    if (nodeData.height !== undefined && nodeData.height !== null) {
+      reactFlowNode.height = nodeData.height;
+    }
+
+    // Restore parent-child relationship if parentNodeId exists
+    if (nodeData.parentNodeId) {
+      reactFlowNode.parentNode = nodeData.parentNodeId;
+      reactFlowNode.extent = 'parent';
+    }
+
+    return reactFlowNode;
+  }
+
+  /**
+   * Map database FlowEdge to ReactFlow format
+   */
+  private mapFlowEdgeToReactFlow(edge: any) {
+    const edgeData = (edge.data as any) || {};
+
+    return {
+      id: edge.rfId,
+      source: edge.sourceRfId,
+      target: edge.targetRfId,
+      type: edgeData.pathType?.toLowerCase() || 'smoothstep',
+      label: edge.label,
+      animated: edgeData.animated ?? false,
+      style: edgeData.style || {},
+      data: {
+        condition: edge.condition,
+        ...edgeData,
+      },
+    };
+  }
+
+  /**
+   * Map node type string to FlowNodeType enum
+   */
+  private mapNodeTypeToFlowNodeType(nodeType: string): FlowNodeType {
+    const upperType = nodeType.toUpperCase();
+
+    if (Object.values(FlowNodeType).includes(upperType as FlowNodeType)) {
+      return upperType as FlowNodeType;
+    }
+
+    const typeMap: Record<string, FlowNodeType> = {
+      // Legacy types
+      PROCESS_NODE: FlowNodeType.PROCESS,
+      PROCEDURE_NODE: FlowNodeType.PROCEDURE,
+      PROCESS: FlowNodeType.PROCESS,
+      PROCEDURE: FlowNodeType.PROCEDURE,
+      START_EVENT: FlowNodeType.START,
+      END_EVENT: FlowNodeType.END,
+      TASK: FlowNodeType.ACTION,
+      ACTIVITY: FlowNodeType.ACTION,
+      DECISION: FlowNodeType.DECISION,
+      SUBPROCESS: FlowNodeType.SUBFLOW,
+      // Qualigram types for ProcessMap (Level 1)
+      MAINPROCESS: FlowNodeType.PROCESS,
+      SUPPORTPROCESS: FlowNodeType.PROCESS,
+      MANAGEMENTPROCESS: FlowNodeType.PROCESS,
+      DOMAINGROUP: FlowNodeType.SUBFLOW, // Use SUBFLOW for domain groups (containers)
+      ACTORDEPARTMENT: FlowNodeType.ACTION,
+      EXTERNALENTITY: FlowNodeType.ACTION,
+      // Text/Title node
+      TEXT: FlowNodeType.ACTION, // Text nodes are treated as action nodes
+    };
+
+    return typeMap[upperType] || FlowNodeType.ACTION;
+  }
+}
+

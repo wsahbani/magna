@@ -12,6 +12,12 @@ import FipDetailPage from './features/fip/pages/FipDetailPage'
 import { SipocListPage } from './features/sipoc'
 import { UsersPage } from './features/users'
 import { GroupsPage } from './features/groups/pages/GroupsPage'
+import { MacroProcessListPage } from './features/macro-processes/pages/MacroProcessListPage'
+import ProcedureDetailPage from './features/procedures/pages/ProcedureDetailPage'
+import QualigramEditorPage from './features/qualigram/pages/QualigramEditorPage'
+import ProcessMapsPage from './features/process-map/pages/ProcessMapsPage'
+import ProcessMapDetailPage from './features/process-map/pages/ProcessMapDetailPage'
+import ProcessMapFlowEditorPage from './features/process-map/pages/ProcessMapFlowEditorPage'
 
 // Check if user is authenticated
 const isAuthenticated = () => {
@@ -211,6 +217,146 @@ const groupsRoute = createRoute({
   ),
 })
 
+// MacroProcess route - protected route
+const macroProcessesRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/macro-processes',
+  beforeLoad: () => {
+    if (!isAuthenticated()) {
+      throw redirect({ to: '/login' })
+    }
+  },
+  component: () => (
+    <AdminLayout>
+      <MacroProcessListPage />
+    </AdminLayout>
+  ),
+})
+
+// Procedure detail route - protected route
+const procedureDetailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/procedures/$id',
+  beforeLoad: () => {
+    if (!isAuthenticated()) {
+      throw redirect({ to: '/login' })
+    }
+  },
+  component: () => (
+    <AdminLayout>
+      <ProcedureDetailPage />
+    </AdminLayout>
+  ),
+})
+
+// ProcessMaps route - protected route
+const processMapsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/process-maps',
+  beforeLoad: () => {
+    if (!isAuthenticated()) {
+      throw redirect({ to: '/login' })
+    }
+  },
+  component: () => (
+    <AdminLayout>
+      <ProcessMapsPage />
+    </AdminLayout>
+  ),
+})
+
+// ProcessMap detail route - protected route
+const processMapDetailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/process-maps/$id',
+  beforeLoad: () => {
+    if (!isAuthenticated()) {
+      throw redirect({ to: '/login' })
+    }
+  },
+  component: () => (
+    <AdminLayout>
+      <ProcessMapDetailPage />
+    </AdminLayout>
+  ),
+})
+
+// ProcessMap Flow Editor route - protected route (full-screen, no layout)
+const processMapFlowEditorRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/process-maps/$id/flow',
+  beforeLoad: () => {
+    if (!isAuthenticated()) {
+      throw redirect({ to: '/login' })
+    }
+  },
+  component: () => <ProcessMapFlowEditorPage />,
+})
+
+// Qualigram Editor route - protected route
+const qualigramEditorRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/qualigram/editor',
+  beforeLoad: () => {
+    if (!isAuthenticated()) {
+      throw redirect({ to: '/login' })
+    }
+  },
+  component: () => (
+    <AdminLayout>
+      <QualigramEditorPage />
+    </AdminLayout>
+  ),
+})
+
+// Qualigram Editor with MacroProcess route
+const qualigramEditorWithMacroRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/qualigram/editor/$macroProcessId',
+  beforeLoad: () => {
+    if (!isAuthenticated()) {
+      throw redirect({ to: '/login' })
+    }
+  },
+  component: () => (
+    <AdminLayout>
+      <QualigramEditorPage />
+    </AdminLayout>
+  ),
+})
+
+// Qualigram Editor with Process route
+const qualigramEditorWithProcessRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/qualigram/editor/$macroProcessId/$processId',
+  beforeLoad: () => {
+    if (!isAuthenticated()) {
+      throw redirect({ to: '/login' })
+    }
+  },
+  component: () => (
+    <AdminLayout>
+      <QualigramEditorPage />
+    </AdminLayout>
+  ),
+})
+
+// Qualigram Editor with Procedure route
+const qualigramEditorWithProcedureRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/qualigram/editor/$macroProcessId/$processId/$procedureId',
+  beforeLoad: () => {
+    if (!isAuthenticated()) {
+      throw redirect({ to: '/login' })
+    }
+  },
+  component: () => (
+    <AdminLayout>
+      <QualigramEditorPage />
+    </AdminLayout>
+  ),
+})
+
 // Create route tree
 const routeTree = rootRoute.addChildren([
   loginRoute,
@@ -225,6 +371,15 @@ const routeTree = rootRoute.addChildren([
   fipDetailRoute,
   usersRoute,
   groupsRoute,
+  macroProcessesRoute,
+  procedureDetailRoute,
+  processMapsRoute,
+  processMapDetailRoute,
+  processMapFlowEditorRoute,
+  qualigramEditorRoute,
+  qualigramEditorWithMacroRoute,
+  qualigramEditorWithProcessRoute,
+  qualigramEditorWithProcedureRoute,
 ])
 
 // Create and export router instance

@@ -1,6 +1,7 @@
 import { Search } from 'lucide-react';
 import { Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@repo/ui';
 import type { ProcessLevel, ProcessStatus } from '../types/process.types';
+import { useMacroProcesses } from '../../macro-processes/hooks/useMacroProcesses';
 
 interface ProcessFiltersProps {
   search: string;
@@ -9,6 +10,8 @@ interface ProcessFiltersProps {
   onLevelChange: (value: ProcessLevel | 'all') => void;
   statusFilter: ProcessStatus | 'all';
   onStatusChange: (value: ProcessStatus | 'all') => void;
+  macroIdFilter?: string;
+  onMacroIdChange?: (value: string | undefined) => void;
 }
 
 export const ProcessFilters: React.FC<ProcessFiltersProps> = ({
@@ -18,7 +21,11 @@ export const ProcessFilters: React.FC<ProcessFiltersProps> = ({
   onLevelChange,
   statusFilter,
   onStatusChange,
+  macroIdFilter,
+  onMacroIdChange,
 }) => {
+  const { data: macroProcessesData } = useMacroProcesses({ active: true });
+  const macroProcesses = macroProcessesData?.data || [];
   const getLevelLabel = (level: ProcessLevel | 'all'): string => {
     if (level === 'all') return 'Tous les niveaux';
     switch (level) {
@@ -81,6 +88,31 @@ export const ProcessFilters: React.FC<ProcessFiltersProps> = ({
           <SelectItem value="ARCHIVED">Archivé</SelectItem>
         </SelectContent>
       </Select>
+
+      {/* MacroProcess Filter */}
+      {onMacroIdChange && (
+        <Select 
+          value={macroIdFilter || 'all'} 
+          onValueChange={(value) => onMacroIdChange(value === 'all' ? undefined : value)}
+        >
+          <SelectTrigger className="w-full md:w-[200px]">
+            <SelectValue>
+              {macroIdFilter 
+                ? macroProcesses.find((mp: { id: string; name: string }) => mp.id === macroIdFilter)?.name || 'Macro-Processus'
+                : 'Tous les macro-processus'
+              }
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tous les macro-processus</SelectItem>
+            {macroProcesses.map((mp: { id: string; name: string }) => (
+              <SelectItem key={mp.id} value={mp.id}>
+                {mp.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
     </div>
   );
 };

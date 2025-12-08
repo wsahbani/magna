@@ -4,16 +4,22 @@ import { Node, ReactFlowInstance } from '@xyflow/react'
 /**
  * Hook for handling node drag-and-drop into groups
  */
+interface NodeChange {
+  item: Node
+  type: string
+  id: string
+}
+
 export function useGroupDragDrop(
   nodes: Node[],
-  onNodesChange: (changes: any) => void,
+  onNodesChange: (changes: NodeChange[]) => void,
   reactFlowInstance: ReactFlowInstance | null
 ) {
   /**
    * Handle node drag stop - check if node should become child of a group
    */
   const handleNodeDragStop = useCallback(
-    (_event: any, node: Node) => {
+    (_event: React.DragEvent, node: Node) => {
       if (!reactFlowInstance) return
 
       // Find if node is dropped inside a group

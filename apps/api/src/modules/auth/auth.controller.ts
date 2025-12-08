@@ -62,7 +62,8 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'User profile retrieved' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getCurrentUser(@Request() req): Promise<UserResponse> {
-    return this.authService.getCurrentUser(req.user.sub);
+    const userId = (req.user as any)?.userId || (req.user as any)?.sub;
+    return this.authService.getCurrentUser(userId);
   }
 
   /**

@@ -10,42 +10,72 @@ import {
   Min,
   Max,
 } from 'class-validator';
-import { ProcessType } from '@prisma/client';
+import { ProcessType, ProcessPriority, ConfidentialityLevel } from '@prisma/client';
 
 export class CreateProcessDto {
   @IsNotEmpty()
   @IsString()
+  @IsUUID()
+  processMapId: string; // Relation vers ProcessMap (niveau 1)
+
+  @IsNotEmpty()
+  @IsString()
+  @MinLength(2)
+  @MaxLength(50)
+  code: string; // Code unique Qualigram
+
+  @IsNotEmpty()
+  @IsString()
   @MinLength(2)
   @MaxLength(200)
-  name: string;
+  title: string;
 
   @IsOptional()
   @IsString()
   @MaxLength(1000)
   description?: string;
 
+  @IsOptional()
+  @IsEnum(ProcessType)
+  type?: ProcessType; // FLOW ou SIPOC
+
   @IsNotEmpty()
   @IsString()
-  @MinLength(2)
-  @MaxLength(50)
-  code: string;
-
-  @IsNumber()
-  @Min(1)
-  @Max(3)
-  level: number;
+  @IsUUID()
+  workspaceId: string;
 
   @IsOptional()
   @IsString()
-  workspaceId?: string;
+  @IsUUID()
+  departmentId?: string;
 
   @IsOptional()
-  @IsUUID()
-  parentId?: string;
+  @IsString()
+  @MaxLength(1000)
+  objectif?: string; // Objectif du processus
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  perimetre?: string; // Périmètre d'application
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  finalite?: string; // Purpose/Goal
+
+  @IsOptional()
+  @IsEnum(ProcessPriority)
+  priority?: ProcessPriority;
+
+  @IsOptional()
+  @IsEnum(ConfidentialityLevel)
+  confidentiality?: ConfidentialityLevel;
 
   @IsOptional()
   @IsNumber()
-  version?: number;
+  @Min(1)
+  reviewFrequency?: number;
 
   @IsOptional()
   @IsString()

@@ -33,7 +33,7 @@ const initialState = {
   error: null,
 };
 
-export const useFipStore = create<FipState>((set, get) => ({
+export const useFipStore = create<FipState>((set) => ({
   ...initialState,
 
   // FIP actions
@@ -100,6 +100,7 @@ export const useFipStore = create<FipState>((set, get) => ({
     try {
       await fipApi.deleteFip(fipId);
       set((state) => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { [fipId]: _, ...remainingFips } = state.fips;
         return {
           fips: remainingFips,

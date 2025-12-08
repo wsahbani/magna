@@ -58,7 +58,7 @@ export const useLoadFlow = (processId: string | null, version?: number) => {
 export const useAutoSaveFlow = (processId: string | null, delay = 2000) => {
   const queryClient = useQueryClient()
   const saveTimeoutRef = useRef<number | undefined>(undefined)
-  const mutationRef = useRef<any>(null)
+  const mutationRef = useRef<ReturnType<typeof useMutation> | null>(null)
 
   const mutation = useMutation<SaveFlowResponse, Error, { nodes: Node[]; edges: Edge[] }>({
     mutationFn: ({ nodes, edges }) => {
@@ -121,6 +121,7 @@ export const useCreateProcessWithFlow = () => {
       edges: Edge[]
     }) => FlowService.createProcessWithFlow(processData, nodes, edges),
     onSuccess: () => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       // Invalidate processes list
       queryClient.invalidateQueries({ queryKey: ['processes'] })
     }

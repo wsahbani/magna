@@ -16,7 +16,7 @@ export interface GroupListParams {
 export interface AddPermissionDto {
   resource: string
   action: string
-  conditions?: any
+  conditions?: Record<string, unknown>
 }
 
 class GroupsApiService {

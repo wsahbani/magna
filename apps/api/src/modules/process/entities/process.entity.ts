@@ -3,16 +3,16 @@ import { Process, ProcessStatus, ProcessType, ProcessPriority, ConfidentialityLe
 export type ProcessEntity = Process;
 
 export interface ProcessWithRelations extends ProcessEntity {
-  parent?: {
+  processMap?: {
     id: string;
-    name: string;
-    type: ProcessType;
+    title: string;
+    code: string;
   };
-  children?: {
+  procedures?: {
     id: string;
-    name: string;
-    type: ProcessType;
-    level: number;
+    title: string;
+    code: string;
+    status: string;
   }[];
   createdBy?: {
     id: string;
@@ -21,13 +21,19 @@ export interface ProcessWithRelations extends ProcessEntity {
     displayName?: string;
     email: string;
   };
-  versions?: any[];
-  currentDraft?: any;
-  currentPublished?: any;
+  flowDiagram?: {
+    id: string;
+    level: number;
+    nodes?: { id: string }[];
+    edges?: { id: string }[];
+  };
   _count?: {
+    procedures: number;
     comments: number;
     assignments: number;
-    versions: number;
-    children?: number;
+    actors: number;
+    processIOs: number;
+    processIndicators: number;
+    processRisks: number;
   };
 }

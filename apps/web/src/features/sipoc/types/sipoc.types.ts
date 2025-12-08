@@ -156,7 +156,7 @@ export interface SipocHistory {
   changed_at: string;
   change_description?: string;
   change_type?: string;
-  previous_state?: any;
-  new_state?: any;
+  previous_state?: Record<string, unknown>;
+  new_state?: Record<string, unknown>;
 }
 

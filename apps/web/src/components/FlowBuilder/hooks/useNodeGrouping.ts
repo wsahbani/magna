@@ -1,12 +1,18 @@
 import { useCallback } from 'react'
-import { Node, ReactFlowInstance } from '@xyflow/react'
+import { Node } from '@xyflow/react'
+
+interface NodeChange {
+  item: Node
+  type: string
+  id: string
+}
 
 /**
  * Hook for managing node grouping and ungrouping
  */
 export function useNodeGrouping(
   nodes: Node[],
-  onNodesChange: (changes: any) => void,
+  onNodesChange: (changes: NodeChange[]) => void,
   groupCounter: number,
   setGroupCounter: (counter: number) => void
 ) {

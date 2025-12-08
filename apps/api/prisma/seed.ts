@@ -11,11 +11,15 @@ async function main() {
   console.log('🧹 Clearing existing data...');
   const tablesToTruncate = [
     'workspace_members',
-    'process_versions',
+    'flow_edges',
+    'flow_nodes',
+    'flow_diagrams',
+    'process_maps',
     'nodes',
     'edges',
     'node_templates',
     'process_themes',
+    'procedures',
     'processes',
     'departments',
     'workspaces',
@@ -241,67 +245,56 @@ async function main() {
     }),
   ]);
 
-  // Create sample processes with workspace
-  const mainProcess = await prisma.process.create({
+  // ====================================
+  // SEED PROCESSMAPS (Niveau 1)
+  // ====================================
+  console.log('🗺️ Seeding ProcessMaps...');
+
+  const processMap1 = await prisma.processMap.create({
     data: {
-      name: 'Customer Onboarding Process',
-      description: 'Complete process for onboarding new customers',
-      type: 'FLOW',
-      level: 1,
+      title: 'Carte des Processus IT',
+      code: 'MAP-IT-001',
+      description: 'Carte des processus du département IT',
+      status: 'PUBLISHED',
       workspaceId: orangeTunisie.id,
       departmentId: itDepartment.id,
       createdById: users[0].id,
-      status: 'PUBLISHED',
-      authorName: 'Alice Johnson',
       publishedAt: new Date(),
     },
   });
 
-  const subProcess1 = await prisma.process.create({
+  // Create FlowDiagram for ProcessMap (level=1)
+  await prisma.flowDiagram.create({
     data: {
-      name: 'Customer Data Collection',
-      description: 'Collect and validate customer information',
-      type: 'SIPOC',
-      level: 2,
-      parentId: mainProcess.id,
-      workspaceId: orangeTunisie.id,
-      departmentId: itDepartment.id,
-      createdById: users[1].id,
+      level: 1,
+      processId: processMap1.id,
+      processMapId: processMap1.id,
+    },
+  });
+
+  const processMap2 = await prisma.processMap.create({
+    data: {
+      title: 'Carte des Processus RH',
+      code: 'MAP-RH-001',
+      description: 'Carte des processus des ressources humaines',
       status: 'PUBLISHED',
-      authorName: 'Bob Smith',
-      publishedAt: new Date(),
-    },
-  });
-
-  const subProcess2 = await prisma.process.create({
-    data: {
-      name: 'Account Setup Procedure',
-      description: 'Set up customer account in system',
-      type: 'SIPOC',
-      level: 2,
-      parentId: mainProcess.id,
       workspaceId: orangeTunisie.id,
-      departmentId: itDepartment.id,
-      createdById: users[1].id,
-      status: 'APPROVED',
-      authorName: 'Bob Smith',
-    },
-  });
-
-  const instruction = await prisma.process.create({
-    data: {
-      name: 'Validate Customer ID Documents',
-      description: 'Step-by-step validation of customer identification',
-      type: 'BPMN',
-      level: 3,
-      parentId: subProcess1.id,
-      workspaceId: orangeTunisie.id,
-      departmentId: itDepartment.id,
+      departmentId: hrDepartment.id,
       createdById: users[2].id,
-      status: 'DRAFT',
-      authorName: 'Charlie Brown',
+      publishedAt: new Date(),
     },
   });
+
+  // Create FlowDiagram for ProcessMap (level=1)
+  await prisma.flowDiagram.create({
+    data: {
+      level: 1,
+      processId: processMap2.id,
+      processMapId: processMap2.id,
+    },
+  });
+
+  console.log(`  ✅ Created ${2} ProcessMaps with FlowDiagrams`);
 
   // Create ReactFlow node templates
   console.log('🎨 Creating node templates...');
@@ -413,11 +406,423 @@ async function main() {
     },
   });
 
+  // ====================================
+  // SEED QUALIGRAM DATA (ProcessMap → Process → Procedure)
+  // ====================================
+  console.log('📊 Seeding Qualigram data...');
+
+  // Create Processes (Niveau 2) linked to ProcessMaps
+  const process1 = await prisma.process.create({
+    data: {
+      code: 'PROC-RH-001',
+      title: 'Recrutement et Intégration',
+      description: 'Processus complet de recrutement et intégration des nouveaux collaborateurs',
+      type: 'FLOW',
+      processMapId: processMap2.id, // Linked to ProcessMap
+      workspaceId: orangeTunisie.id,
+      departmentId: hrDepartment.id,
+      createdById: users[2].id,
+      status: 'PUBLISHED',
+      publishedAt: new Date(),
+    },
+  });
+
+  // Create FlowDiagram for Process (level=2)
+  await prisma.flowDiagram.create({
+    data: {
+      level: 2,
+      processId: process1.id,
+      processId_ref: process1.id,
+    },
+  });
+
+  const process2 = await prisma.process.create({
+    data: {
+      code: 'PROC-RH-002',
+      title: 'Gestion des Carrières',
+      description: 'Processus de gestion des évolutions de carrière et formations',
+      type: 'FLOW',
+      processMapId: processMap2.id, // Linked to ProcessMap
+      workspaceId: orangeTunisie.id,
+      departmentId: hrDepartment.id,
+      createdById: users[2].id,
+      status: 'PUBLISHED',
+      publishedAt: new Date(),
+    },
+  });
+
+  // Create FlowDiagram for Process (level=2)
+  await prisma.flowDiagram.create({
+    data: {
+      level: 2,
+      processId: process2.id,
+      processId_ref: process2.id,
+    },
+  });
+
+  const process3 = await prisma.process.create({
+    data: {
+      code: 'PROC-IT-001',
+      title: 'Gestion des Incidents IT',
+      description: 'Processus de gestion et résolution des incidents informatiques',
+      type: 'FLOW',
+      processMapId: processMap1.id, // Linked to ProcessMap
+      workspaceId: orangeTunisie.id,
+      departmentId: itDepartment.id,
+      createdById: users[1].id,
+      status: 'PUBLISHED',
+      publishedAt: new Date(),
+    },
+  });
+
+  // Create FlowDiagram for Process (level=2)
+  await prisma.flowDiagram.create({
+    data: {
+      level: 2,
+      processId: process3.id,
+      processId_ref: process3.id,
+    },
+  });
+
+  const process4 = await prisma.process.create({
+    data: {
+      code: 'PROC-IT-002',
+      title: 'Gestion des Demandes IT',
+      description: 'Processus de gestion des demandes informatiques',
+      type: 'FLOW',
+      processMapId: processMap1.id, // Linked to ProcessMap
+      workspaceId: orangeTunisie.id,
+      departmentId: itDepartment.id,
+      createdById: users[1].id,
+      status: 'PUBLISHED',
+      publishedAt: new Date(),
+    },
+  });
+
+  // Create FlowDiagram for Process (level=2)
+  await prisma.flowDiagram.create({
+    data: {
+      level: 2,
+      processId: process4.id,
+      processId_ref: process4.id,
+    },
+  });
+
+  console.log(`  ✅ Created ${4} Processes (Niveau 2) with FlowDiagrams`);
+
+  // Create Procedures (Niveau 3) linked to Processes
+  const procedure1 = await prisma.procedure.create({
+    data: {
+      processId: process1.id,
+      code: 'PROC-RH-001-001',
+      title: 'Procédure de Recrutement',
+      description: 'Procédure détaillée pour le recrutement d\'un nouveau collaborateur',
+      objective: 'Recruter et intégrer efficacement de nouveaux collaborateurs',
+      scope: 'Tous les départements',
+      status: 'ACTIVE',
+      workspaceId: orangeTunisie.id,
+      departmentId: hrDepartment.id,
+      createdById: users[2].id,
+      effectiveDate: new Date(),
+    },
+  });
+
+  // Create FlowDiagram for Procedure (level=3)
+  await prisma.flowDiagram.create({
+    data: {
+      level: 3,
+      processId: procedure1.id,
+      procedureId: procedure1.id,
+    },
+  });
+
+  const procedure2 = await prisma.procedure.create({
+    data: {
+      processId: process1.id,
+      code: 'PROC-RH-001-002',
+      title: 'Procédure d\'Intégration',
+      description: 'Procédure d\'intégration des nouveaux collaborateurs',
+      objective: 'Faciliter l\'intégration des nouveaux collaborateurs',
+      scope: 'Ressources Humaines',
+      status: 'ACTIVE',
+      workspaceId: orangeTunisie.id,
+      departmentId: hrDepartment.id,
+      createdById: users[2].id,
+    },
+  });
+
+  // Create FlowDiagram for Procedure (level=3)
+  await prisma.flowDiagram.create({
+    data: {
+      level: 3,
+      processId: procedure2.id,
+      procedureId: procedure2.id,
+    },
+  });
+
+  const procedure3 = await prisma.procedure.create({
+    data: {
+      processId: process3.id,
+      code: 'PROC-IT-001-001',
+      title: 'Procédure de Traitement Incident',
+      description: 'Procédure détaillée pour traiter un incident IT',
+      objective: 'Résoudre les incidents dans les délais SLA',
+      scope: 'Service IT',
+      status: 'ACTIVE',
+      workspaceId: orangeTunisie.id,
+      departmentId: itDepartment.id,
+      createdById: users[1].id,
+      effectiveDate: new Date(),
+    },
+  });
+
+  // Create FlowDiagram for Procedure (level=3)
+  await prisma.flowDiagram.create({
+    data: {
+      level: 3,
+      processId: procedure3.id,
+      procedureId: procedure3.id,
+    },
+  });
+
+  const procedure4 = await prisma.procedure.create({
+    data: {
+      processId: process4.id,
+      code: 'PROC-IT-002-001',
+      title: 'Procédure de Gestion des Demandes',
+      description: 'Procédure pour gérer les demandes informatiques',
+      objective: 'Traiter les demandes dans les délais',
+      scope: 'Service IT',
+      status: 'ACTIVE',
+      workspaceId: orangeTunisie.id,
+      departmentId: itDepartment.id,
+      createdById: users[1].id,
+      effectiveDate: new Date(),
+    },
+  });
+
+  // Create FlowDiagram for Procedure (level=3)
+  await prisma.flowDiagram.create({
+    data: {
+      level: 3,
+      processId: procedure4.id,
+      procedureId: procedure4.id,
+    },
+  });
+
+  console.log(`  ✅ Created ${4} Procedures (Niveau 3) with FlowDiagrams`);
+
+  // ====================================
+  // CREATE FLOW NODES FOR PROCESSMAP (Niveau 1)
+  // ====================================
+  console.log('🎨 Creating ProcessMap FlowNodes...');
+
+  // Get FlowDiagrams for ProcessMaps
+  const processMap1FlowDiagram = await prisma.flowDiagram.findFirst({
+    where: { processMapId: processMap1.id },
+  });
+
+  const processMap2FlowDiagram = await prisma.flowDiagram.findFirst({
+    where: { processMapId: processMap2.id },
+  });
+
+  if (processMap1FlowDiagram) {
+    // Create FlowNodes in ProcessMap1 representing Processes
+    await prisma.flowNode.create({
+      data: {
+        diagramId: processMap1FlowDiagram.id,
+        rfId: 'node-map1-process1',
+        type: 'PROCESS',
+        label: 'Gestion des Incidents IT',
+        entityType: 'PROCESS',
+        referencedEntityId: process3.id,
+        position: { x: 200, y: 150 },
+        data: {
+          description: 'Processus de gestion incidents',
+        },
+      },
+    });
+
+    await prisma.flowNode.create({
+      data: {
+        diagramId: processMap1FlowDiagram.id,
+        rfId: 'node-map1-process2',
+        type: 'PROCESS',
+        label: 'Gestion des Demandes IT',
+        entityType: 'PROCESS',
+        referencedEntityId: process4.id,
+        position: { x: 500, y: 150 },
+        data: {
+          description: 'Processus de gestion des demandes',
+        },
+      },
+    });
+
+    // Create FlowEdge between processes
+    await prisma.flowEdge.create({
+      data: {
+        diagramId: processMap1FlowDiagram.id,
+        rfId: 'edge-map1-1',
+        sourceRfId: 'node-map1-process1',
+        targetRfId: 'node-map1-process2',
+        label: 'Suit',
+      },
+    });
+  }
+
+  if (processMap2FlowDiagram) {
+    // Create FlowNodes in ProcessMap2 representing Processes
+    await prisma.flowNode.create({
+      data: {
+        diagramId: processMap2FlowDiagram.id,
+        rfId: 'node-map2-process1',
+        type: 'PROCESS',
+        label: 'Recrutement et Intégration',
+        entityType: 'PROCESS',
+        referencedEntityId: process1.id,
+        position: { x: 200, y: 150 },
+        data: {
+          description: 'Processus de recrutement',
+        },
+      },
+    });
+
+    await prisma.flowNode.create({
+      data: {
+        diagramId: processMap2FlowDiagram.id,
+        rfId: 'node-map2-process2',
+        type: 'PROCESS',
+        label: 'Gestion des Carrières',
+        entityType: 'PROCESS',
+        referencedEntityId: process2.id,
+        position: { x: 500, y: 150 },
+        data: {
+          description: 'Processus de gestion des carrières',
+        },
+      },
+    });
+
+    // Create FlowEdge between processes
+    await prisma.flowEdge.create({
+      data: {
+        diagramId: processMap2FlowDiagram.id,
+        rfId: 'edge-map2-1',
+        sourceRfId: 'node-map2-process1',
+        targetRfId: 'node-map2-process2',
+        label: 'Suit',
+      },
+    });
+  }
+
+  console.log(`  ✅ Created FlowNodes and FlowEdges for ProcessMaps`);
+
+  // ====================================
+  // CREATE FLOW NODES FOR PROCESS (Niveau 2)
+  // ====================================
+  console.log('🎨 Creating Process FlowNodes...');
+
+  // Get FlowDiagrams for Processes
+  const process1FlowDiagram = await prisma.flowDiagram.findFirst({
+    where: { processId_ref: process1.id },
+  });
+
+  const process3FlowDiagram = await prisma.flowDiagram.findFirst({
+    where: { processId_ref: process3.id },
+  });
+
+  const process4FlowDiagram = await prisma.flowDiagram.findFirst({
+    where: { processId_ref: process4.id },
+  });
+
+  if (process1FlowDiagram) {
+    // Create FlowNodes in Process1 representing Procedures
+    await prisma.flowNode.create({
+      data: {
+        diagramId: process1FlowDiagram.id,
+        rfId: 'node-proc1-procedure1',
+        type: 'PROCEDURE',
+        label: 'Procédure de Recrutement',
+        entityType: 'PROCEDURE',
+        referencedEntityId: procedure1.id,
+        position: { x: 150, y: 100 },
+        data: {
+          description: 'Procédure détaillée de recrutement',
+        },
+      },
+    });
+
+    await prisma.flowNode.create({
+      data: {
+        diagramId: process1FlowDiagram.id,
+        rfId: 'node-proc1-procedure2',
+        type: 'PROCEDURE',
+        label: 'Procédure d\'Intégration',
+        entityType: 'PROCEDURE',
+        referencedEntityId: procedure2.id,
+        position: { x: 400, y: 100 },
+        data: {
+          description: 'Procédure d\'intégration',
+        },
+      },
+    });
+
+    // Create FlowEdge between procedures
+    await prisma.flowEdge.create({
+      data: {
+        diagramId: process1FlowDiagram.id,
+        rfId: 'edge-proc1-1',
+        sourceRfId: 'node-proc1-procedure1',
+        targetRfId: 'node-proc1-procedure2',
+        label: 'Puis',
+      },
+    });
+  }
+
+  if (process3FlowDiagram) {
+    // Create FlowNode in Process3 representing Procedure
+    await prisma.flowNode.create({
+      data: {
+        diagramId: process3FlowDiagram.id,
+        rfId: 'node-proc3-procedure1',
+        type: 'PROCEDURE',
+        label: 'Procédure de Traitement Incident',
+        entityType: 'PROCEDURE',
+        referencedEntityId: procedure3.id,
+        position: { x: 300, y: 150 },
+        data: {
+          description: 'Procédure de traitement incident',
+        },
+      },
+    });
+  }
+
+  if (process4FlowDiagram) {
+    // Create FlowNode in Process4 representing Procedure
+    await prisma.flowNode.create({
+      data: {
+        diagramId: process4FlowDiagram.id,
+        rfId: 'node-proc4-procedure1',
+        type: 'PROCEDURE',
+        label: 'Procédure de Gestion des Demandes',
+        entityType: 'PROCEDURE',
+        referencedEntityId: procedure4.id,
+        position: { x: 300, y: 120 },
+        data: {
+          description: 'Procédure pour gérer les demandes',
+        },
+      },
+    });
+  }
+
+  console.log(`  ✅ Created FlowNodes and FlowEdges for Processes`);
+
   console.log('✅ Database seeded successfully!');
   console.log(`🔐 Default password for seeded users: ${defaultPassword}`);
   console.log(`Created ${users.length} users`);
   console.log(`Created workspace: ${orangeTunisie.name}`);
-  console.log(`Created process: ${mainProcess.name}`);
+  console.log(`Created ${2} ProcessMaps (Niveau 1) with FlowDiagrams`);
+  console.log(`Created ${4} Processes (Niveau 2) with FlowDiagrams`);
+  console.log(`Created ${4} Procedures (Niveau 3) with FlowDiagrams`);
   console.log(`Created ${2} node templates`);
   console.log(`Created theme: ${orangeTheme.name}`);
 }

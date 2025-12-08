@@ -114,19 +114,19 @@ export function FlowEditor({
     setSelectedEdge(null)
   }, [])
 
-  // Add new node
-  const addNode = useCallback((type: string) => {
-    const newNode: Node = {
-      id: `node-${Date.now()}`,
-      type,
-      position: { x: Math.random() * 500, y: Math.random() * 500 },
-      data: { 
-        label: `New ${type}`,
-        description: '',
-      },
-    }
-    setNodes((nds) => [...nds, newNode])
-  }, [setNodes])
+  // Add new node (kept for future use)
+  // const addNode = useCallback((type: string) => {
+  //   const newNode: Node = {
+  //     id: `node-${Date.now()}`,
+  //     type,
+  //     position: { x: Math.random() * 500, y: Math.random() * 500 },
+  //     data: { 
+  //       label: `New ${type}`,
+  //       description: '',
+  //     },
+  //   }
+  //   setNodes((nds) => [...nds, newNode])
+  // }, [setNodes])
 
   // Delete selected node
   const deleteNode = useCallback(() => {

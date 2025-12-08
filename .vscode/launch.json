@@ -12,6 +12,10 @@
             "cwd": "${workspaceFolder}",
             "env": {
                 "NODE_ENV": "development",
+                "OIDC_CLIENT_ID": "qualigram",
+                "OIDC_CLIENT_SECRET": "qualigram",
+                "OIDC_DISCOVERY_URI": "https://auth.qualigram.com/.well-known/openid-configuration",
+                "OIDC_CALLBACK_URL": "http://localhost:3001/api/auth/oidc/callback",
                 "DATABASE_URL": "postgresql://postgres:postgres@localhost:5432/magna_turbo"
             }
         },

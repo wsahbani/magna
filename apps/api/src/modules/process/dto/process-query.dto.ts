@@ -1,4 +1,4 @@
-import { IsOptional, IsEnum, IsUUID, IsInt, IsString } from 'class-validator';
+import { IsOptional, IsEnum, IsUUID, IsString } from 'class-validator';
 import { ProcessType, ProcessStatus } from '@prisma/client';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 
@@ -12,18 +12,21 @@ export class ProcessQueryDto extends PaginationDto {
   status?: ProcessStatus;
 
   @IsOptional()
-  @IsInt()
-  level?: number;
-
-  @IsOptional()
+  @IsString()
   @IsUUID()
-  parentId?: string;
+  processMapId?: string; // Filter by ProcessMap
 
   @IsOptional()
   @IsString()
+  @IsUUID()
   workspaceId?: string;
 
   @IsOptional()
   @IsString()
+  @IsUUID()
   createdById?: string;
+
+  @IsOptional()
+  @IsString()
+  search?: string; // Search in title, description, code
 }

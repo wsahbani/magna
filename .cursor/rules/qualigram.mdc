@@ -1,0 +1,189 @@
+---
+alwaysApply: true
+---
+respect the clean code approach
+apply SOLID principle, KISS, DRY, etc.
+write md docs in docs folder in the root 
+use pnpm as package manager 
+
+# Qualigram & Process Cartography Expert
+
+## Qualigram Standards
+- **ISO 9001:2015 Compliance**: Ensure all process documentation meets quality management standards
+- **Logigramme Structure**: Follow standard flowchart notation with proper start/end nodes
+- **BPMN 2.0 Elements**: 
+  - Start/End events (circles)
+  - Activities/Tasks (rounded rectangles)
+  - Gateways: XOR (diamond - exclusive), AND (diamond with +), OR (diamond with O)
+  - Swimlanes for actor/role separation
+  - Sub-processes and events
+- **Node Types**: START, END, ACTIVITY, DECISION, SUBPROCESS, DOCUMENT, COMMENT, CONNECTOR, GATEWAY_AND, GATEWAY_OR, GATEWAY_XOR, EVENT_TIMER, EVENT_MESSAGE
+- **Edge Types**: SEQUENCE (normal flow), CONDITIONAL (with condition), DEFAULT (fallback), MESSAGE (inter-process)
+
+## Process Modeling Best Practices
+- **3-Level Hierarchy**:
+  1. **Macro-Process** (Strategic level): High-level business processes
+  2. **Process** (Management level): Detailed process with inputs/outputs/indicators
+  3. **Procedure** (Operational level): Step-by-step logigramme/flowchart
+- **SIPOC Approach**: Suppliers, Inputs, Process, Outputs, Customers
+- **RACI Matrix**: Define Responsible, Accountable, Consulted, Informed for each activity
+- **Process Components**:
+  - Objectif (Objective): Clear purpose statement
+  - Périmètre (Scope): Boundaries and coverage
+  - Acteurs (Actors): Roles, departments, external parties
+  - Entrées (Inputs): Required resources, documents, data
+  - Sorties (Outputs): Deliverables, results, documents
+  - Indicateurs (KPIs): Measurable performance metrics with targets
+  - Risques (Risks): Identified risks with mitigation plans
+  - Documents associés: Referenced procedures, forms, records
+
+## Swimlane Design
+- **Vertical Lanes**: Represent actors, roles, or departments
+- **Horizontal Flow**: Time progression from left to right
+- **Clear Separation**: Each lane owns specific activities
+- **Cross-Lane Arrows**: Show handoffs and interactions
+- **Collapsed Lanes**: Allow hiding/showing for complex diagrams
+
+## Diagram Validation Rules
+- Every logigramme must have ONE start node and at least ONE end node
+- No orphaned nodes (all nodes must be connected)
+- Decision nodes must have at least 2 outgoing edges with conditions
+- Gateways must have matching split/merge pairs
+- Swimlanes should not be empty
+- Activities must be assigned to a responsible actor
+- Conditional edges must have clear labels/conditions
+
+## Versioning & Lifecycle
+- **Version Format**: Major.Minor (e.g., 1.0, 1.1, 2.0)
+- **Status Workflow**: DRAFT → IN_REVIEW → VALIDATED → PUBLISHED → ARCHIVED
+- **Change Log**: Document what changed in each version
+- **Snapshot Strategy**: Store complete diagram state (nodes, edges, lanes) for each version
+- **Validation**: Require approval before publishing
+- **Review Cycle**: Set periodic review dates (e.g., annual review)
+
+## UX for Process Modeling
+- **Canvas Interactions**:
+  - Drag-and-drop nodes from palette
+  - Snap-to-grid for alignment
+  - Auto-layout algorithms for complex diagrams
+  - Zoom in/out with minimap
+  - Pan with mouse or keyboard
+- **Node Styling**:
+  - Color coding by type or status
+  - Icons for quick recognition
+  - Hover tooltips with details
+  - Selected state with highlight
+- **Edge Routing**:
+  - Smart routing to avoid overlaps
+  - Curved edges for better readability
+  - Animated edges for process flow visualization
+  - Conditional edge labels
+
+## Data Structure Guidelines
+- Use **Prisma schema** with proper relations and cascading deletes
+- Store position data (x, y, width, height) for canvas rendering
+- Use **JSON fields sparingly** - prefer relational tables for structured data
+- Implement **soft deletes** for audit trail (status: ARCHIVED)
+- Index frequently queried fields (processId, type, status)
+- Use **composite unique constraints** for frontend IDs (procedureId + nodeId)
+
+## Frontend Implementation
+- **React Flow** or similar library for diagram rendering
+- **State Management**: React Query for server state, Zustand/Context for diagram editing state
+- **Real-time Collaboration**: Consider WebSocket for multi-user editing
+- **Export Formats**: PDF, PNG, SVG for documentation
+- **Import/Export**: JSON format for backup and migration
+- **Keyboard Shortcuts**: 
+  - Delete: Remove selected nodes/edges
+  - Ctrl+Z/Y: Undo/Redo
+  - Ctrl+C/V: Copy/Paste
+  - Arrow keys: Move selected nodes
+
+## API Endpoints Structure
+```
+/api/v1/macro-processes
+/api/v1/processes
+  /:id/actors
+  /:id/inputs
+  /:id/outputs
+  /:id/indicators
+  /:id/risks
+  /:id/documents
+/api/v1/procedures
+  /:id/nodes
+  /:id/edges
+  /:id/lanes
+  /:id/versions
+  /:id/validate
+  /:id/publish
+  /:id/export
+/api/v1/audit-logs
+```
+
+## Documentation Requirements
+- Generate **process fiches** (process sheets) with all metadata
+- Export **procedure manuals** with diagrams
+- Create **visual process maps** showing all levels
+- Maintain **glossary** of terms and symbols
+- Provide **user guides** for process modeling
+
+## Quality Assurance
+- Validate diagram completeness (no missing connections)
+- Check for logical errors (infinite loops, unreachable nodes)
+- Verify RACI assignments (every activity has R and A)
+- Ensure all indicators have targets and measurement methods
+- Confirm risk assessments are up-to-date
+- Review document references for accuracy
+
+## Reporting & Analytics
+- Process execution time analysis
+- Bottleneck identification
+- Actor workload distribution
+- KPI dashboard with trend analysis
+- Risk heat maps
+- Compliance tracking
+
+---
+
+# API
+- always use prisma as ORM
+- use services / controllers structure
+- use DTOs to validate the data
+- use repository pattern to interact with the database
+- use middlewares for auth and validation
+- use passport js for auth
+- use JWT for token management
+- use express as framework
+- use eslint and prettier for code formatting
+- use swagger for API documentation
+- use environment variables for configuration
+- handle errors gracefully and return meaningful error messages
+- log important events and errors using a logging library like Winston or Morgan
+
+# Frontend
+- always use French label text
+- when add new feature should be in the features folder, each feature should have its own folder with a clear structure 
+- always use hooks by react query to interact with api don't create custom fetch
+- before each new component verify if already exists the same 
+- use as much as possible shared components 
+- the chart of the app is orange / black 
+- when display list use two modes: data table by react table with pagination / card view 
+- always use Heading1, Body, BodySmall, Caption from "@repo/ui" when display text
+- Maximize clarity and reduce cognitive load
+- Make every action obvious, fast, and error-proof
+- Follow proven UX laws: Fitts, Hick, Miller, Gestalt, Jakob's Law, and Nielsen heuristics
+
+# UX Guidelines
+- Typography sizes
+- Spacing rules
+- Button hierarchy (primary/secondary/ghost)
+- Error states & validations
+- Loading & empty states
+
+# Microcopy
+- Provide helpful, human, simple microcopy:
+- Labels
+- Placeholder text
+- Tooltips
+- Error messages
+- Onboarding guidance

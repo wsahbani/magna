@@ -10,6 +10,19 @@ export type { BaseNodeConfig, BaseNodeProps } from './BaseNode'
 // Group node type
 export { default as GroupNode } from './GroupNode'
 
+// Qualigram nodes for ProcessMap (Level 1)
+export {
+  MainProcessNode,
+  SupportProcessNode,
+  ManagementProcessNode,
+  DomainGroupNode,
+  ActorDepartmentNode,
+  ExternalEntityNode,
+} from './QualigramNodes'
+
+// Text/Title node
+export { TextNode } from './TextNode'
+
 // Core BPMN nodes
 export { StartEventNode } from './StartEventNode'
 export { EndEventNode } from './EndEventNode'

@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { fipApi } from '../../../services/fipApi';
 import {
-  ProcessIdentityCard,
   CreateFipDto,
   UpdateFipDto,
 } from '../types/fip.types';

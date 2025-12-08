@@ -129,14 +129,14 @@ export function Toolbar({
           ) : (
             <Save className="w-4 h-4 mr-2" />
           )}
-          {isSaving ? 'Saving...' : 'Save'}
+          {isSaving ? 'Enregistrement...' : 'Enregistrer'}
         </Button>
         
         {/* Auto-save status indicator */}
         {isAutoSaving && (
           <div className="flex items-center text-xs text-gray-500 ml-2">
             <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-            Auto-saving...
+            Enregistrement automatique...
           </div>
         )}
         
@@ -144,7 +144,7 @@ export function Toolbar({
         {saveError && (
           <div className="flex items-center text-xs text-red-500 ml-2" title={saveError.message}>
             <AlertCircle className="w-3 h-3 mr-1" />
-            Save failed
+            Échec de l'enregistrement
           </div>
         )}
         
@@ -152,7 +152,7 @@ export function Toolbar({
         {isLoadingFlow && (
           <div className="flex items-center text-xs text-blue-500 ml-2">
             <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-            Loading...
+            Chargement...
           </div>
         )}
       </div>
@@ -283,7 +283,7 @@ export function Toolbar({
               
               {/* Snap to Grid Toggle */}
               <div className="flex items-center justify-between">
-                <label className="text-sm font-medium text-gray-700">Snap to Grid</label>
+                <label className="text-sm font-medium text-gray-700">Aligner à la grille</label>
                 <button
                   onClick={() => handleGridSettingChange('snapToGrid', !localGridSettings.snapToGrid)}
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
@@ -300,7 +300,7 @@ export function Toolbar({
               
               {/* Helper Lines Toggle */}
               <div className="flex items-center justify-between">
-                <label className="text-sm font-medium text-gray-700">Show Helper Lines</label>
+                <label className="text-sm font-medium text-gray-700">Afficher les lignes d'aide</label>
                 <button
                   onClick={() => onHelperLinesToggle?.(!showHelperLines)}
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
@@ -318,7 +318,7 @@ export function Toolbar({
               {/* Grid Size */}
               <div>
                 <label className="text-sm font-medium text-gray-700 block mb-2">
-                  Grid Size: {localGridSettings.gridSize}px
+                  Taille de la grille : {localGridSettings.gridSize}px
                 </label>
                 <input
                   type="range"
@@ -338,7 +338,7 @@ export function Toolbar({
               
               {/* Background Pattern */}
               <div>
-                <label className="text-sm font-medium text-gray-700 block mb-2">Pattern</label>
+                <label className="text-sm font-medium text-gray-700 block mb-2">Motif</label>
                 <div className="grid grid-cols-4 gap-2">
                   {(['dots', 'lines', 'cross', 'none'] as BackgroundPattern[]).map((pattern) => (
                     <button
@@ -358,10 +358,10 @@ export function Toolbar({
                   ))}
                 </div>
                 <div className="grid grid-cols-4 gap-2 mt-1">
-                  <span className="text-xs text-gray-500 text-center">Dots</span>
-                  <span className="text-xs text-gray-500 text-center">Lines</span>
-                  <span className="text-xs text-gray-500 text-center">Cross</span>
-                  <span className="text-xs text-gray-500 text-center">None</span>
+                  <span className="text-xs text-gray-500 text-center">Points</span>
+                  <span className="text-xs text-gray-500 text-center">Lignes</span>
+                  <span className="text-xs text-gray-500 text-center">Croix</span>
+                  <span className="text-xs text-gray-500 text-center">Aucun</span>
                 </div>
               </div>
               
@@ -371,7 +371,7 @@ export function Toolbar({
                   onClick={() => setShowGridMenu(false)}
                   className="w-full px-3 py-2 bg-gray-200 text-gray-700 text-sm rounded hover:bg-gray-300 transition-colors"
                 >
-                  Close
+                  Fermer
                 </button>
               </div>
             </div>
@@ -389,17 +389,17 @@ export function Toolbar({
           className="h-9"
         >
           <Move className="w-4 h-4 mr-2" />
-          Handles
+          Poignées
         </Button>
         
         {showHandleMenu && (
           <div className="absolute top-12 left-0 bg-white border border-gray-200 rounded-lg shadow-lg p-4 z-50 w-72">
             <div className="space-y-4">
-              <div className="text-sm font-semibold text-gray-700 mb-3">Change Handle Positions</div>
+              <div className="text-sm font-semibold text-gray-700 mb-3">Changer les positions des poignées</div>
               
               {/* Source Handle Position */}
               <div>
-                <label className="text-xs font-medium text-gray-600 block mb-2">Output (Source)</label>
+                <label className="text-xs font-medium text-gray-600 block mb-2">Sortie (Source)</label>
                 <div className="grid grid-cols-4 gap-1">
                   {(['top', 'right', 'bottom', 'left'] as HandlePosition[]).map((pos) => (
                     <button
@@ -419,7 +419,7 @@ export function Toolbar({
               
               {/* Target Handle Position */}
               <div>
-                <label className="text-xs font-medium text-gray-600 block mb-2">Input (Target)</label>
+                <label className="text-xs font-medium text-gray-600 block mb-2">Entrée (Cible)</label>
                 <div className="grid grid-cols-4 gap-1">
                   {(['top', 'right', 'bottom', 'left'] as HandlePosition[]).map((pos) => (
                     <button
@@ -443,13 +443,13 @@ export function Toolbar({
                   onClick={handleApplyPosition}
                   className="flex-1 px-3 py-2 bg-orange-500 text-white text-sm rounded hover:bg-orange-600 transition-colors"
                 >
-                  Apply
+                  Appliquer
                 </button>
                 <button
                   onClick={() => setShowHandleMenu(false)}
                   className="px-3 py-2 bg-gray-200 text-gray-700 text-sm rounded hover:bg-gray-300 transition-colors"
                 >
-                  Cancel
+                  Annuler
                 </button>
               </div>
             </div>

@@ -42,6 +42,9 @@ export interface BaseNodeConfig {
   maxWidth?: number
   maxHeight?: number
   
+  // Container configuration
+  isContainer?: boolean // If true, this node can contain other nodes as children
+  
   // Custom render function (overrides default rendering)
   customRender?: (props: CustomRenderProps) => ReactNode
 }
@@ -62,6 +65,8 @@ export interface CustomRenderProps {
   renderLabel: () => ReactNode
   renderDescription: () => ReactNode
   getShapeStyles: () => string
+  width?: number | null
+  height?: number | null
 }
 
 /**
@@ -80,7 +85,7 @@ export interface BaseNodeProps extends NodeProps {
  * Provides common functionality for all node types
  */
 export const createNode = (config: BaseNodeConfig) => {
-  return memo(({ data, selected }: BaseNodeProps) => {
+  return memo(({ data, selected, width, height }: BaseNodeProps) => {
     const {
       shape,
       backgroundColor,
@@ -115,8 +120,10 @@ export const createNode = (config: BaseNodeConfig) => {
         inlineStyle.borderColor = style.borderColor
         inlineStyle.borderStyle = 'solid'
       }
-      if (style.borderWidth !== undefined) {
-        inlineStyle.borderWidth = `${style.borderWidth}px`
+      if (style.borderWidth !== undefined && style.borderWidth !== null) {
+        // Handle borderWidth that might already include "px"
+        const borderWidthStr = String(style.borderWidth)
+        inlineStyle.borderWidth = borderWidthStr.includes('px') ? borderWidthStr : `${borderWidthStr}px`
         inlineStyle.borderStyle = 'solid'
       }
       if (style.borderRadius !== undefined) {
@@ -126,7 +133,9 @@ export const createNode = (config: BaseNodeConfig) => {
         inlineStyle.color = style.color
       }
       if (style.fontSize) {
-        inlineStyle.fontSize = `${style.fontSize}px`
+        // Handle fontSize that might already include "px"
+        const fontSizeStr = String(style.fontSize)
+        inlineStyle.fontSize = fontSizeStr.includes('px') ? fontSizeStr : `${fontSizeStr}px`
       }
       if (style.fontWeight) {
         inlineStyle.fontWeight = style.fontWeight
@@ -236,9 +245,18 @@ export const createNode = (config: BaseNodeConfig) => {
 
       // Get text styling from data.style (merged with defaults)
       const nodeStyle = (data?.style as Record<string, any>) || {}
+      
+      // Helper to normalize fontSize (handle both "14px" and 14 formats)
+      const normalizeFontSize = (size: any, defaultSize: string): string => {
+        if (!size) return defaultSize
+        const sizeStr = String(size)
+        // If already has "px", return as is, otherwise add "px"
+        return sizeStr.includes('px') ? sizeStr : `${sizeStr}px`
+      }
+      
       const labelStyle: React.CSSProperties = {
         color: nodeStyle.color || '#374151', // gray-700
-        fontSize: nodeStyle.fontSize ? `${nodeStyle.fontSize}px` : '12px', // text-xs
+        fontSize: normalizeFontSize(nodeStyle.fontSize, '12px'),
         fontWeight: nodeStyle.fontWeight || '400',
         textAlign: (nodeStyle.textAlign || 'left') as any,
       }
@@ -268,11 +286,12 @@ export const createNode = (config: BaseNodeConfig) => {
       // Inside label (for rectangle shapes) - allow wrapping when resizable
       return (
         <div 
-          className={resizable ? 'break-words' : ''}
+          className={resizable ? 'break-words w-full' : 'w-full'}
           style={{
             ...labelStyle,
-            fontSize: nodeStyle.fontSize ? `${nodeStyle.fontSize}px` : '14px', // text-sm
+            fontSize: normalizeFontSize(nodeStyle.fontSize, '14px'), // text-sm
             fontWeight: nodeStyle.fontWeight || '500', // font-medium
+            width: '100%', // Ensure full width for textAlign to work
           }}
         >
           {data.label}
@@ -286,9 +305,19 @@ export const createNode = (config: BaseNodeConfig) => {
 
       // Get text styling from data.style
       const nodeStyle = (data?.style as Record<string, any>) || {}
+      
+      // Helper to normalize fontSize and calculate description size (2px smaller than label)
+      const getDescriptionFontSize = (size: any): string => {
+        if (!size) return '12px'
+        const sizeStr = String(size)
+        // Extract numeric value (remove "px" if present)
+        const numericValue = parseInt(sizeStr.replace('px', ''))
+        return `${Math.max(8, numericValue - 2)}px` // Min 8px, 2px smaller than label
+      }
+      
       const descriptionStyle: React.CSSProperties = {
         marginTop: '4px',
-        fontSize: nodeStyle.fontSize ? `${parseInt(nodeStyle.fontSize) - 2}px` : '12px', // text-xs
+        fontSize: getDescriptionFontSize(nodeStyle.fontSize),
         color: nodeStyle.color || '#6B7280', // gray-500
         fontWeight: nodeStyle.fontWeight || '400',
         textAlign: (nodeStyle.textAlign || 'left') as any,
@@ -296,8 +325,11 @@ export const createNode = (config: BaseNodeConfig) => {
 
       return (
         <div 
-          className={resizable ? 'break-words overflow-auto' : ''}
-          style={descriptionStyle}
+          className={resizable ? 'break-words overflow-auto w-full' : 'w-full'}
+          style={{
+            ...descriptionStyle,
+            width: '100%', // Ensure full width for textAlign to work
+          }}
         >
           {data.description}
         </div>
@@ -327,6 +359,8 @@ export const createNode = (config: BaseNodeConfig) => {
             renderLabel,
             renderDescription,
             getShapeStyles,
+            width,
+            height,
           })}
         </>
       )

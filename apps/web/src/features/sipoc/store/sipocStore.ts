@@ -55,7 +55,7 @@ const initialState = {
   error: null,
 };
 
-export const useSipocStore = create<SipocState>((set, get) => ({
+export const useSipocStore = create<SipocState>((set) => ({
   ...initialState,
 
   // Diagram actions
@@ -84,7 +84,7 @@ export const useSipocStore = create<SipocState>((set, get) => ({
 
       // Normalize elements if included
       if (diagram.sipocElements) {
-        const elementsMap = diagram.sipocElements.reduce((acc:any, element:any) => {
+        const elementsMap = diagram.sipocElements.reduce((acc: Record<string, unknown>, element: Record<string, unknown>) => {
           acc[element.id] = element;
           return acc;
         }, {} as Record<string, SipocElement>);
@@ -107,7 +107,7 @@ export const useSipocStore = create<SipocState>((set, get) => ({
 
       // Normalize elements if included
       if (diagram.sipocElements) {
-        const elementsMap = diagram.sipocElements.reduce((acc:any, element:any) => {
+        const elementsMap = diagram.sipocElements.reduce((acc: Record<string, unknown>, element: Record<string, unknown>) => {
           acc[element.id] = element;
           return acc;
         }, {} as Record<string, SipocElement>);
@@ -153,6 +153,7 @@ export const useSipocStore = create<SipocState>((set, get) => ({
     try {
       await sipocApi.deleteDiagram(sipocId);
       set((state) => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { [sipocId]: _, ...remainingDiagrams } = state.diagrams;
         return {
           diagrams: remainingDiagrams,
@@ -218,6 +219,7 @@ export const useSipocStore = create<SipocState>((set, get) => ({
     try {
       await sipocApi.deleteElement(sipocId, elementId);
       set((state) => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { [elementId]: _, ...remainingElements } = state.elements;
         return { elements: remainingElements };
       });
@@ -279,6 +281,7 @@ export const useSipocStore = create<SipocState>((set, get) => ({
     try {
       await sipocApi.deleteConnection(sipocId, connectionId);
       set((state) => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { [connectionId]: _, ...remainingConnections } = state.connections;
         return { connections: remainingConnections };
       });

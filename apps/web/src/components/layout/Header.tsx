@@ -107,7 +107,7 @@ export function Header({ onMenuClick }: HeaderProps) {
             >
               <div className="w-8 h-8 bg-orange-600 rounded-full flex items-center justify-center">
                 <span className="text-white font-medium text-sm">
-                  {user?.firstName[0]}{user?.lastName[0]}
+                  {user?.firstName?.[0]}{user?.lastName?.[0]}
                 </span>
               </div>
               <div className="hidden sm:block text-left">

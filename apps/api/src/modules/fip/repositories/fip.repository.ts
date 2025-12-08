@@ -13,10 +13,8 @@ export class FipRepository {
         process: {
           select: {
             id: true,
-            name: true,
+            title: true,
             description: true,
-            level: true,
-            type: true,
             status: true,
           },
         },
@@ -40,9 +38,8 @@ export class FipRepository {
         process: {
           select: {
             id: true,
-            name: true,
+            title: true,
             description: true,
-            level: true,
             type: true,
             status: true,
           },

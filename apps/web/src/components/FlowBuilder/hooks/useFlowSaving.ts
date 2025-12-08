@@ -8,7 +8,11 @@ interface UseFlowAutoSaveProps {
   nodesRef: RefObject<Node[]>
   edgesRef: RefObject<Edge[]>
   autoSave: (nodes: Node[], edges: Edge[]) => void
-  saveFlowMutation: any
+  saveFlowMutation: {
+    isSuccess: boolean
+    data?: { message?: string }
+    error?: Error
+  }
   autoSaveError: Error | null
   onSaveSuccess?: (message: string) => void
   onSaveError?: (error: Error) => void
@@ -62,11 +66,15 @@ export function useFlowAutoSave({
 /**
  * Hook to provide manual save function
  */
+interface SaveFlowMutation {
+  mutateAsync: (data: { processVersionId: string; nodes: Node[]; edges: Edge[] }) => Promise<{ message?: string }>
+}
+
 export function useManualSave(
   processVersionId: string | null,
   nodes: Node[],
   edges: Edge[],
-  saveFlowMutation: any,
+  saveFlowMutation: SaveFlowMutation,
   onSave?: (nodes: Node[], edges: Edge[]) => void,
   onSaveSuccess?: (message: string) => void,
   onSaveError?: (error: Error) => void

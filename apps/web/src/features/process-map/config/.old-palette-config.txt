@@ -1,0 +1,204 @@
+/**
+ * Palette Configuration System
+ * SOLID Architecture for managing node palettes by level
+ * 
+ * Strategy Pattern: Each level has its own palette configuration
+ * Open/Closed Principle: Easy to add new levels without modifying existing code
+ */
+
+import { ReactNode } from 'react';
+import {
+  Box,
+  FolderPlus,
+  FileText,
+} from 'lucide-react';
+
+/**
+ * Node definition for palette
+ */
+export interface PaletteNodeDefinition {
+  type: string;
+  label: string;
+  icon: ReactNode | (() => ReactNode);
+  category: string;
+}
+
+/**
+ * Palette configuration interface
+ * Strategy interface following Dependency Inversion Principle
+ */
+export interface PaletteConfig {
+  /**
+   * Get allowed node types for this level
+   */
+  getAllowedNodeTypes(): string[];
+
+  /**
+   * Get all node definitions for this level
+   */
+  getNodeDefinitions(): PaletteNodeDefinition[];
+
+  /**
+   * Get default expanded categories
+   */
+  getDefaultExpandedCategories(): string[];
+
+  /**
+   * Get palette title
+   */
+  getTitle(): string;
+}
+
+/**
+ * Level 1 Palette Configuration (ProcessMap)
+ * Only allows: Process, Group, Procedure nodes
+ */
+export class ProcessMapPaletteConfig implements PaletteConfig {
+  private getNodeDefinitionsInternal(): PaletteNodeDefinition[] {
+    return [
+      {
+        type: 'process',
+        label: 'Processus',
+        icon: () => <Box className="w-4 h-4 text-purple-600" />,
+        category: 'Processus',
+      },
+      {
+        type: 'group',
+        label: 'Groupe de Processus',
+        icon: () => <FolderPlus className="w-4 h-4 text-orange-600" />,
+        category: 'Processus',
+      },
+      {
+        type: 'procedure',
+        label: 'Procédure',
+        icon: () => <FileText className="w-4 h-4 text-blue-600" />,
+        category: 'Processus',
+      },
+    ];
+  }
+
+  private readonly nodeDefinitions: PaletteNodeDefinition[] = this.getNodeDefinitionsInternal();
+
+  getAllowedNodeTypes(): string[] {
+    return ['process', 'group', 'procedure'];
+  }
+
+  getNodeDefinitions(): PaletteNodeDefinition[] {
+    return this.nodeDefinitions;
+  }
+
+  getDefaultExpandedCategories(): string[] {
+    return ['Processus'];
+  }
+
+  getTitle(): string {
+    return 'Palette ProcessMap (Niveau 1)';
+  }
+}
+
+/**
+ * Level 2 Palette Configuration (Process)
+ * Allows: Procedure nodes, Tasks, Events, Gateways, etc.
+ * TODO: To be implemented when Process level is implemented
+ */
+export class ProcessPaletteConfig implements PaletteConfig {
+  private getNodeDefinitionsInternal(): PaletteNodeDefinition[] {
+    return [
+      {
+        type: 'procedure',
+        label: 'Procédure',
+        icon: () => <FileText className="w-4 h-4 text-blue-600" />,
+        category: 'Procédures',
+      },
+      // Add more nodes for Process level when needed
+    ];
+  }
+
+  private readonly nodeDefinitions: PaletteNodeDefinition[] = this.getNodeDefinitionsInternal();
+
+  getAllowedNodeTypes(): string[] {
+    return ['procedure'];
+  }
+
+  getNodeDefinitions(): PaletteNodeDefinition[] {
+    return this.nodeDefinitions.map(node => ({
+      ...node,
+      icon: typeof node.icon === 'function' ? node.icon() : node.icon,
+    }));
+  }
+
+  getDefaultExpandedCategories(): string[] {
+    return ['Procédures'];
+  }
+
+  getTitle(): string {
+    return 'Palette Process (Niveau 2)';
+  }
+}
+
+/**
+ * Level 3 Palette Configuration (Procedure)
+ * Allows: All BPMN elements (Start, End, Tasks, Gateways, etc.)
+ * TODO: To be implemented when Procedure level is implemented
+ */
+export class ProcedurePaletteConfig implements PaletteConfig {
+  private readonly nodeDefinitions: PaletteNodeDefinition[] = [
+    // Will include all BPMN elements
+    // This will be populated when Procedure level is implemented
+  ];
+
+  getAllowedNodeTypes(): string[] {
+    return [];
+  }
+
+  getNodeDefinitions(): PaletteNodeDefinition[] {
+    return this.nodeDefinitions;
+  }
+
+  getDefaultExpandedCategories(): string[] {
+    return [];
+  }
+
+  getTitle(): string {
+    return 'Palette Procedure (Niveau 3)';
+  }
+}
+
+/**
+ * Palette Configuration Factory
+ * Factory Pattern for creating appropriate palette config based on level
+ */
+export class PaletteConfigFactory {
+  /**
+   * Create palette configuration based on level
+   */
+  static create(level: number): PaletteConfig {
+    switch (level) {
+      case 1:
+        return new ProcessMapPaletteConfig();
+      case 2:
+        return new ProcessPaletteConfig();
+      case 3:
+        return new ProcedurePaletteConfig();
+      default:
+        throw new Error(`Unsupported level: ${level}`);
+    }
+  }
+
+  /**
+   * Create palette configuration based on entity type
+   */
+  static createByEntityType(entityType: 'processMap' | 'process' | 'procedure'): PaletteConfig {
+    switch (entityType) {
+      case 'processMap':
+        return new ProcessMapPaletteConfig();
+      case 'process':
+        return new ProcessPaletteConfig();
+      case 'procedure':
+        return new ProcedurePaletteConfig();
+      default:
+        throw new Error(`Unsupported entity type: ${entityType}`);
+    }
+  }
+}
+

@@ -9,6 +9,8 @@ import { SipocModule } from './modules/sipoc/sipoc.module';
 import { FipModule } from './modules/fip/fip.module';
 import { UsersModule } from './modules/users/users.module';
 import { GroupsModule } from './modules/groups/groups.module';
+import { ProcedureModule } from './modules/procedure/procedure.module';
+import { ProcessMapModule } from './modules/process-map/process-map.module';
 import { PrismaModule } from './database/prisma.module';
 import { ConfigModule } from '@nestjs/config';
 @Module({
@@ -18,7 +20,9 @@ import { ConfigModule } from '@nestjs/config';
     }),
     PrismaModule,
     AuthModule,
+    ProcessMapModule,
     ProcessModule,
+    ProcedureModule,
     WorkspaceModule,
     SipocModule,
     FipModule,

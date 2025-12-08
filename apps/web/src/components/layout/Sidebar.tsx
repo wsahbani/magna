@@ -20,6 +20,8 @@ import {
   LogOut,
   X,
   Shield,
+  Layers,
+  GitBranch,
 } from 'lucide-react'
 import { useAuth } from '../../features/auth'
 import { appConfig } from '../../config'
@@ -34,6 +36,8 @@ interface NavItem {
 
 const navigationItems: NavItem[] = [
   { label: 'Dashboard', icon: LayoutDashboard, href: '/' },
+  { label: 'Qualigram', icon: GitBranch, href: '/qualigram/editor' },
+  { label: 'Macro-Processus', icon: Layers, href: '/macro-processes' },
   { label: 'Processes', icon: Workflow, href: '/processes' },
   { label: 'Workspaces', icon: Building2, href: '/workspaces' },
   { label: 'Documents', icon: FileText, href: '/documents' },
@@ -170,7 +174,7 @@ export function Sidebar({ collapsed = false, onCollapse, mobileOpen = false, onM
               <div className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-800">
                 <div className="w-8 h-8 bg-orange-600 rounded-full flex items-center justify-center">
                   <span className="text-white font-medium text-xs">
-                    {user.firstName[0]}{user.lastName[0]}
+                    {user.firstName?.[0]}{user.lastName?.[0]}
                   </span>
                 </div>
                 <div className="flex-1 min-w-0">

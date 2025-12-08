@@ -120,6 +120,17 @@ import {
 
 import { GroupNode } from './nodes/GroupNode'
 
+import {
+  MainProcessNode,
+  SupportProcessNode,
+  ManagementProcessNode,
+  DomainGroupNode,
+  ActorDepartmentNode,
+  ExternalEntityNode,
+} from './nodes/QualigramNodes'
+
+import { TextNode } from './nodes/TextNode'
+
 /**
  * Node types registry for ReactFlow
  */
@@ -130,6 +141,7 @@ export const nodeTypes: NodeTypes = {
   task: TaskNode,
   gateway: GatewayNode,
   process: ProcessNode,
+  procedure: ProcessNode, // Procedure uses same visual as Process
   
   // Event nodes
   intermediateEvent: IntermediateEventNode,
@@ -269,4 +281,15 @@ export const nodeTypes: NodeTypes = {
   
   // Container/Group node
   group: GroupNode,
+  
+  // Qualigram nodes for ProcessMap (Level 1)
+  mainProcess: MainProcessNode,
+  supportProcess: SupportProcessNode,
+  managementProcess: ManagementProcessNode,
+  domainGroup: DomainGroupNode,
+  actorDepartment: ActorDepartmentNode,
+  externalEntity: ExternalEntityNode,
+  
+  // Text/Title node
+  text: TextNode,
 }

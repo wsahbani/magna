@@ -7,7 +7,7 @@ import { AlertCircle, Type, Palette, AlignCenter, AlignLeft, AlignRight, Plus, M
 import { useState, useEffect } from 'react'
 
 // Simple Separator component
-const Separator = () => <div className="border-t border-gray-200 my-4" />
+const Separator = () => <div className="border-t border-gray-200 my-3" />
 
 // Preset color options for non-technical users
 const COLOR_PRESETS = [
@@ -99,7 +99,7 @@ export function PropertiesPanel({
       <div className="flex flex-col items-center justify-center h-full p-6 text-center">
         <AlertCircle className="w-12 h-12 text-gray-300 mb-4" />
         <Body className="text-gray-500">
-          Select an element to view and edit its properties
+          Sélectionnez un élément pour voir et modifier ses propriétés
         </Body>
       </div>
     )
@@ -107,66 +107,67 @@ export function PropertiesPanel({
 
   if (selectedNode) {
     // Helper to safely access style properties with defaults
-    const currentStyle: Record<string, any> = selectedNode.data?.style || {}
+    // Use selectedNode directly to get latest style values
+    const currentStyle: Record<string, any> = (selectedNode.data?.style as Record<string, any>) || {}
     
     return (
-      <div className="p-6 overflow-auto h-full">
-        <Heading1 className="text-lg mb-6">Properties</Heading1>
+      <div className="p-4 overflow-auto h-full bg-white">
+        <Heading1 className="text-base font-semibold mb-4 text-gray-900">Propriétés</Heading1>
 
-        <div className="space-y-6">
+        <div className="space-y-4">
           {/* Label */}
           <div>
-            <Label htmlFor="node-label" className="text-sm font-medium text-gray-700 mb-2 block">
-              Title
+            <Label htmlFor="node-label" className="text-xs font-medium text-gray-600 mb-1.5 block">
+              Titre
             </Label>
             <Input
               id="node-label"
               value={localLabel}
               onChange={(e) => handleLabelChange(e.target.value)}
-              placeholder="Enter title..."
-              className="w-full"
+              placeholder="Saisir le titre..."
+              className="w-full text-sm py-1.5"
             />
           </div>
 
           {/* Description */}
           <div>
-            <Label htmlFor="node-description" className="text-sm font-medium text-gray-700 mb-2 block">
+            <Label htmlFor="node-description" className="text-xs font-medium text-gray-600 mb-1.5 block">
               Description
             </Label>
             <Textarea
               id="node-description"
               value={localDescription}
               onChange={(e) => handleDescriptionChange(e.target.value)}
-              placeholder="Enter description..."
-              rows={3}
-              className="w-full"
+              placeholder="Saisir la description..."
+              rows={2}
+              className="w-full text-sm py-1.5"
             />
           </div>
 
           <Separator />
 
           {/* Colors Section */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-              <Palette className="w-4 h-4" />
-              <span>Colors</span>
+          <div className="space-y-3">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-700">
+              <Palette className="w-3.5 h-3.5" />
+              <span>Couleurs</span>
             </div>
 
             {/* Background Color */}
             <div>
-              <Label className="text-sm font-medium text-gray-700 mb-2 block">
-                Background
+              <Label className="text-xs font-medium text-gray-600 mb-1.5 block">
+                Arrière-plan
               </Label>
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-8 gap-1.5">
                 {COLOR_PRESETS.slice(0, 8).map((color) => (
                   <button
                     key={color.value}
                     onClick={() => onNodeUpdate(selectedNode.id, { 
                       style: { ...currentStyle, backgroundColor: color.value }
                     })}
-                    className={`h-10 rounded border-2 transition-all ${
+                    className={`h-7 rounded border transition-all hover:scale-110 ${
                       currentStyle?.backgroundColor === color.value
-                        ? 'border-orange-500 ring-2 ring-orange-200'
+                        ? 'border-orange-500 ring-1 ring-orange-300 shadow-sm'
                         : 'border-gray-300 hover:border-gray-400'
                     }`}
                     style={{ backgroundColor: color.value }}
@@ -178,20 +179,20 @@ export function PropertiesPanel({
 
             {/* Border Color */}
             <div>
-              <Label className="text-sm font-medium text-gray-700 mb-2 block">
-                Border
+              <Label className="text-xs font-medium text-gray-600 mb-1.5 block">
+                Bordure
               </Label>
-              <div className="grid grid-cols-4 gap-2">
-                {COLOR_PRESETS.filter(c => !c.name.includes('Light')).map((color) => (
+              <div className="grid grid-cols-8 gap-1.5">
+                {COLOR_PRESETS.filter(c => !c.name.includes('Light')).slice(0, 8).map((color) => (
                   <button
                     key={color.value}
                     onClick={() => onNodeUpdate(selectedNode.id, { 
                       style: { ...currentStyle, borderColor: color.value }
                     })}
-                    className={`h-10 rounded border-4 transition-all ${
+                    className={`h-7 rounded border-2 transition-all hover:scale-110 ${
                       currentStyle?.borderColor === color.value
-                        ? 'ring-2 ring-orange-500'
-                        : 'hover:ring-2 hover:ring-gray-300'
+                        ? 'ring-1 ring-orange-500 shadow-sm'
+                        : 'hover:ring-1 hover:ring-gray-300'
                     }`}
                     style={{ borderColor: color.value }}
                     title={color.name}
@@ -202,19 +203,19 @@ export function PropertiesPanel({
 
             {/* Text Color */}
             <div>
-              <Label className="text-sm font-medium text-gray-700 mb-2 block">
-                Text
+              <Label className="text-xs font-medium text-gray-600 mb-1.5 block">
+                Texte
               </Label>
-              <div className="grid grid-cols-4 gap-2">
-                {COLOR_PRESETS.filter(c => !c.name.includes('Light')).map((color) => (
+              <div className="grid grid-cols-8 gap-1.5">
+                {COLOR_PRESETS.filter(c => !c.name.includes('Light')).slice(0, 8).map((color) => (
                   <button
                     key={color.value}
                     onClick={() => onNodeUpdate(selectedNode.id, { 
                       style: { ...currentStyle, color: color.value }
                     })}
-                    className={`h-10 rounded border-2 flex items-center justify-center font-bold transition-all ${
+                    className={`h-7 rounded border transition-all hover:scale-110 flex items-center justify-center text-xs font-bold ${
                       currentStyle?.color === color.value
-                        ? 'border-orange-500 ring-2 ring-orange-200'
+                        ? 'border-orange-500 ring-1 ring-orange-300 shadow-sm'
                         : 'border-gray-300 hover:border-gray-400'
                     }`}
                     style={{ color: color.value }}
@@ -230,61 +231,64 @@ export function PropertiesPanel({
           <Separator />
 
           {/* Text Settings */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-              <Type className="w-4 h-4" />
-              <span>Text Settings</span>
+          <div className="space-y-3">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-700">
+              <Type className="w-3.5 h-3.5" />
+              <span>Paramètres de texte</span>
             </div>
 
             {/* Text Size */}
             <div>
-              <Label className="text-sm font-medium text-gray-700 mb-2 block">
-                Text Size
+              <Label className="text-xs font-medium text-gray-600 mb-1.5 block">
+                Taille du texte
               </Label>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
                 <button
                   onClick={() => {
-                    const currentSize = parseInt(currentStyle?.fontSize || '14')
+                    const currentSize = parseInt(String(currentStyle?.fontSize || '14'))
                     const newSize = Math.max(10, currentSize - 2)
                     onNodeUpdate(selectedNode.id, { 
-                      style: { ...currentStyle, fontSize: newSize.toString() }
+                      style: { ...currentStyle, fontSize: `${newSize}px` }
                     })
                   }}
-                  className="p-2 border border-gray-300 rounded hover:bg-gray-50"
+                  className="p-1.5 border border-gray-300 rounded hover:bg-gray-50 transition-colors"
                 >
-                  <Minus className="w-4 h-4" />
+                  <Minus className="w-3 h-3" />
                 </button>
-                <div className="flex-1 text-center py-2 px-3 border border-gray-300 rounded bg-gray-50">
-                  <span className="font-medium">{currentStyle?.fontSize || '14'}px</span>
+                <div className="flex-1 text-center py-1.5 px-2 border border-gray-300 rounded bg-gray-50 text-xs">
+                  <span className="font-medium">
+                    {currentStyle?.fontSize ? String(currentStyle.fontSize).replace('px', '') : '14'}px
+                  </span>
                 </div>
                 <button
                   onClick={() => {
-                    const currentSize = parseInt(currentStyle?.fontSize || '14')
+                    const fontSizeStr = String(currentStyle?.fontSize || '14px')
+                    const currentSize = parseInt(fontSizeStr.replace('px', ''))
                     const newSize = Math.min(32, currentSize + 2)
                     onNodeUpdate(selectedNode.id, { 
-                      style: { ...currentStyle, fontSize: newSize.toString() }
+                      style: { ...currentStyle, fontSize: `${newSize}px` }
                     })
                   }}
-                  className="p-2 border border-gray-300 rounded hover:bg-gray-50"
+                  className="p-1.5 border border-gray-300 rounded hover:bg-gray-50 transition-colors"
                 >
-                  <Plus className="w-4 h-4" />
+                  <Plus className="w-3 h-3" />
                 </button>
               </div>
             </div>
 
             {/* Text Style */}
             <div>
-              <Label className="text-sm font-medium text-gray-700 mb-2 block">
-                Text Style
+              <Label className="text-xs font-medium text-gray-600 mb-1.5 block">
+                Style de texte
               </Label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-1.5">
                 <button
                   onClick={() => onNodeUpdate(selectedNode.id, { 
                     style: { ...currentStyle, fontWeight: 'normal' }
                   })}
-                  className={`py-2 px-3 border rounded transition-all ${
+                  className={`py-1.5 px-2 text-xs border rounded transition-all ${
                     (currentStyle?.fontWeight === 'normal' || !currentStyle?.fontWeight)
-                      ? 'bg-orange-100 border-orange-500 text-orange-700'
+                      ? 'bg-orange-100 border-orange-500 text-orange-700 font-medium'
                       : 'border-gray-300 hover:bg-gray-50'
                   }`}
                 >
@@ -294,58 +298,58 @@ export function PropertiesPanel({
                   onClick={() => onNodeUpdate(selectedNode.id, { 
                     style: { ...currentStyle, fontWeight: 'bold' }
                   })}
-                  className={`py-2 px-3 border rounded font-bold transition-all ${
+                  className={`py-1.5 px-2 text-xs border rounded font-bold transition-all ${
                     currentStyle?.fontWeight === 'bold'
                       ? 'bg-orange-100 border-orange-500 text-orange-700'
                       : 'border-gray-300 hover:bg-gray-50'
                   }`}
                 >
-                  Bold
+                  Gras
                 </button>
               </div>
             </div>
 
             {/* Text Align */}
             <div>
-              <Label className="text-sm font-medium text-gray-700 mb-2 block">
-                Text Align
+              <Label className="text-xs font-medium text-gray-600 mb-1.5 block">
+                Alignement du texte
               </Label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-3 gap-1.5">
                 <button
                   onClick={() => onNodeUpdate(selectedNode.id, { 
                     style: { ...currentStyle, textAlign: 'left' }
                   })}
-                  className={`py-2 px-3 border rounded flex items-center justify-center transition-all ${
+                  className={`py-1.5 px-2 border rounded flex items-center justify-center transition-all ${
                     currentStyle?.textAlign === 'left' 
                       ? 'bg-orange-100 border-orange-500 text-orange-700' 
                       : 'border-gray-300 hover:bg-gray-50'
                   }`}
                 >
-                  <AlignLeft className="w-4 h-4" />
+                  <AlignLeft className="w-3.5 h-3.5" />
                 </button>
                 <button
                   onClick={() => onNodeUpdate(selectedNode.id, { 
                     style: { ...currentStyle, textAlign: 'center' }
                   })}
-                  className={`py-2 px-3 border rounded flex items-center justify-center transition-all ${
+                  className={`py-1.5 px-2 border rounded flex items-center justify-center transition-all ${
                     (currentStyle?.textAlign === 'center' || !currentStyle?.textAlign)
                       ? 'bg-orange-100 border-orange-500 text-orange-700' 
                       : 'border-gray-300 hover:bg-gray-50'
                   }`}
                 >
-                  <AlignCenter className="w-4 h-4" />
+                  <AlignCenter className="w-3.5 h-3.5" />
                 </button>
                 <button
                   onClick={() => onNodeUpdate(selectedNode.id, { 
                     style: { ...currentStyle, textAlign: 'right' }
                   })}
-                  className={`py-2 px-3 border rounded flex items-center justify-center transition-all ${
+                  className={`py-1.5 px-2 border rounded flex items-center justify-center transition-all ${
                     currentStyle?.textAlign === 'right' 
                       ? 'bg-orange-100 border-orange-500 text-orange-700' 
                       : 'border-gray-300 hover:bg-gray-50'
                   }`}
                 >
-                  <AlignRight className="w-4 h-4" />
+                  <AlignRight className="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>
@@ -354,68 +358,72 @@ export function PropertiesPanel({
           <Separator />
 
           {/* Shape Settings */}
-          <div className="space-y-4">
-            <div className="text-sm font-semibold text-gray-700">
-              Shape Settings
+          <div className="space-y-3">
+            <div className="text-xs font-semibold text-gray-700">
+              Paramètres de forme
             </div>
 
             {/* Border Width */}
             <div>
-              <Label className="text-sm font-medium text-gray-700 mb-2 block">
-                Border Thickness
+              <Label className="text-xs font-medium text-gray-600 mb-1.5 block">
+                Épaisseur de la bordure
               </Label>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
                 <button
                   onClick={() => {
-                    const currentWidth = parseInt(currentStyle?.borderWidth?.toString() || '2')
+                    const borderWidthStr = String(currentStyle?.borderWidth || '2')
+                    const currentWidth = parseInt(borderWidthStr.replace('px', ''))
                     const newWidth = Math.max(0, currentWidth - 1)
                     onNodeUpdate(selectedNode.id, { 
-                      style: { ...currentStyle, borderWidth: newWidth }
+                      style: { ...currentStyle, borderWidth: `${newWidth}px` }
                     })
                   }}
-                  className="p-2 border border-gray-300 rounded hover:bg-gray-50"
+                  className="p-1.5 border border-gray-300 rounded hover:bg-gray-50 transition-colors"
                 >
-                  <Minus className="w-4 h-4" />
+                  <Minus className="w-3 h-3" />
                 </button>
-                <div className="flex-1 text-center py-2 px-3 border border-gray-300 rounded bg-gray-50">
-                  <span className="font-medium">{currentStyle?.borderWidth || 2}px</span>
+                <div className="flex-1 text-center py-1.5 px-2 border border-gray-300 rounded bg-gray-50 text-xs">
+                  <span className="font-medium">
+                    {currentStyle?.borderWidth ? String(currentStyle.borderWidth).replace('px', '') : '2'}px
+                  </span>
                 </div>
                 <button
                   onClick={() => {
-                    const currentWidth = parseInt(currentStyle?.borderWidth?.toString() || '2')
+                    const borderWidthStr = String(currentStyle?.borderWidth || '2px')
+                    const currentWidth = parseInt(borderWidthStr.replace('px', ''))
                     const newWidth = Math.min(10, currentWidth + 1)
                     onNodeUpdate(selectedNode.id, { 
-                      style: { ...currentStyle, borderWidth: newWidth }
+                      style: { ...currentStyle, borderWidth: `${newWidth}px` }
                     })
                   }}
-                  className="p-2 border border-gray-300 rounded hover:bg-gray-50"
+                  className="p-1.5 border border-gray-300 rounded hover:bg-gray-50 transition-colors"
                 >
-                  <Plus className="w-4 h-4" />
+                  <Plus className="w-3 h-3" />
                 </button>
               </div>
             </div>
 
             {/* Corner Roundness */}
             <div>
-              <Label className="text-sm font-medium text-gray-700 mb-2 block">
-                Corner Roundness
+              <Label className="text-xs font-medium text-gray-600 mb-1.5 block">
+                Arrondi des coins
               </Label>
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-4 gap-1.5">
                 {[0, 4, 8, 16].map((radius) => (
                   <button
                     key={radius}
                     onClick={() => onNodeUpdate(selectedNode.id, { 
                       style: { ...currentStyle, borderRadius: radius }
                     })}
-                    className={`h-12 border-2 transition-all ${
+                    className={`h-8 border transition-all hover:scale-105 ${
                       (currentStyle?.borderRadius === radius || 
                        (!currentStyle?.borderRadius && radius === 8))
-                        ? 'bg-orange-100 border-orange-500'
+                        ? 'bg-orange-100 border-orange-500 shadow-sm'
                         : 'border-gray-300 hover:bg-gray-50'
                     }`}
                     style={{ borderRadius: `${radius}px` }}
                   >
-                    <div className="text-xs">{radius === 0 ? 'Square' : radius === 4 ? 'Slight' : radius === 8 ? 'Normal' : 'Round'}</div>
+                    <div className="text-[10px] font-medium">{radius === 0 ? 'Carré' : radius === 4 ? 'Léger' : radius === 8 ? 'Normal' : 'Rond'}</div>
                   </button>
                 ))}
               </div>
@@ -428,60 +436,60 @@ export function PropertiesPanel({
 
   if (selectedEdge) {
     return (
-      <div className="p-6">
-        <Heading1 className="text-lg mb-6">Connection Properties</Heading1>
+      <div className="p-4 overflow-auto h-full bg-white">
+        <Heading1 className="text-base font-semibold mb-4 text-gray-900">Propriétés de connexion</Heading1>
 
-        <div className="space-y-4">
+        <div className="space-y-3">
           {/* Edge Type */}
           <div>
             <Label className="text-xs font-semibold text-gray-500 uppercase mb-2">
               Type
             </Label>
             <BodySmall className="text-gray-700 capitalize">
-              {selectedEdge.type || 'default'}
+              {selectedEdge.type || 'par défaut'}
             </BodySmall>
           </div>
 
           {/* Label */}
           <div>
-            <Label htmlFor="edge-label" className="text-xs font-semibold text-gray-500 uppercase mb-2">
-              Label
+            <Label htmlFor="edge-label" className="text-xs font-semibold text-gray-500 uppercase mb-1.5">
+              Libellé
             </Label>
             <Input
               id="edge-label"
               value={localEdgeLabel}
               onChange={(e) => handleEdgeLabelChange(e.target.value)}
-              placeholder="Enter label..."
-              className="w-full"
+              placeholder="Saisir le libellé..."
+              className="w-full text-sm py-1.5"
             />
           </div>
 
           {/* Condition */}
           <div>
-            <Label htmlFor="edge-condition" className="text-xs font-semibold text-gray-500 uppercase mb-2">
+            <Label htmlFor="edge-condition" className="text-xs font-semibold text-gray-500 uppercase mb-1.5">
               Condition
             </Label>
             <Textarea
               id="edge-condition"
               value={localEdgeCondition}
               onChange={(e) => handleEdgeConditionChange(e.target.value)}
-              placeholder="Enter condition expression..."
-              rows={3}
-              className="w-full"
+              placeholder="Saisir l'expression de condition..."
+              rows={2}
+              className="w-full text-sm py-1.5"
             />
           </div>
 
           {/* Connection Info */}
           <div>
             <Label className="text-xs font-semibold text-gray-500 uppercase mb-2">
-              Connection
+              Connexion
             </Label>
             <div className="space-y-1">
               <BodySmall className="text-gray-500">
-                From: <span className="text-gray-700 font-mono text-xs">{selectedEdge.source}</span>
+                De : <span className="text-gray-700 font-mono text-xs">{selectedEdge.source}</span>
               </BodySmall>
               <BodySmall className="text-gray-500">
-                To: <span className="text-gray-700 font-mono text-xs">{selectedEdge.target}</span>
+                Vers : <span className="text-gray-700 font-mono text-xs">{selectedEdge.target}</span>
               </BodySmall>
             </div>
           </div>

@@ -1,13 +1,17 @@
 import { useEffect, useRef } from 'react'
 import { Node, Edge } from '@xyflow/react'
 
+interface LoadedFlow {
+  nodes: Node[]
+  edges: Edge[]
+}
+
 interface UseFlowLoadingProps {
-  processVersionId: string | null
-  loadedFlow: any
+  loadedFlow: LoadedFlow | null
   isLoaded: boolean
   setIsLoaded: (loaded: boolean) => void
-  onNodesChange: (changes: any) => void
-  onEdgesChange: (changes: any) => void
+  onNodesChange: (changes: Node[]) => void
+  onEdgesChange: (changes: Edge[]) => void
   onLoadSuccess?: (nodes: Node[], edges: Edge[]) => void
   onLoadError?: (error: Error) => void
   loadError: Error | null
@@ -17,7 +21,6 @@ interface UseFlowLoadingProps {
  * Hook to handle flow data loading
  */
 export function useFlowLoading({
-  processVersionId,
   loadedFlow,
   isLoaded,
   setIsLoaded,

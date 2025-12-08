@@ -1,4 +1,5 @@
 import { Heading1, BodySmall } from '@repo/ui'
+import { ReactNode } from 'react'
 import { 
   Play, 
   Square, 
@@ -114,11 +115,23 @@ function PaletteItem({ icon, label, nodeType, onDragStart }: PaletteItemProps) {
     <div
       draggable
       onDragStart={(e) => onDragStart(e, nodeType)}
-      className="flex items-center gap-2 p-2.5 rounded-lg border border-gray-200 bg-white hover:bg-orange-50 hover:border-orange-400 cursor-move transition-all group"
+      className="group relative flex flex-col items-center justify-center gap-1.5 p-2 rounded-lg border-2 border-gray-200 bg-white hover:bg-gradient-to-br hover:from-orange-50 hover:to-orange-100/50 hover:border-orange-400 hover:shadow-md cursor-move transition-all duration-200 ease-out transform hover:scale-[1.02] active:scale-[0.98]"
       title={label}
     >
-      <div className="flex-shrink-0 group-hover:scale-110 transition-transform">{icon}</div>
-      <BodySmall className="text-xs truncate flex-1">{label}</BodySmall>
+      {/* Icon container with background */}
+      <div className="flex items-center justify-center w-8 h-8 rounded-md bg-gray-50 group-hover:bg-orange-100 group-hover:scale-110 transition-all duration-200">
+        <div className="group-hover:scale-110 transition-transform duration-200 scale-75">
+          {icon}
+        </div>
+      </div>
+      {/* Label */}
+      <BodySmall className="text-[10px] font-medium text-gray-700 group-hover:text-orange-700 text-center leading-tight truncate w-full transition-colors">
+        {label}
+      </BodySmall>
+      {/* Drag indicator */}
+      <div className="absolute top-0.5 right-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="w-1 h-1 rounded-full bg-orange-500"></div>
+      </div>
     </div>
   )
 }
@@ -133,22 +146,22 @@ function PaletteSection({ title, children, defaultExpanded = true }: PaletteSect
   const [isExpanded, setIsExpanded] = useState(defaultExpanded)
   
   return (
-    <div className="mb-4">
+    <div className="mb-2">
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full flex items-center justify-between px-4 py-2 bg-gray-100 hover:bg-orange-100 transition-colors group"
+        className="w-full flex items-center justify-between px-3 py-1.5 bg-gradient-to-r from-gray-50 to-gray-100 hover:from-orange-50 hover:to-orange-100 border-b-2 border-transparent hover:border-orange-300 transition-all duration-200 rounded-t-lg group"
       >
-        <BodySmall className="text-xs font-semibold text-gray-700 uppercase">
+        <BodySmall className="text-[10px] font-bold text-gray-700 uppercase tracking-wider group-hover:text-orange-700 transition-colors">
           {title}
         </BodySmall>
         <ChevronDown 
-          className={`w-4 h-4 text-gray-400 group-hover:text-orange-500 transition-all ${
+          className={`w-3 h-3 text-gray-500 group-hover:text-orange-600 transition-all duration-200 ${
             isExpanded ? 'rotate-0' : '-rotate-90'
           }`} 
         />
       </button>
       {isExpanded && (
-        <div className="grid grid-cols-2 gap-1.5 px-4 mt-2">
+        <div className="grid grid-cols-2 gap-1.5 px-2 py-2 bg-gray-50/50 rounded-b-lg border-x border-b border-gray-200">
           {children}
         </div>
       )}
@@ -158,12 +171,22 @@ function PaletteSection({ title, children, defaultExpanded = true }: PaletteSect
 
 interface PaletteProps {
   onDragStart: (event: React.DragEvent, nodeType: string) => void
+  allowedNodeTypes?: string[] // Optional filter for allowed node types
+  customNodes?: Array<{ category: string; icon: ReactNode; label: string; type: string }> // Custom node definitions
+  defaultExpandedCategories?: string[] // Categories to expand by default
+  title?: string // Custom title for the palette
 }
 
-export function Palette({ onDragStart }: PaletteProps) {
+export function Palette({ 
+  onDragStart, 
+  allowedNodeTypes,
+  customNodes,
+  defaultExpandedCategories = ['Events', 'Tasks', 'Gateways'],
+  title = 'Bibliothèque de nœuds'
+}: PaletteProps) {
   const [searchQuery, setSearchQuery] = useState('')
   
-  const allNodes = [
+  const allNodes = customNodes || [
     // Events
     { category: 'Events', icon: <Play className="w-4 h-4 text-green-600" />, label: 'Start Event', type: 'startEvent' },
     { category: 'Events', icon: <Square className="w-4 h-4 text-red-600" />, label: 'End Event', type: 'endEvent' },
@@ -306,60 +329,80 @@ export function Palette({ onDragStart }: PaletteProps) {
     { category: 'Status', icon: <Clock className="w-4 h-4 text-amber-600" />, label: 'Pending', type: 'pending' },
   ]
 
+  // Filter nodes by allowed types if provided
+  const nodesFilteredByType = allowedNodeTypes && allowedNodeTypes.length > 0
+    ? allNodes.filter(node => allowedNodeTypes.includes(node.type))
+    : allNodes
+
+  // Filter nodes by search query
   const filteredNodes = searchQuery
-    ? allNodes.filter(node => 
+    ? nodesFilteredByType.filter(node => 
         node.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
         node.category.toLowerCase().includes(searchQuery.toLowerCase())
       )
-    : allNodes
+    : nodesFilteredByType
 
   const groupedNodes = filteredNodes.reduce((acc, node) => {
     if (!acc[node.category]) {
       acc[node.category] = []
     }
-    acc[node.category].push(node)
+    acc[node.category].push(node as any)
     return acc
-  }, {} as Record<string, typeof allNodes>)
+  }, {} as Record<string, Array<{ category: string; icon: ReactNode; label: string; type: string }>>)
 
   return (
-    <div className="h-full flex flex-col">
-      {/* Header */}
-      <div className="px-4 py-3 border-b border-gray-200 bg-white sticky top-0 z-10">
-        <Heading1 className="text-base mb-3">Node Library</Heading1>
+    <div className="h-full flex flex-col bg-white">
+      {/* Header with gradient */}
+      <div className="px-3 py-3 border-b-2 border-gray-200 bg-gradient-to-br from-white to-gray-50 sticky top-0 z-10 shadow-sm">
+        {/* Title */}
+        <div className="mb-3">
+          <Heading1 className="text-sm font-bold text-gray-900 mb-0.5">{title}</Heading1>
+          <BodySmall className="text-[10px] text-gray-500">
+            Glissez-déposez les éléments sur le canvas
+          </BodySmall>
+        </div>
         
         {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <div className="relative mb-2">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
           <input
             type="text"
-            placeholder="Search nodes..."
+            placeholder="Rechercher un nœud..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+            className="w-full pl-8 pr-8 py-1.5 text-xs border-2 border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all placeholder:text-gray-400"
           />
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-orange-600 transition-colors p-0.5 rounded hover:bg-orange-50"
+              aria-label="Effacer la recherche"
             >
-              <X className="w-4 h-4" />
+              <X className="w-3 h-3" />
             </button>
           )}
         </div>
         
-        {/* Stats */}
-        <BodySmall className="text-xs text-gray-500 mt-2">
-          {filteredNodes.length} nodes {searchQuery ? `found for "${searchQuery}"` : 'available'}
-        </BodySmall>
+        {/* Stats badge */}
+        <div className="flex items-center gap-1.5">
+          <div className="px-2 py-0.5 bg-orange-100 text-orange-700 rounded-md text-[10px] font-semibold">
+            {filteredNodes.length} {filteredNodes.length === 1 ? 'élément' : 'éléments'}
+          </div>
+          {searchQuery && (
+            <BodySmall className="text-[10px] text-gray-500">
+              pour "{searchQuery}"
+            </BodySmall>
+          )}
+        </div>
       </div>
 
       {/* Scrollable Content */}
-      <div className="flex-1 overflow-y-auto py-2">
+      <div className="flex-1 overflow-y-auto py-3 px-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 hover:scrollbar-thumb-gray-400">
         {Object.entries(groupedNodes).map(([category, nodes]) => (
           <PaletteSection 
             key={category} 
             title={`${category} (${nodes.length})`}
-            defaultExpanded={searchQuery ? true : ['Events', 'Tasks', 'Gateways'].includes(category)}
+            defaultExpanded={searchQuery ? true : defaultExpandedCategories.includes(category)}
           >
             {nodes.map((node) => (
               <PaletteItem
@@ -375,9 +418,14 @@ export function Palette({ onDragStart }: PaletteProps) {
         
         {filteredNodes.length === 0 && (
           <div className="text-center py-8 px-4">
-            <Search className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-            <BodySmall className="text-gray-500">
-              No nodes found matching "{searchQuery}"
+            <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-gray-100 flex items-center justify-center">
+              <Search className="w-6 h-6 text-gray-400" />
+            </div>
+            <BodySmall className="text-gray-500 font-medium text-xs">
+              Aucun résultat trouvé
+            </BodySmall>
+            <BodySmall className="text-gray-400 text-[10px] mt-1">
+              Essayez avec d'autres mots-clés
             </BodySmall>
           </div>
         )}

@@ -23,6 +23,7 @@ export default function ProcessesPage() {
   const [search, setSearch] = useState('')
   const [levelFilter, setLevelFilter] = useState<ProcessLevel | 'all'>('all')
   const [statusFilter, setStatusFilter] = useState<ProcessStatus | 'all'>('all')
+  const [macroIdFilter, setMacroIdFilter] = useState<string | undefined>()
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid')
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
@@ -33,6 +34,7 @@ export default function ProcessesPage() {
     search: search || undefined,
     level: levelFilter !== 'all' ? levelFilter : undefined,
     status: statusFilter !== 'all' ? statusFilter : undefined,
+    macroId: macroIdFilter,
   })
 
   const createMutation = useCreateProcess()
@@ -107,6 +109,8 @@ export default function ProcessesPage() {
             onLevelChange={setLevelFilter}
             statusFilter={statusFilter}
             onStatusChange={setStatusFilter}
+            macroIdFilter={macroIdFilter}
+            onMacroIdChange={setMacroIdFilter}
           />
         </div>
         <ViewModeToggle viewMode={viewMode} onViewModeChange={setViewMode} />

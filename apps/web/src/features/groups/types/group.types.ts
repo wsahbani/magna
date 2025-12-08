@@ -34,6 +34,6 @@ export interface GroupPermission {
   groupId: string;
   resource: string;
   action: string;
-  conditions?: any;
+  conditions?: Record<string, unknown>;
   createdAt: string;
 }

@@ -1,11 +1,12 @@
 import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../../database/prisma.service';
 import { SaveFlowDto, SaveNodeDto, SaveEdgeDto, UpdateFlowLayoutDto, FlowAction } from '../dto/save-flow.dto';
-import { ProcessStatus, NodeStatus, EdgeStatus } from '@prisma/client';
+import { FlowNodeType } from '@prisma/client';
 
 /**
  * Flow Service
- * Handles saving and retrieving ReactFlow diagrams for processes
+ * Handles saving and retrieving ReactFlow diagrams for processes (level 2)
+ * Uses FlowDiagram, FlowNode, and FlowEdge models
  */
 @Injectable()
 export class FlowService {
@@ -15,7 +16,7 @@ export class FlowService {
 
   /**
    * Save complete flow diagram (nodes + edges)
-   * Simplified: Works with a single version per process
+   * Works with FlowDiagram for Process (level 2)
    */
   async saveFlow(saveFlowDto: SaveFlowDto, userId: string) {
     this.logger.log(`Saving flow for process: ${saveFlowDto.processId}`);
@@ -29,115 +30,152 @@ export class FlowService {
       throw new NotFoundException(`Process ${saveFlowDto.processId} not found`);
     }
 
-    // Get or create a single version for this process
-    let version = await this.prisma.processVersion.findFirst({
-      where: { processId: saveFlowDto.processId },
+    // Get or create FlowDiagram for this process (level 2)
+    let flowDiagram = await this.prisma.flowDiagram.findFirst({
+      where: {
+        processId_ref: saveFlowDto.processId,
+        level: 2,
+      },
     });
-    
-    if (!version) {
-      // Create initial version
-      version = await this.prisma.processVersion.create({
+
+    if (!flowDiagram) {
+      // Create FlowDiagram if it doesn't exist
+      flowDiagram = await this.prisma.flowDiagram.create({
         data: {
+          level: 2,
           processId: saveFlowDto.processId,
-          version: 1,
-          status: ProcessStatus.DRAFT,
-          changesLog: saveFlowDto.changesLog || 'Initial flow creation',
+          processId_ref: saveFlowDto.processId,
         },
       });
-    } else {
-      // Update existing version with changes log
-      if (saveFlowDto.changesLog) {
-        await this.prisma.processVersion.update({
-          where: { id: version.id },
-          data: { changesLog: saveFlowDto.changesLog },
-        });
-      }
     }
 
     // Save in transaction to ensure consistency
     return await this.prisma.$transaction(async (tx) => {
       // Handle nodes based on action
-      const existingNodes = await tx.node.findMany({ 
-        where: { versionId: version.id },
-        select: { id: true }
+      const existingNodes = await tx.flowNode.findMany({
+        where: { diagramId: flowDiagram.id },
+        select: { rfId: true, id: true },
       });
-      const existingNodeIds = new Set(existingNodes.map(n => n.id));
+      const existingRfIds = new Set(existingNodes.map((n) => n.rfId));
+      const rfIdToDbId = new Map(existingNodes.map((n) => [n.rfId, n.id]));
 
       // Process nodes by action
-      const nodesToDelete = saveFlowDto.nodes.filter(n => n.action === FlowAction.DELETE);
-      const nodesToAdd = saveFlowDto.nodes.filter(n => n.action === FlowAction.ADD || (!n.action && (!n.id || !existingNodeIds.has(n.id))));
-      const nodesToUpdate = saveFlowDto.nodes.filter(n => n.action === FlowAction.EDIT || (!n.action && n.id && existingNodeIds.has(n.id)));
+      const nodesToDelete = saveFlowDto.nodes.filter(
+        (n) => n.action === FlowAction.DELETE,
+      );
+      const nodesToAdd = saveFlowDto.nodes.filter(
+        (n) =>
+          n.action === FlowAction.ADD ||
+          (!n.action && (!n.id || !existingRfIds.has(n.id))),
+      );
+      const nodesToUpdate = saveFlowDto.nodes.filter(
+        (n) =>
+          n.action === FlowAction.EDIT ||
+          (!n.action && n.id && existingRfIds.has(n.id)),
+      );
 
       // Delete nodes
       if (nodesToDelete.length > 0) {
-        await tx.node.deleteMany({
+        const rfIdsToDelete = nodesToDelete
+          .filter((n) => n.id)
+          .map((n) => n.id!);
+        await tx.flowNode.deleteMany({
           where: {
-            versionId: version.id,
-            id: { in: nodesToDelete.filter(n => n.id).map(n => n.id!) }
-          }
+            diagramId: flowDiagram.id,
+            rfId: { in: rfIdsToDelete },
+          },
         });
       }
 
-      // Create new nodes - store temp ID mapping
-      const nodeIdMapping: Record<string, string> = {}; // tempId -> realId
+      // Create new nodes - store rfId mapping
+      const nodeRfIdMapping: Record<string, string> = {}; // tempRfId -> realRfId
       const createdNodesWithMapping = await Promise.all(
         nodesToAdd.map(async (node) => {
-          const created = await this.createNode(tx, version.id, node);
-          if (node.id) {
-            nodeIdMapping[node.id] = created.id; // Map temp ID to real ID
+          const rfId = node.id || `node-${Date.now()}-${Math.random()}`;
+          const created = await this.createFlowNode(tx, flowDiagram.id, node, rfId);
+          if (node.id && node.id !== rfId) {
+            nodeRfIdMapping[node.id] = created.rfId; // Map temp rfId to real rfId
           }
           return created;
-        })
+        }),
       );
 
       // Update existing nodes
       const updatedNodes = await Promise.all(
-        nodesToUpdate.map(node => this.updateNode(tx, version.id, node))
+        nodesToUpdate.map((node) => {
+          const dbId = rfIdToDbId.get(node.id!);
+          if (!dbId) {
+            throw new NotFoundException(`Node with rfId "${node.id}" not found`);
+          }
+          return this.updateFlowNode(tx, dbId, node);
+        }),
       );
 
       // Handle edges based on action
-      const existingEdges = await tx.edge.findMany({ 
-        where: { versionId: version.id },
-        select: { id: true }
+      const existingEdges = await tx.flowEdge.findMany({
+        where: { diagramId: flowDiagram.id },
+        select: { rfId: true, id: true },
       });
-      const existingEdgeIds = new Set(existingEdges.map(e => e.id));
+      const existingEdgeRfIds = new Set(existingEdges.map((e) => e.rfId));
+      const edgeRfIdToDbId = new Map(existingEdges.map((e) => [e.rfId, e.id]));
 
       // Process edges by action
-      const edgesToDelete = saveFlowDto.edges.filter(e => e.action === FlowAction.DELETE);
-      const edgesToAdd = saveFlowDto.edges.filter(e => e.action === FlowAction.ADD || (!e.action && (!e.id || !existingEdgeIds.has(e.id))));
-      const edgesToUpdate = saveFlowDto.edges.filter(e => e.action === FlowAction.EDIT || (!e.action && e.id && existingEdgeIds.has(e.id)));
+      const edgesToDelete = saveFlowDto.edges.filter(
+        (e) => e.action === FlowAction.DELETE,
+      );
+      const edgesToAdd = saveFlowDto.edges.filter(
+        (e) =>
+          e.action === FlowAction.ADD ||
+          (!e.action && (!e.id || !existingEdgeRfIds.has(e.id))),
+      );
+      const edgesToUpdate = saveFlowDto.edges.filter(
+        (e) => 
+          e.action === FlowAction.EDIT ||
+          (!e.action && e.id && existingEdgeRfIds.has(e.id)),
+      );
 
       // Delete edges
       if (edgesToDelete.length > 0) {
-        await tx.edge.deleteMany({
+        const rfIdsToDelete = edgesToDelete
+          .filter((e) => e.id)
+          .map((e) => e.id!);
+        await tx.flowEdge.deleteMany({
           where: {
-            versionId: version.id,
-            id: { in: edgesToDelete.filter(e => e.id).map(e => e.id!) }
-          }
+            diagramId: flowDiagram.id,
+            rfId: { in: rfIdsToDelete },
+          },
         });
       }
 
-      // Create new edges - store temp ID mapping and update source/target references
-      const edgeIdMapping: Record<string, string> = {}; // tempId -> realId
+      // Create new edges - update source/target rfIds if they were remapped
       const createdEdgesWithMapping = await Promise.all(
         edgesToAdd.map(async (edge) => {
-          // Update source/target if they were remapped from temp node IDs
+          const rfId = edge.id || `edge-${Date.now()}-${Math.random()}`;
+          // Update source/target if they were remapped from temp node rfIds
           const updatedEdge = {
             ...edge,
-            source: nodeIdMapping[edge.source] || edge.source,
-            target: nodeIdMapping[edge.target] || edge.target,
+            source: nodeRfIdMapping[edge.source] || edge.source,
+            target: nodeRfIdMapping[edge.target] || edge.target,
           };
-          const created = await this.createEdge(tx, version.id, updatedEdge);
-          if (edge.id) {
-            edgeIdMapping[edge.id] = created.id; // Map temp ID to real ID
-          }
-          return created;
-        })
+          return await this.createFlowEdge(tx, flowDiagram.id, updatedEdge, rfId);
+        }),
       );
 
       // Update existing edges
       const updatedEdges = await Promise.all(
-        edgesToUpdate.map(edge => this.updateEdge(tx, version.id, edge))
+        edgesToUpdate.map((edge) => {
+          const dbId = edgeRfIdToDbId.get(edge.id!);
+          if (!dbId) {
+            throw new NotFoundException(`Edge with rfId "${edge.id}" not found`);
+          }
+          // Update source/target if they were remapped
+          const updatedEdge = {
+            ...edge,
+            source: nodeRfIdMapping[edge.source] || edge.source,
+            target: nodeRfIdMapping[edge.target] || edge.target,
+          };
+          return this.updateFlowEdge(tx, dbId, updatedEdge);
+        }),
       );
 
       const allNodes = [...createdNodesWithMapping, ...updatedNodes];
@@ -145,27 +183,26 @@ export class FlowService {
 
       this.logger.log(
         `Flow saved: ${allNodes.length} nodes (${createdNodesWithMapping.length} new, ${updatedNodes.length} updated, ${nodesToDelete.length} deleted), ` +
-        `${allEdges.length} edges (${createdEdgesWithMapping.length} new, ${updatedEdges.length} updated, ${edgesToDelete.length} deleted)`
+          `${allEdges.length} edges (${createdEdgesWithMapping.length} new, ${updatedEdges.length} updated, ${edgesToDelete.length} deleted)`,
       );
 
       return {
-        versionId: version.id,
-        version: version.version,
+        diagramId: flowDiagram.id,
+        processId: saveFlowDto.processId,
         nodesCount: allNodes.length,
         edgesCount: allEdges.length,
-        nodes: allNodes,
-        edges: allEdges,
-        nodeIdMapping, // Return mapping from temp IDs to real IDs
-        edgeIdMapping, // Return mapping from temp IDs to real IDs
+        nodes: allNodes.map(this.mapFlowNodeToReactFlow),
+        edges: allEdges.map(this.mapFlowEdgeToReactFlow),
+        nodeRfIdMapping, // Return mapping from temp rfIds to real rfIds
+        edgeRfIdMapping: {}, // Return mapping from temp rfIds to real rfIds (if needed)
       };
     });
   }
 
   /**
-   * Get flow diagram for a process
-   * Simplified: Returns the single version for the process
+   * Get flow diagram for a process (level 2)
    */
-  async getFlow(processId: string, versionNumber?: number) {
+  async getFlow(processId: string) {
     this.logger.log(`Getting flow for process: ${processId}`);
 
     const process = await this.prisma.process.findUnique({
@@ -176,255 +213,276 @@ export class FlowService {
       throw new NotFoundException(`Process ${processId} not found`);
     }
 
-    // Get the single version for this process
-    const version = await this.prisma.processVersion.findFirst({
-      where: { processId },
-      include: { layout: true },
+    // Get FlowDiagram for this process (level 2)
+    const flowDiagram = await this.prisma.flowDiagram.findFirst({
+      where: {
+        processId_ref: processId,
+        level: 2,
+      },
+      include: {
+        nodes: true,
+        edges: true,
+      },
     });
 
-    if (!version) {
-      // Return empty flow if no version exists yet
+    if (!flowDiagram) {
+      // Return empty flow if no diagram exists yet
       return {
         processId,
-        versionId: null,
-        version: 0,
-        status: 'DRAFT',
+        diagramId: null,
         nodes: [],
         edges: [],
-        layout: null,
       };
     }
 
-    // Load nodes and edges
-    const [nodes, edges] = await Promise.all([
-      this.prisma.node.findMany({
-        where: { versionId: version.id },
-        orderBy: { zIndex: 'asc' },
-      }),
-      this.prisma.edge.findMany({
-        where: { versionId: version.id },
-      }),
-    ]);
-
     return {
       processId,
-      versionId: version.id,
-      version: version.version,
-      status: version.status,
-      nodes: nodes.map(this.mapNodeToReactFlow),
-      edges: edges.map(this.mapEdgeToReactFlow),
-      layout: version.layout,
+      diagramId: flowDiagram.id,
+      nodes: flowDiagram.nodes.map(this.mapFlowNodeToReactFlow),
+      edges: flowDiagram.edges.map(this.mapFlowEdgeToReactFlow),
     };
   }
 
   /**
    * Update flow layout settings (zoom, viewport, grid)
-   * Simplified: Works with the single version
+   * Stores layout in FlowDiagram.snapshot
    */
   async updateLayout(processId: string, layoutDto: UpdateFlowLayoutDto) {
-    const version = await this.prisma.processVersion.findFirst({
-      where: { processId },
+    const flowDiagram = await this.prisma.flowDiagram.findFirst({
+      where: {
+        processId_ref: processId,
+        level: 2,
+      },
     });
 
-    if (!version) {
-      throw new NotFoundException('No version found for this process');
+    if (!flowDiagram) {
+      throw new NotFoundException('No flow diagram found for this process');
     }
 
-    const layout = await this.prisma.processLayout.upsert({
-      where: { versionId: version.id },
-      create: {
-        versionId: version.id,
-        ...layoutDto,
-      },
-      update: layoutDto,
-    });
-
-    return layout;
-  }
-
-  /**
-   * Create a node in the database
-   * Note: id is auto-generated by Prisma (cuid)
-   */
-  private async createNode(tx: any, versionId: string, node: SaveNodeDto) {
-    return tx.node.create({
+    // Update snapshot with layout data
+    const updatedDiagram = await this.prisma.flowDiagram.update({
+      where: { id: flowDiagram.id },
       data: {
-        // id auto-generated by Prisma
-        versionId,
-        type: node.type,
-        label: node.label,
-        description: node.description,
-        positionX: node.positionX,
-        positionY: node.positionY,
-        width: node.width,
-        height: node.height,
-        zIndex: node.zIndex,
-        parentNodeId: node.parentNodeId,
-        groupId: node.groupId,
-        sourcePosition: node.sourcePosition,
-        targetPosition: node.targetPosition,
-        isConnectable: node.isConnectable ?? true,
-        isDraggable: node.isDraggable ?? true,
-        isSelectable: node.isSelectable ?? true,
-        backgroundColor: node.style?.backgroundColor,
-        borderColor: node.style?.borderColor,
-        borderWidth: node.style?.borderWidth,
-        borderRadius: node.style?.borderRadius,
-        fontColor: node.style?.color,
-        fontSize: node.style?.fontSize,
-        fontWeight: node.style?.fontWeight,
-        opacity: node.style?.opacity,
-        style: node.style ? JSON.parse(JSON.stringify(node.style)) : null,
-        data: node.data ? JSON.parse(JSON.stringify(node.data)) : null,
-        status: NodeStatus.ACTIVE,
-      },
-    });
-  }
-
-  /**
-   * Update an existing node in the database
-   */
-  private async updateNode(tx: any, versionId: string, node: SaveNodeDto) {
-    return tx.node.update({
-      where: { id: node.id },
-      data: {
-        type: node.type,
-        label: node.label,
-        description: node.description,
-        positionX: node.positionX,
-        positionY: node.positionY,
-        width: node.width,
-        height: node.height,
-        zIndex: node.zIndex,
-        parentNodeId: node.parentNodeId,
-        groupId: node.groupId,
-        sourcePosition: node.sourcePosition,
-        targetPosition: node.targetPosition,
-        isConnectable: node.isConnectable ?? true,
-        isDraggable: node.isDraggable ?? true,
-        isSelectable: node.isSelectable ?? true,
-        backgroundColor: node.style?.backgroundColor,
-        borderColor: node.style?.borderColor,
-        borderWidth: node.style?.borderWidth,
-        borderRadius: node.style?.borderRadius,
-        fontColor: node.style?.color,
-        fontSize: node.style?.fontSize,
-        fontWeight: node.style?.fontWeight,
-        opacity: node.style?.opacity,
-        style: node.style ? JSON.parse(JSON.stringify(node.style)) : null,
-        data: node.data ? JSON.parse(JSON.stringify(node.data)) : null,
-      },
-    });
-  }
-
-  /**
-   * Create an edge in the database
-   * Note: id is auto-generated by Prisma (cuid)
-   */
-  private async createEdge(tx: any, versionId: string, edge: SaveEdgeDto) {
-    return tx.edge.create({
-      data: {
-        // id auto-generated by Prisma
-        versionId,
-        fromId: edge.source,
-        toId: edge.target,
-        type: edge.type || 'SEQUENCE_FLOW',
-        label: edge.label,
-        animated: edge.animated ?? false,
-        pathType: edge.pathType || 'SMOOTH_STEP',
-        sourceHandle: edge.sourceHandle,
-        targetHandle: edge.targetHandle,
-        strokeColor: edge.style?.strokeColor,
-        strokeWidth: edge.style?.strokeWidth,
-        strokeDasharray: edge.style?.strokeDasharray,
-        style: edge.style ? JSON.parse(JSON.stringify(edge.style)) : null,
-        metadata: edge.data ? JSON.parse(JSON.stringify(edge.data)) : null,
-        status: EdgeStatus.ACTIVE,
-      },
-    });
-  }
-
-  /**
-   * Update an existing edge in the database
-   */
-  private async updateEdge(tx: any, versionId: string, edge: SaveEdgeDto) {
-    return tx.edge.update({
-      where: { id: edge.id },
-      data: {
-        fromId: edge.source,
-        toId: edge.target,
-        type: edge.type || 'SEQUENCE_FLOW',
-        label: edge.label,
-        animated: edge.animated ?? false,
-        pathType: edge.pathType || 'SMOOTH_STEP',
-        sourceHandle: edge.sourceHandle,
-        targetHandle: edge.targetHandle,
-        strokeColor: edge.style?.strokeColor,
-        strokeWidth: edge.style?.strokeWidth,
-        strokeDasharray: edge.style?.strokeDasharray,
-        style: edge.style ? JSON.parse(JSON.stringify(edge.style)) : null,
-        metadata: edge.data ? JSON.parse(JSON.stringify(edge.data)) : null,
-      },
-    });
-  }
-
-  /**
-   * Map database node to ReactFlow format
-   */
-  private mapNodeToReactFlow(node: any) {
-    return {
-      id: node.id,
-      type: node.type.toLowerCase(),
-      position: { x: node.positionX, y: node.positionY },
-      data: {
-        label: node.label,
-        description: node.description,
-        style: {
-          backgroundColor: node.backgroundColor,
-          borderColor: node.borderColor,
-          borderWidth: node.borderWidth,
-          borderRadius: node.borderRadius,
-          color: node.fontColor,
-          fontSize: node.fontSize,
-          fontWeight: node.fontWeight,
-          opacity: node.opacity,
-          ...((node.style as any) || {}),
+        snapshot: {
+          ...((flowDiagram.snapshot as any) || {}),
+          layout: layoutDto,
         },
-        ...((node.data as any) || {}),
       },
-      style: {
-        width: node.width,
-        height: node.height,
-        zIndex: node.zIndex,
+    });
+
+    return updatedDiagram.snapshot;
+  }
+
+  /**
+   * Create a FlowNode in the database
+   */
+  private async createFlowNode(
+    tx: any,
+    diagramId: string,
+    node: SaveNodeDto,
+    rfId: string,
+  ) {
+    // Map node type to FlowNodeType enum
+    const flowNodeType = this.mapNodeTypeToFlowNodeType(node.type);
+
+    return tx.flowNode.create({
+      data: {
+        diagramId,
+        rfId,
+        type: flowNodeType,
+        label: node.label,
+        position: {
+          x: node.positionX,
+          y: node.positionY,
+        },
+        data: {
+          description: node.description,
+          width: node.width,
+          height: node.height,
+          zIndex: node.zIndex,
+          parentNodeId: node.parentNodeId,
+          groupId: node.groupId,
+          sourcePosition: node.sourcePosition,
+          targetPosition: node.targetPosition,
+          isConnectable: node.isConnectable ?? true,
+          isDraggable: node.isDraggable ?? true,
+          isSelectable: node.isSelectable ?? true,
+          style: node.style,
+          ...(node.data || {}),
+        },
       },
-      parentNode: node.parentNodeId,
-      extent: node.parentNodeId ? 'parent' : undefined,
-      draggable: node.isDraggable,
-      selectable: node.isSelectable,
-      connectable: node.isConnectable,
+    });
+  }
+
+  /**
+   * Update an existing FlowNode in the database
+   */
+  private async updateFlowNode(tx: any, nodeId: string, node: SaveNodeDto) {
+    const flowNodeType = this.mapNodeTypeToFlowNodeType(node.type);
+
+    return tx.flowNode.update({
+      where: { id: nodeId },
+      data: {
+        type: flowNodeType,
+        label: node.label,
+        position: {
+          x: node.positionX,
+          y: node.positionY,
+        },
+        data: {
+          description: node.description,
+          width: node.width,
+          height: node.height,
+          zIndex: node.zIndex,
+          parentNodeId: node.parentNodeId,
+          groupId: node.groupId,
+          sourcePosition: node.sourcePosition,
+          targetPosition: node.targetPosition,
+          isConnectable: node.isConnectable ?? true,
+          isDraggable: node.isDraggable ?? true,
+          isSelectable: node.isSelectable ?? true,
+          style: node.style,
+          ...(node.data || {}),
+        },
+      },
+    });
+  }
+
+  /**
+   * Create a FlowEdge in the database
+   */
+  private async createFlowEdge(
+    tx: any,
+    diagramId: string,
+    edge: SaveEdgeDto,
+    rfId: string,
+  ) {
+    return tx.flowEdge.create({
+      data: {
+        diagramId,
+        rfId,
+        sourceRfId: edge.source, // Use rfId of source node
+        targetRfId: edge.target, // Use rfId of target node
+        label: edge.label,
+        condition: edge.data?.condition,
+        data: {
+          type: edge.type || 'SEQUENCE_FLOW',
+          animated: edge.animated ?? false,
+          pathType: edge.pathType || 'SMOOTH_STEP',
+          sourceHandle: edge.sourceHandle,
+          targetHandle: edge.targetHandle,
+          style: edge.style,
+          ...(edge.data || {}),
+        },
+      },
+    });
+  }
+
+  /**
+   * Update an existing FlowEdge in the database
+   */
+  private async updateFlowEdge(tx: any, edgeId: string, edge: SaveEdgeDto) {
+    return tx.flowEdge.update({
+      where: { id: edgeId },
+      data: {
+        sourceRfId: edge.source, // Use rfId of source node
+        targetRfId: edge.target, // Use rfId of target node
+        label: edge.label,
+        condition: edge.data?.condition,
+        data: {
+          type: edge.type || 'SEQUENCE_FLOW',
+          animated: edge.animated ?? false,
+          pathType: edge.pathType || 'SMOOTH_STEP',
+          sourceHandle: edge.sourceHandle,
+          targetHandle: edge.targetHandle,
+          style: edge.style,
+          ...(edge.data || {}),
+        },
+      },
+    });
+  }
+
+  /**
+   * Map database FlowNode to ReactFlow format
+   */
+  private mapFlowNodeToReactFlow(node: any) {
+    const nodeData = (node.data as any) || {};
+    const position = (node.position as any) || { x: 0, y: 0 };
+
+    return {
+      id: node.rfId, // Use rfId as ReactFlow node ID
+      type: node.type.toLowerCase(),
+      position: {
+        x: position.x || 0,
+        y: position.y || 0,
+      },
+      data: {
+        label: node.label,
+        description: nodeData.description,
+        width: nodeData.width,
+        height: nodeData.height,
+        zIndex: nodeData.zIndex,
+        parentNodeId: nodeData.parentNodeId,
+        groupId: nodeData.groupId,
+        sourcePosition: nodeData.sourcePosition,
+        targetPosition: nodeData.targetPosition,
+        isConnectable: nodeData.isConnectable ?? true,
+        isDraggable: nodeData.isDraggable ?? true,
+        isSelectable: nodeData.isSelectable ?? true,
+        style: nodeData.style || {},
+        ...nodeData,
+      },
     };
   }
 
   /**
-   * Map database edge to ReactFlow format
+   * Map database FlowEdge to ReactFlow format
    */
-  private mapEdgeToReactFlow(edge: any) {
+  private mapFlowEdgeToReactFlow(edge: any) {
+    const edgeData = (edge.data as any) || {};
+
     return {
-      id: edge.id,
-      source: edge.fromId,
-      target: edge.toId,
-      type: edge.pathType?.toLowerCase() || 'smoothstep',
+      id: edge.rfId, // Use rfId as ReactFlow edge ID
+      source: edge.sourceRfId, // Use rfId of source node
+      target: edge.targetRfId, // Use rfId of target node
+      type: edgeData.pathType?.toLowerCase() || 'smoothstep',
       label: edge.label,
-      animated: edge.animated,
-      sourceHandle: edge.sourceHandle,
-      targetHandle: edge.targetHandle,
-      style: {
-        stroke: edge.strokeColor || '#b1b1b7',
-        strokeWidth: edge.strokeWidth || 1.5,
-        strokeDasharray: edge.strokeDasharray,
-        ...((edge.style as any) || {}),
+      animated: edgeData.animated || false,
+      sourceHandle: edgeData.sourceHandle,
+      targetHandle: edgeData.targetHandle,
+      style: edgeData.style || {},
+      data: {
+        condition: edge.condition,
+        ...edgeData,
       },
-      data: (edge.metadata as any) || {},
     };
+  }
+
+  /**
+   * Map node type string to FlowNodeType enum
+   */
+  private mapNodeTypeToFlowNodeType(nodeType: string): FlowNodeType {
+    const upperType = nodeType.toUpperCase();
+    
+    // Direct mapping for FlowNodeType enum values
+    if (Object.values(FlowNodeType).includes(upperType as FlowNodeType)) {
+      return upperType as FlowNodeType;
+    }
+
+    // Fallback mappings for common node types
+    const typeMap: Record<string, FlowNodeType> = {
+      START_EVENT: FlowNodeType.START,
+      END_EVENT: FlowNodeType.END,
+      TASK: FlowNodeType.ACTION,
+      USER_TASK: FlowNodeType.ACTION,
+      SERVICE_TASK: FlowNodeType.ACTION,
+      EXCLUSIVE_GATEWAY: FlowNodeType.DECISION,
+      INCLUSIVE_GATEWAY: FlowNodeType.DECISION,
+      PARALLEL_GATEWAY: FlowNodeType.DECISION,
+      SUBPROCESS: FlowNodeType.SUBFLOW,
+      CALL_ACTIVITY: FlowNodeType.SUBFLOW,
+    };
+
+    return typeMap[upperType] || FlowNodeType.ACTION;
   }
 }
