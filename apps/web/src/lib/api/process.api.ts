@@ -1,365 +1,217 @@
 /**
- * Process API Service
- * Handles all process-related API calls
+ * Process API Client
+ * Handles all API calls for Process (Level 2) entities
  */
 
-import { get, post, patch, del, handleApiError } from '../base-api'
+import { get, post, patch, del } from '../base-api'
 import type {
   Process,
   CreateProcessDto,
   UpdateProcessDto,
-  UpdateProcessStatusDto,
   ProcessListParams,
   ProcessListResponse,
-} from '../../features/processes/types/process.types'
+} from '../../features/process/types/process.types'
+import type {
+  FlowDiagram,
+  SaveProcessFlowDto,
+} from '../../features/process/types/flow-diagram.types'
 
-// Re-export types for backwards compatibility
-export type {
-  Process,
-  CreateProcessDto,
-  UpdateProcessDto,
-  UpdateProcessStatusDto,
-  ProcessListParams,
-  ProcessListResponse,
+const BASE_URL = '/processes'
+
+/**
+ * Get all processes with optional filters
+ */
+export async function getProcesses(
+  params?: ProcessListParams,
+): Promise<ProcessListResponse> {
+  const queryParams = new URLSearchParams()
+  
+  if (params?.processMapId) {
+    queryParams.append('processMapId', params.processMapId)
+  }
+  if (params?.workspaceId) {
+    queryParams.append('workspaceId', params.workspaceId)
+  }
+  if (params?.page) {
+    queryParams.append('page', params.page.toString())
+  }
+  if (params?.limit) {
+    queryParams.append('limit', params.limit.toString())
+  }
+  if (params?.search) {
+    queryParams.append('search', params.search)
+  }
+  if (params?.status) {
+    queryParams.append('status', params.status)
+  }
+  if (params?.type) {
+    queryParams.append('type', params.type)
+  }
+
+  const queryString = queryParams.toString()
+  const url = queryString ? `${BASE_URL}?${queryString}` : BASE_URL
+  
+  return get<ProcessListResponse>(url)
 }
 
-class ProcessApiService {
-  private readonly baseUrl = '/processes'
+/**
+ * Get a single process by ID
+ */
+export async function getProcess(id: string): Promise<Process> {
+  return get<Process>(`${BASE_URL}/${id}`)
+}
 
+/**
+ * Create a new process
+ */
+export async function createProcess(
+  data: CreateProcessDto,
+): Promise<Process> {
+  return post<Process>(BASE_URL, data)
+}
+
+/**
+ * Update an existing process
+ */
+export async function updateProcess(
+  id: string,
+  data: UpdateProcessDto,
+): Promise<Process> {
+  return patch<Process>(`${BASE_URL}/${id}`, data)
+}
+
+/**
+ * Delete a process
+ */
+export async function deleteProcess(id: string): Promise<void> {
+  return del<void>(`${BASE_URL}/${id}`)
+}
+
+/**
+ * Get flow diagram for a process
+ */
+export async function getProcessFlow(processId: string): Promise<FlowDiagram> {
+  return get<FlowDiagram>(`${BASE_URL}/${processId}/flow`)
+}
+
+/**
+ * Save flow diagram for a process
+ */
+export async function saveProcessFlow(
+  processId: string,
+  nodes: any[],
+  edges: any[],
+): Promise<{ diagramId: string; message: string }> {
+  return post<{ diagramId: string; message: string }>(
+    `${BASE_URL}/${processId}/flow/save`,
+    {
+      processId,
+      nodes,
+      edges,
+    },
+  )
+}
+
+/**
+ * Process API Client Object
+ * For backward compatibility with existing code
+ */
+export const processApi = {
   /**
    * Get all processes with pagination and filters
    */
-  async getProcesses(params?: ProcessListParams): Promise<ProcessListResponse> {
-    try {
-      const queryParams = new URLSearchParams()
-      
-      if (params) {
-        Object.entries(params).forEach(([key, value]) => {
-          if (value !== undefined && value !== null) {
-            queryParams.append(key, String(value))
-          }
-        })
-      }
-
-      const url = `${this.baseUrl}${queryParams.toString() ? `?${queryParams.toString()}` : ''}`
-      return await get<ProcessListResponse>(url)
-    } catch (error) {
-      throw new Error(handleApiError(error))
+  getProcesses: async (params?: ProcessListParams): Promise<ProcessListResponse> => {
+    const queryParams = new URLSearchParams()
+    
+    if (params?.processMapId) {
+      queryParams.append('processMapId', params.processMapId)
     }
-  }
+    if (params?.workspaceId) {
+      queryParams.append('workspaceId', params.workspaceId)
+    }
+    if (params?.page) {
+      queryParams.append('page', params.page.toString())
+    }
+    if (params?.limit) {
+      queryParams.append('limit', params.limit.toString())
+    }
+    if (params?.search) {
+      queryParams.append('search', params.search)
+    }
+    if (params?.status) {
+      queryParams.append('status', params.status)
+    }
+    if (params?.type) {
+      queryParams.append('type', params.type)
+    }
+
+    const queryString = queryParams.toString()
+    const url = queryString ? `${BASE_URL}?${queryString}` : BASE_URL
+    
+    return get<ProcessListResponse>(url)
+  },
 
   /**
-   * Get process by ID
+   * Get Process by ID
    */
-  async getProcessById(id: string): Promise<Process> {
-    try {
-      return await get<Process>(`${this.baseUrl}/${id}`)
-    } catch (error) {
-      throw new Error(handleApiError(error))
-    }
-  }
+  getProcessById: async (id: string): Promise<Process> => {
+    return get<Process>(`${BASE_URL}/${id}`)
+  },
 
   /**
-   * Get root processes (top-level processes)
+   * Create new Process
    */
-  async getRootProcesses(): Promise<Process[]> {
-    try {
-      return await get<Process[]>(`${this.baseUrl}/roots`)
-    } catch (error) {
-      throw new Error(handleApiError(error))
-    }
-  }
+  createProcess: async (data: CreateProcessDto): Promise<Process> => {
+    return post<Process>(BASE_URL, data)
+  },
 
   /**
-   * Get process hierarchy (children)
+   * Update Process
    */
-  async getProcessHierarchy(id: string): Promise<Process[]> {
-    try {
-      return await get<Process[]>(`${this.baseUrl}/${id}/hierarchy`)
-    } catch (error) {
-      throw new Error(handleApiError(error))
-    }
-  }
+  updateProcess: async (id: string, data: UpdateProcessDto): Promise<Process> => {
+    return patch<Process>(`${BASE_URL}/${id}`, data)
+  },
 
   /**
-   * Create new process
+   * Delete Process
    */
-  async createProcess(data: CreateProcessDto): Promise<Process> {
-    try {
-      return await post<Process>(this.baseUrl, data)
-    } catch (error) {
-      throw new Error(handleApiError(error))
-    }
-  }
+  deleteProcess: async (id: string): Promise<void> => {
+    return del<void>(`${BASE_URL}/${id}`)
+  },
 
   /**
-   * Update process
+   * Get root processes (for legacy compatibility)
    */
-  async updateProcess(id: string, data: UpdateProcessDto): Promise<Process> {
-    try {
-      return await patch<Process>(`${this.baseUrl}/${id}`, data)
-    } catch (error) {
-      throw new Error(handleApiError(error))
-    }
-  }
+  getRootProcesses: async (): Promise<any[]> => {
+    const response = await get<ProcessListResponse>(BASE_URL)
+    return response.data || []
+  },
 
   /**
-   * Update process status
+   * Get process hierarchy (for legacy compatibility)
    */
-  async updateProcessStatus(id: string, data: UpdateProcessStatusDto): Promise<Process> {
-    try {
-      return await patch<Process>(`${this.baseUrl}/${id}/status`, data)
-    } catch (error) {
-      throw new Error(handleApiError(error))
-    }
-  }
+  getProcessHierarchy: async (id: string): Promise<any> => {
+    return get<Process>(`${BASE_URL}/${id}`)
+  },
 
   /**
-   * Delete process
+   * Get FlowDiagram for Process (level 2)
    */
-  async deleteProcess(id: string): Promise<void> {
-    try {
-      await del(`${this.baseUrl}/${id}`)
-    } catch (error) {
-      throw new Error(handleApiError(error))
-    }
-  }
-
-  // ====================================
-  // PROCESS METADATA ENDPOINTS
-  // ====================================
+  getFlow: async (processId: string): Promise<FlowDiagram> => {
+    return get<FlowDiagram>(`${BASE_URL}/${processId}/flow`)
+  },
 
   /**
-   * Get process actors
+   * Save FlowDiagram for Process (level 2)
    */
-  async getProcessActors(processId: string): Promise<Record<string, unknown>[]> {
-    try {
-      return await get<Record<string, unknown>[]>(`${this.baseUrl}/${processId}/actors`)
-    } catch (error) {
-      throw new Error(handleApiError(error))
-    }
-  }
-
-  /**
-   * Create process actor
-   */
-  async createProcessActor(processId: string, data: Record<string, unknown>): Promise<Record<string, unknown>> {
-    try {
-      return await post<Record<string, unknown>>(`${this.baseUrl}/${processId}/actors`, data)
-    } catch (error) {
-      throw new Error(handleApiError(error))
-    }
-  }
-
-  /**
-   * Update process actor
-   */
-  async updateProcessActor(processId: string, actorId: string, data: Record<string, unknown>): Promise<Record<string, unknown>> {
-    try {
-      return await patch<Record<string, unknown>>(`${this.baseUrl}/${processId}/actors/${actorId}`, data)
-    } catch (error) {
-      throw new Error(handleApiError(error))
-    }
-  }
-
-  /**
-   * Delete process actor
-   */
-  async deleteProcessActor(processId: string, actorId: string): Promise<void> {
-    try {
-      await del(`${this.baseUrl}/${processId}/actors/${actorId}`)
-    } catch (error) {
-      throw new Error(handleApiError(error))
-    }
-  }
-
-  /**
-   * Get process inputs
-   */
-  async getProcessInputs(processId: string): Promise<Record<string, unknown>[]> {
-    try {
-      return await get<Record<string, unknown>[]>(`${this.baseUrl}/${processId}/inputs`)
-    } catch (error) {
-      throw new Error(handleApiError(error))
-    }
-  }
-
-  /**
-   * Get process outputs
-   */
-  async getProcessOutputs(processId: string): Promise<Record<string, unknown>[]> {
-    try {
-      return await get<Record<string, unknown>[]>(`${this.baseUrl}/${processId}/outputs`)
-    } catch (error) {
-      throw new Error(handleApiError(error))
-    }
-  }
-
-  /**
-   * Create process IO
-   */
-  async createProcessIO(processId: string, data: Record<string, unknown>): Promise<Record<string, unknown>> {
-    try {
-      return await post<Record<string, unknown>>(`${this.baseUrl}/${processId}/ios`, data)
-    } catch (error) {
-      throw new Error(handleApiError(error))
-    }
-  }
-
-  /**
-   * Update process IO
-   */
-  async updateProcessIO(processId: string, ioId: string, data: Record<string, unknown>): Promise<Record<string, unknown>> {
-    try {
-      return await patch<Record<string, unknown>>(`${this.baseUrl}/${processId}/ios/${ioId}`, data)
-    } catch (error) {
-      throw new Error(handleApiError(error))
-    }
-  }
-
-  /**
-   * Delete process IO
-   */
-  async deleteProcessIO(processId: string, ioId: string): Promise<void> {
-    try {
-      await del(`${this.baseUrl}/${processId}/ios/${ioId}`)
-    } catch (error) {
-      throw new Error(handleApiError(error))
-    }
-  }
-
-  /**
-   * Get process indicators
-   */
-  async getProcessIndicators(processId: string): Promise<Record<string, unknown>[]> {
-    try {
-      return await get<Record<string, unknown>[]>(`${this.baseUrl}/${processId}/indicators`)
-    } catch (error) {
-      throw new Error(handleApiError(error))
-    }
-  }
-
-  /**
-   * Create process indicator
-   */
-  async createProcessIndicator(processId: string, data: Record<string, unknown>): Promise<Record<string, unknown>> {
-    try {
-      return await post<Record<string, unknown>>(`${this.baseUrl}/${processId}/indicators`, data)
-    } catch (error) {
-      throw new Error(handleApiError(error))
-    }
-  }
-
-  /**
-   * Update process indicator
-   */
-  async updateProcessIndicator(processId: string, indicatorId: string, data: Record<string, unknown>): Promise<Record<string, unknown>> {
-    try {
-      return await patch<Record<string, unknown>>(`${this.baseUrl}/${processId}/indicators/${indicatorId}`, data)
-    } catch (error) {
-      throw new Error(handleApiError(error))
-    }
-  }
-
-  /**
-   * Delete process indicator
-   */
-  async deleteProcessIndicator(processId: string, indicatorId: string): Promise<void> {
-    try {
-      await del(`${this.baseUrl}/${processId}/indicators/${indicatorId}`)
-    } catch (error) {
-      throw new Error(handleApiError(error))
-    }
-  }
-
-  /**
-   * Get process risks
-   */
-  async getProcessRisks(processId: string): Promise<Record<string, unknown>[]> {
-    try {
-      return await get<Record<string, unknown>[]>(`${this.baseUrl}/${processId}/risks`)
-    } catch (error) {
-      throw new Error(handleApiError(error))
-    }
-  }
-
-  /**
-   * Create process risk
-   */
-  async createProcessRisk(processId: string, data: Record<string, unknown>): Promise<Record<string, unknown>> {
-    try {
-      return await post<Record<string, unknown>>(`${this.baseUrl}/${processId}/risks`, data)
-    } catch (error) {
-      throw new Error(handleApiError(error))
-    }
-  }
-
-  /**
-   * Update process risk
-   */
-  async updateProcessRisk(processId: string, riskId: string, data: Record<string, unknown>): Promise<Record<string, unknown>> {
-    try {
-      return await patch<Record<string, unknown>>(`${this.baseUrl}/${processId}/risks/${riskId}`, data)
-    } catch (error) {
-      throw new Error(handleApiError(error))
-    }
-  }
-
-  /**
-   * Delete process risk
-   */
-  async deleteProcessRisk(processId: string, riskId: string): Promise<void> {
-    try {
-      await del(`${this.baseUrl}/${processId}/risks/${riskId}`)
-    } catch (error) {
-      throw new Error(handleApiError(error))
-    }
-  }
-
-  /**
-   * Get process documents
-   */
-  async getProcessDocuments(processId: string): Promise<Record<string, unknown>[]> {
-    try {
-      return await get<Record<string, unknown>[]>(`${this.baseUrl}/${processId}/documents`)
-    } catch (error) {
-      throw new Error(handleApiError(error))
-    }
-  }
-
-  /**
-   * Create process document
-   */
-  async createProcessDocument(processId: string, data: Record<string, unknown>): Promise<Record<string, unknown>> {
-    try {
-      return await post<Record<string, unknown>>(`${this.baseUrl}/${processId}/documents`, data)
-    } catch (error) {
-      throw new Error(handleApiError(error))
-    }
-  }
-
-  /**
-   * Update process document
-   */
-  async updateProcessDocument(processId: string, documentId: string, data: Record<string, unknown>): Promise<Record<string, unknown>> {
-    try {
-      return await patch<Record<string, unknown>>(`${this.baseUrl}/${processId}/documents/${documentId}`, data)
-    } catch (error) {
-      throw new Error(handleApiError(error))
-    }
-  }
-
-  /**
-   * Delete process document
-   */
-  async deleteProcessDocument(processId: string, documentId: string): Promise<void> {
-    try {
-      await del(`${this.baseUrl}/${processId}/documents/${documentId}`)
-    } catch (error) {
-      throw new Error(handleApiError(error))
-    }
-  }
+  saveFlow: async (processId: string, nodes: any[], edges: any[]): Promise<any> => {
+    return post<{ diagramId: string; message: string }>(
+      `${BASE_URL}/${processId}/flow/save`,
+      {
+        processId,
+        nodes,
+        edges,
+      },
+    )
+  },
 }
-
-// Export singleton instance
-export const processApi = new ProcessApiService()

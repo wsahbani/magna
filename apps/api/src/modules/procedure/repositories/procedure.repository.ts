@@ -55,6 +55,46 @@ export class ProcedureRepository {
     return this.prisma.procedure.findMany({
       where: { processId },
       orderBy: { createdAt: 'desc' },
+      include: {
+        process: {
+          select: {
+            id: true,
+            title: true,
+            code: true,
+          },
+        },
+        _count: {
+          select: {
+            comments: true,
+            documents: true,
+            means: true,
+            tags: true,
+          },
+        },
+      },
+    });
+  }
+
+  async findAll(): Promise<ProcedureEntity[]> {
+    return this.prisma.procedure.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: {
+        process: {
+          select: {
+            id: true,
+            title: true,
+            code: true,
+          },
+        },
+        _count: {
+          select: {
+            comments: true,
+            documents: true,
+            means: true,
+            tags: true,
+          },
+        },
+      },
     });
   }
 

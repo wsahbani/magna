@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, NotFoundException, Inject, forwardRef, Logger } from '@nestjs/common';
 import { ProcedureRepository } from '../repositories/procedure.repository';
 import { CreateProcedureDto } from '../dto/create-procedure.dto';
 import { UpdateProcedureDto } from '../dto/update-procedure.dto';
@@ -14,6 +14,8 @@ import { PrismaService } from '../../../database/prisma.service';
 
 @Injectable()
 export class ProcedureService {
+  private readonly logger = new Logger(ProcedureService.name);
+
   constructor(
     private readonly procedureRepository: ProcedureRepository,
     @Inject(forwardRef(() => DiagramService))
@@ -22,10 +24,65 @@ export class ProcedureService {
   ) {}
 
   async create(dto: CreateProcedureDto, userId?: string): Promise<ProcedureEntity> {
+    // Validate userId exists or use fallback
+    let validUserId = userId || 'system';
+    if (validUserId && validUserId !== 'system') {
+      const userExists = await this.prisma.user.findUnique({
+        where: { id: validUserId },
+        select: { id: true },
+      });
+      if (!userExists) {
+        // Try to find a system user or any user as fallback
+        const systemUser = await this.prisma.user.findFirst({
+          where: { email: 'system@magna.local' },
+          select: { id: true },
+        });
+        if (systemUser) {
+          validUserId = systemUser.id;
+        } else {
+          // If no system user, get the first available user
+          const firstUser = await this.prisma.user.findFirst({
+            select: { id: true },
+          });
+          if (firstUser) {
+            validUserId = firstUser.id;
+          } else {
+            throw new NotFoundException(
+              'No user found in database. Please create at least one user.',
+            );
+          }
+        }
+        this.logger.warn(
+          `User ${userId} not found, using fallback: ${validUserId}`,
+        );
+      }
+    } else {
+      // If userId is 'system' or empty, try to find system user or any user
+      const systemUser = await this.prisma.user.findFirst({
+        where: { email: 'system@magna.local' },
+        select: { id: true },
+      });
+      if (systemUser) {
+        validUserId = systemUser.id;
+      } else {
+        // If no system user, get the first available user
+        const firstUser = await this.prisma.user.findFirst({
+          select: { id: true },
+        });
+        if (firstUser) {
+          validUserId = firstUser.id;
+        } else {
+          throw new NotFoundException(
+            'No user found in database. Please create at least one user.',
+          );
+        }
+      }
+    }
+
     // Create procedure with FlowDiagram in transaction
     const procedure = await this.procedureRepository.create({
       ...dto,
-      createdById: userId || 'system', // TODO: Get from context
+      createdById: validUserId,
     });
 
     // Automatically create FlowDiagram for this Procedure (level 3)
@@ -44,7 +101,8 @@ export class ProcedureService {
     if (processId) {
       return this.procedureRepository.findByProcessId(processId);
     }
-    return [];
+    // Return all procedures if no processId filter
+    return this.procedureRepository.findAll();
   }
 
   async findOne(id: string): Promise<ProcedureWithRelations> {

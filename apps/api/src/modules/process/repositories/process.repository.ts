@@ -1,135 +1,23 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../database/prisma.service';
-import { ProcessEntity, ProcessWithRelations } from '../entities/process.entity';
-import { ProcessQueryDto } from '../dto/process-query.dto';
-import { PaginatedResponse } from '../../../common/dto/pagination.dto';
-import { ProcessStatus } from '@prisma/client';
+import { Process, Prisma } from '@prisma/client';
+import { BaseRepository } from '../../../common/repositories/base.repository';
 
 @Injectable()
-export class ProcessRepository {
-  constructor(private readonly prisma: PrismaService) {}
-
-  async findById(id: string): Promise<ProcessEntity | null> {
-    return this.prisma.process.findUnique({
-      where: { id },
-    });
+export class ProcessRepository extends BaseRepository<Process> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
   }
 
-  async findByIdWithRelations(id: string): Promise<ProcessWithRelations | null> {
-    return this.prisma.process.findUnique({
-      where: { id },
-      include: {
-        processMap: {
-          select: {
-            id: true,
-            title: true,
-            code: true,
-          },
-        },
-        procedures: {
-          select: {
-            id: true,
-            title: true,
-            code: true,
-            status: true,
-          },
-          take: 10,
-        },
-        createdBy: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            displayName: true,
-            email: true,
-          },
-        },
-        flowDiagram: {
-          select: {
-            id: true,
-            level: true,
-            nodes: { select: { id: true } },
-            edges: { select: { id: true } },
-          },
-        },
-        _count: {
-          select: {
-            procedures: true,
-            comments: true,
-            assignments: true,
-            actors: true,
-            processIOs: true,
-            processIndicators: true,
-            processRisks: true,
-          },
-        },
-      },
-    });
+  get model() {
+    return this.prisma.process;
   }
 
-  async findProcessesWithFilters(
-    query: ProcessQueryDto,
-  ): Promise<PaginatedResponse<any>> {
-    const where: any = {};
-    
-    if (query.type) where.type = query.type;
-    if (query.status) where.status = query.status;
-    if (query.processMapId) where.processMapId = query.processMapId;
-    if (query.createdById) where.createdById = query.createdById;
-    if (query.workspaceId) where.workspaceId = query.workspaceId;
-    
-    if (query.search) {
-      where.OR = [
-        { title: { contains: query.search, mode: 'insensitive' } },
-        { description: { contains: query.search, mode: 'insensitive' } },
-        { code: { contains: query.search, mode: 'insensitive' } },
-      ];
-    }
-
-    const include = {
-      createdBy: {
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          displayName: true,
-          email: true,
-        },
-      },
-      processMap: {
-        select: {
-          id: true,
-          title: true,
-          code: true,
-        },
-      },
-      _count: {
-        select: {
-          procedures: true,
-          comments: true,
-          assignments: true,
-        },
-      },
-    };
-
-    const [data, total] = await Promise.all([
-      this.prisma.process.findMany({
-        where,
-        include,
-        skip: query.skip,
-        take: query.take,
-        orderBy: query.sortBy
-          ? { [query.sortBy]: query.sortOrder }
-          : { createdAt: 'desc' },
-      }),
-      this.prisma.process.count({ where }),
-    ]);
-
-    return new PaginatedResponse(data, total, query.page, query.limit);
-  }
-
-  async findByCodeAndProcessMap(code: string, processMapId: string): Promise<ProcessEntity | null> {
-    return this.prisma.process.findUnique({
+  /**
+   * Find Process by code within a ProcessMap
+   */
+  async findByCode(processMapId: string, code: string): Promise<Process | null> {
+    return this.model.findUnique({
       where: {
         processMapId_code: {
           processMapId,
@@ -139,12 +27,42 @@ export class ProcessRepository {
     });
   }
 
-  async findProcessesByProcessMap(processMapId: string): Promise<any[]> {
-    return this.prisma.process.findMany({
-      where: {
-        processMapId,
-      },
+  /**
+   * Find Process by ID with full details
+   */
+  async findByIdWithDetails(id: string) {
+    return this.model.findUnique({
+      where: { id },
       include: {
+        processMap: {
+          select: {
+            id: true,
+            title: true,
+            code: true,
+          },
+        },
+        workspace: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+          },
+        },
+        department: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+          },
+        },
+        createdBy: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
         procedures: {
           select: {
             id: true,
@@ -152,78 +70,158 @@ export class ProcessRepository {
             code: true,
             status: true,
           },
+          orderBy: { createdAt: 'desc' },
+        },
+        flowDiagram: {
+          include: {
+            _count: {
+              select: {
+                nodes: true,
+                edges: true,
+              },
+            },
+          },
+        },
+        _count: {
+          select: {
+            procedures: true,
+            actors: true,
+            processIOs: true,
+            comments: true,
+            documents: true,
+            tags: true,
+          },
+        },
+      },
+    });
+  }
+
+  /**
+   * Find Processes by ProcessMap
+   */
+  async findByProcessMap(
+    processMapId: string,
+    options?: Prisma.ProcessFindManyArgs,
+  ) {
+    return this.model.findMany({
+      where: {
+        processMapId,
+        ...options?.where,
+      },
+      include: {
+        flowDiagram: {
+          include: {
+            _count: {
+              select: {
+                nodes: true,
+                edges: true,
+              },
+            },
+          },
         },
         _count: {
           select: {
             procedures: true,
           },
         },
+        ...options?.include,
       },
-      orderBy: {
-        code: 'asc',
+      orderBy: options?.orderBy || { createdAt: 'desc' },
+      skip: options?.skip,
+      take: options?.take,
+    });
+  }
+
+  /**
+   * Find Processes by workspace
+   */
+  async findByWorkspace(
+    workspaceId: string,
+    options?: Prisma.ProcessFindManyArgs,
+  ) {
+    return this.model.findMany({
+      where: {
+        workspaceId,
+        ...options?.where,
       },
-    });
-  }
-
-  async create(data: any): Promise<ProcessEntity> {
-    return this.prisma.process.create({ data });
-  }
-
-  async update(id: string, data: any): Promise<ProcessEntity> {
-    return this.prisma.process.update({
-      where: { id },
-      data,
-    });
-  }
-
-  async delete(id: string): Promise<ProcessEntity> {
-    return this.prisma.process.delete({
-      where: { id },
-    });
-  }
-
-  async updateStatus(id: string, status: ProcessStatus): Promise<ProcessEntity> {
-    const updateData: any = {
-      status,
-    };
-
-    if (status === ProcessStatus.PUBLISHED) {
-      updateData.publishedAt = new Date();
-    }
-    if (status === ProcessStatus.ARCHIVED) {
-      updateData.archivedAt = new Date();
-    }
-
-    return this.prisma.process.update({
-      where: { id },
-      data: updateData,
-    });
-  }
-
-  async getProcessHierarchy(processMapId: string): Promise<any> {
-    return this.prisma.processMap.findUnique({
-      where: { id: processMapId },
       include: {
-        processes: {
+        processMap: {
+          select: {
+            id: true,
+            title: true,
+            code: true,
+          },
+        },
+        flowDiagram: {
           include: {
-            procedures: {
+            _count: {
               select: {
-                id: true,
-                title: true,
-                code: true,
-                status: true,
+                nodes: true,
+                edges: true,
               },
             },
           },
         },
+        _count: {
+          select: {
+            procedures: true,
+          },
+        },
+        ...options?.include,
       },
+      orderBy: options?.orderBy || { createdAt: 'desc' },
+      skip: options?.skip,
+      take: options?.take,
     });
   }
 
-  async exists(id: string): Promise<boolean> {
-    const count = await this.prisma.process.count({
-      where: { id },
+  /**
+   * Find all Processes without workspace filter
+   */
+  async findAll(options?: Prisma.ProcessFindManyArgs) {
+    return this.model.findMany({
+      include: {
+        processMap: {
+          select: {
+            id: true,
+            title: true,
+            code: true,
+          },
+        },
+        workspace: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+          },
+        },
+        flowDiagram: {
+          include: {
+            _count: {
+              select: {
+                nodes: true,
+                edges: true,
+              },
+            },
+          },
+        },
+        _count: {
+          select: {
+            procedures: true,
+          },
+        },
+        ...options?.include,
+      },
+      orderBy: options?.orderBy || { createdAt: 'desc' },
+      skip: options?.skip,
+      take: options?.take,
     });
-    return count > 0;
+  }
+
+  /**
+   * Count Processes
+   */
+  async count(where?: Prisma.ProcessWhereInput): Promise<number> {
+    return this.model.count({ where });
   }
 }

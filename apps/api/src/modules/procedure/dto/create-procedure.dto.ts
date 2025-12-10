@@ -9,7 +9,7 @@ import {
 
 export class CreateProcedureDto {
   @IsNotEmpty()
-  @IsUUID()
+  @IsString()
   processId: string;
 
   @IsNotEmpty()
@@ -25,11 +25,11 @@ export class CreateProcedureDto {
   code: string;
 
   @IsNotEmpty()
-  @IsUUID()
+  @IsString()
   workspaceId: string;
 
   @IsOptional()
-  @IsUUID()
+  @IsString()
   departmentId?: string;
 
   @IsOptional()

@@ -3,6 +3,7 @@ import {
   NotFoundException,
   ConflictException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { ProcessMapRepository } from '../repositories/process-map.repository';
 import { CreateProcessMapDto } from '../dto/create-process-map.dto';
@@ -12,6 +13,8 @@ import { ProcessStatus } from '@prisma/client';
 
 @Injectable()
 export class ProcessMapService {
+  private readonly logger = new Logger(ProcessMapService.name);
+
   constructor(
     private readonly processMapRepository: ProcessMapRepository,
     private readonly prisma: PrismaService,
@@ -54,6 +57,61 @@ export class ProcessMapService {
       }
     }
 
+    // Validate userId exists or use fallback
+    let validUserId = userId;
+    if (userId && userId !== 'system') {
+      const userExists = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { id: true },
+      });
+      if (!userExists) {
+        // Try to find a system user or any user as fallback
+        const systemUser = await this.prisma.user.findFirst({
+          where: { email: 'system@magna.local' },
+          select: { id: true },
+        });
+        if (systemUser) {
+          validUserId = systemUser.id;
+        } else {
+          // If no system user, get the first available user
+          const firstUser = await this.prisma.user.findFirst({
+            select: { id: true },
+          });
+          if (firstUser) {
+            validUserId = firstUser.id;
+          } else {
+            throw new NotFoundException(
+              'No user found in database. Please create at least one user.',
+            );
+          }
+        }
+        this.logger.warn(
+          `User ${userId} not found, using fallback: ${validUserId}`,
+        );
+      }
+    } else {
+      // If userId is 'system' or empty, try to find system user or any user
+      const systemUser = await this.prisma.user.findFirst({
+        where: { email: 'system@magna.local' },
+        select: { id: true },
+      });
+      if (systemUser) {
+        validUserId = systemUser.id;
+      } else {
+        // If no system user, get the first available user
+        const firstUser = await this.prisma.user.findFirst({
+          select: { id: true },
+        });
+        if (firstUser) {
+          validUserId = firstUser.id;
+        } else {
+          throw new NotFoundException(
+            'No user found in database. Please create at least one user.',
+          );
+        }
+      }
+    }
+
     // Create ProcessMap and FlowDiagram in a transaction
     return this.prisma.$transaction(async (tx) => {
       // Create ProcessMap
@@ -65,7 +123,7 @@ export class ProcessMapService {
           status: createProcessMapDto.status || ProcessStatus.DRAFT,
           workspaceId: createProcessMapDto.workspaceId,
           departmentId: createProcessMapDto.departmentId,
-          createdById: userId,
+          createdById: validUserId,
         },
         include: {
           workspace: {

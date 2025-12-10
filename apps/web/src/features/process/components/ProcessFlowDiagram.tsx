@@ -1,8 +1,8 @@
 /**
- * ProcessMapFlowDiagram Component
- * ReactFlow editor for ProcessMap (level 1)
- * Nodes represent Process entities (level 2)
- * Automatically creates Process when PROCESS_NODE is dropped
+ * ProcessFlowDiagram Component
+ * ReactFlow editor for Process (level 2)
+ * Nodes represent Procedure entities (level 3)
+ * Automatically creates Procedure when PROCEDURE_NODE is dropped
  */
 
 import { useCallback, useState, useEffect, useRef } from 'react';
@@ -23,39 +23,37 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { Loader2 } from 'lucide-react';
-import { useNavigate } from '@tanstack/react-router';
 import { Palette } from '../../../components/FlowBuilder/Palette';
 import { PropertiesPanel } from '../../../components/FlowBuilder/PropertiesPanel';
 import { Toolbar } from '../../../components/FlowBuilder/Toolbar';
 import { nodeTypes } from '../../../components/FlowBuilder/nodeTypes';
-import { useProcessMapFlow, useSaveProcessMapFlow } from '../hooks/useProcessMapFlow';
-import { PaletteConfigFactory } from '../config/palette-config';
+import { useProcessFlow, useSaveProcessFlow } from '../hooks/useProcessFlow';
+import { PaletteConfigFactory } from '../../process-map/config/palette-config';
 
-interface ProcessMapFlowDiagramProps {
-  processMapId: string;
+interface ProcessFlowDiagramProps {
+  processId: string;
   readOnly?: boolean;
   onNodeSelect?: (node: Node | null) => void;
   onEdgeSelect?: (edge: Edge | null) => void;
 }
 
-export function ProcessMapFlowDiagram({
-  processMapId,
+export function ProcessFlowDiagram({
+  processId,
   readOnly = false,
   onNodeSelect,
   onEdgeSelect,
-}: ProcessMapFlowDiagramProps) {
+}: ProcessFlowDiagramProps) {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
-  const navigate = useNavigate();
   const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<Edge | null>(null);
 
-  // Get palette configuration for ProcessMap (level 1)
-  const paletteConfig = PaletteConfigFactory.createByEntityType('processMap');
+  // Get palette configuration for Process (level 2)
+  const paletteConfig = PaletteConfigFactory.createByEntityType('process');
 
   // Load flow data
-  const { data: flowData, isLoading } = useProcessMapFlow(processMapId);
-  const saveFlowMutation = useSaveProcessMapFlow();
+  const { data: flowData, isLoading } = useProcessFlow(processId);
+  const saveFlowMutation = useSaveProcessFlow();
 
   // Initialize nodes and edges from API with explicit typing
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
@@ -106,15 +104,15 @@ export function ProcessMapFlowDiagram({
         y: event.clientY,
       });
 
-      // For ProcessMap (level 1), only PROCESS_NODE type should create Process entities
+      // For Process (level 2), PROCEDURE_NODE type should create Procedure entities
       // Other node types are just visual elements
       const newNode: Node = {
         id: `${nodeType}-${Date.now()}`,
-        type: nodeType === 'PROCESS_NODE' ? 'process' : nodeType,
+        type: nodeType === 'PROCEDURE_NODE' ? 'procedure' : nodeType,
         position,
         data: {
-          label: nodeType === 'PROCESS_NODE' ? 'Nouveau Processus' : nodeType,
-          processId: undefined, // Will be set when Process is created
+          label: nodeType === 'PROCEDURE_NODE' ? 'Nouvelle Procédure' : nodeType,
+          procedureId: undefined, // Will be set when Procedure is created
         },
       };
 
@@ -132,142 +130,14 @@ export function ProcessMapFlowDiagram({
     [setEdges, readOnly],
   );
 
-  // Handle node drag stop - check if node was dropped on a container
-  const onNodeDragStop = useCallback(
-    (_event: React.MouseEvent, node: Node) => {
-      if (readOnly) return;
-      
-      if (!reactFlowInstance) return;
-
-      // Skip if node is a container itself (domainGroup)
-      if (node.type === 'domainGroup') return;
-
-      // Get current node state from nodes array (may have been updated by ReactFlow)
-      const currentNode = nodes.find((n) => n.id === node.id);
-      if (!currentNode) return;
-
-      const currentNodeWithParent = currentNode as Node & { parentNode?: string };
-      
-      // Calculate absolute position if node currently has a parent
-      let absoluteNodePosition = currentNode.position;
-      if (currentNodeWithParent.parentNode) {
-        const currentParent = nodes.find((n) => n.id === currentNodeWithParent.parentNode);
-        if (currentParent) {
-          // Convert relative position to absolute for overlap calculation
-          absoluteNodePosition = {
-            x: currentNode.position.x + currentParent.position.x,
-            y: currentNode.position.y + currentParent.position.y,
-          };
-        }
-      }
-
-      // Find if node was dropped on a container node (domainGroup)
-      const containerNodes = nodes.filter((n) => {
-        // Check if node type is domainGroup (container) and not the dragged node itself
-        if (n.type === 'domainGroup' && n.id !== node.id) {
-          const containerBounds = {
-            x: n.position.x,
-            y: n.position.y,
-            width: (n.width as number) || 200,
-            height: (n.height as number) || 150,
-          };
-          
-          // Get node bounds using absolute position
-          const nodeBounds = {
-            x: absoluteNodePosition.x,
-            y: absoluteNodePosition.y,
-            width: (currentNode.width as number) || 100,
-            height: (currentNode.height as number) || 50,
-          };
-          
-          // Check if node overlaps with container (at least 50% of node area)
-          const overlapX = Math.max(0, Math.min(nodeBounds.x + nodeBounds.width, containerBounds.x + containerBounds.width) - Math.max(nodeBounds.x, containerBounds.x));
-          const overlapY = Math.max(0, Math.min(nodeBounds.y + nodeBounds.height, containerBounds.y + containerBounds.height) - Math.max(nodeBounds.y, containerBounds.y));
-          const overlapArea = overlapX * overlapY;
-          const nodeArea = nodeBounds.width * nodeBounds.height;
-          
-          return overlapArea > nodeArea * 0.5; // At least 50% overlap
-        }
-        return false;
-      });
-
-      if (containerNodes.length > 0) {
-        // Node was dropped on a container - set parent relationship
-        const containerNode = containerNodes[0];
-        
-        // Calculate relative position within container using absolute position
-        const relativePosition = {
-          x: absoluteNodePosition.x - containerNode.position.x,
-          y: absoluteNodePosition.y - containerNode.position.y,
-        };
-        
-        setNodes((nds) =>
-          nds.map((n) => {
-            if (n.id === node.id) {
-              const nodeWithParent = { ...n, parentNode: containerNode.id, position: relativePosition, extent: 'parent' as const };
-              return nodeWithParent as Node;
-            }
-            return n;
-          }),
-        );
-      } else if (currentNodeWithParent.parentNode) {
-        // Node was dragged out of container - remove parent relationship
-        const parentNode = nodes.find((n) => n.id === currentNodeWithParent.parentNode);
-        if (parentNode) {
-          // Convert relative position back to absolute
-          const absolutePosition = {
-            x: currentNode.position.x + parentNode.position.x,
-            y: currentNode.position.y + parentNode.position.y,
-          };
-          
-          setNodes((nds) =>
-            nds.map((n) => {
-              if (n.id === node.id) {
-                const nodeWithoutParent = { ...n, position: absolutePosition };
-                delete (nodeWithoutParent as any).parentNode;
-                delete (nodeWithoutParent as any).extent;
-                return nodeWithoutParent as Node;
-              }
-              return n;
-            }),
-          );
-        }
-      }
-    },
-    [nodes, setNodes, reactFlowInstance, readOnly],
-  );
-
-  // Handle node/edge selection with navigation for linked nodes
+  // Handle node/edge selection
   const onNodeClick = useCallback(
     (_event: React.MouseEvent, node: Node) => {
-      // Check if node has a linked process and we're in read-only mode or double-click
-      const linkedProcessId = node.data?.linkedProcessId;
-      const linkedProcessType = node.data?.linkedProcessType;
-      const linkedProcessFlowType = node.data?.linkedProcessFlowType;
-      
-      // Navigate if linked and in read-only mode, or if Ctrl/Cmd is pressed
-      if (linkedProcessId && (readOnly || _event.ctrlKey || _event.metaKey)) {
-        if (linkedProcessType === 'processMap') {
-          navigate({ to: '/process-maps/$id' as any, params: { id: linkedProcessId } as any });
-        } else if (linkedProcessType === 'process') {
-          // Navigate based on flow type
-          if (linkedProcessFlowType === 'SIPOC') {
-            window.location.href = `/processes/sipoc/${linkedProcessId}`;
-          } else {
-            navigate({ to: '/processes-level2/$id' as any, params: { id: linkedProcessId } as any });
-          }
-        } else if (linkedProcessType === 'procedure') {
-          navigate({ to: '/procedures-level3/$id' as any, params: { id: linkedProcessId } as any });
-        }
-        return;
-      }
-      
-      // Normal selection behavior
       setSelectedNode(node);
       setSelectedEdge(null);
       onNodeSelect?.(node);
     },
-    [onNodeSelect, navigate, readOnly],
+    [onNodeSelect],
   );
 
   const onEdgeClick = useCallback(
@@ -286,14 +156,37 @@ export function ProcessMapFlowDiagram({
     onEdgeSelect?.(null);
   }, [onNodeSelect, onEdgeSelect]);
 
+  // Handle node update (from PropertiesPanel)
+  const onNodeUpdate = useCallback(
+    (nodeId: string, updates: Partial<Node>) => {
+      setNodes((nds) =>
+        nds.map((n) => {
+          if (n.id === nodeId) {
+            const updatedNode = { ...n, ...updates };
+            // Merge style objects if they exist
+            if (updates.data?.style && n.data?.style) {
+              updatedNode.data = {
+                ...updatedNode.data,
+                style: { ...n.data.style, ...updates.data.style },
+              };
+            }
+            return updatedNode;
+          }
+          return n;
+        }),
+      );
+    },
+    [setNodes],
+  );
+
   // Handle save
   const handleSave = useCallback(() => {
     saveFlowMutation.mutate({
-      processMapId,
+      processId,
       nodes,
       edges,
     });
-  }, [processMapId, nodes, edges, saveFlowMutation]);
+  }, [processId, nodes, edges, saveFlowMutation]);
 
   if (isLoading) {
     return (
@@ -326,23 +219,20 @@ export function ProcessMapFlowDiagram({
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
+          onInit={setReactFlowInstance}
+          onDrop={onDrop}
+          onDragOver={onDragOver}
           onNodeClick={onNodeClick}
-          onNodeDragStop={onNodeDragStop}
           onEdgeClick={onEdgeClick}
           onPaneClick={onPaneClick}
-          onInit={setReactFlowInstance}
-          onDrop={readOnly ? undefined : onDrop}
-          onDragOver={readOnly ? undefined : onDragOver}
           nodeTypes={nodeTypes}
           nodesDraggable={!readOnly}
           nodesConnectable={!readOnly}
           elementsSelectable={!readOnly}
           deleteKeyCode={readOnly ? null : 'Delete'}
           fitView
-          attributionPosition="bottom-right"
-          multiSelectionKeyCode="Control"
+          className="bg-gray-50"
         >
-          {/* Background */}
           <Background
             variant={BackgroundVariant.Dots}
             gap={20}
@@ -350,19 +240,15 @@ export function ProcessMapFlowDiagram({
             color="#ff6900"
             className="bg-gray-50"
           />
-
-          {/* Controls */}
           <Controls
             showZoom={true}
             showFitView={true}
             showInteractive={true}
             className="bg-white shadow-lg rounded-lg border border-gray-200"
           />
-
-          {/* Minimap */}
           <MiniMap
             nodeColor={(node) => {
-              if (node.type === 'process') return '#ea580c';
+              if (node.type === 'procedure') return '#ea580c';
               if (node.type === 'startEvent') return '#4caf50';
               if (node.type === 'endEvent') return '#f44336';
               return '#9e9e9e';
@@ -371,14 +257,17 @@ export function ProcessMapFlowDiagram({
             pannable
             zoomable
           />
-
-          {/* Top Toolbar (hidden in readOnly mode) */}
+          
+          {/* Toolbar (hidden in readOnly mode) */}
           {!readOnly && (
             <Panel position="top-left" className="bg-white shadow-lg rounded-lg border border-gray-200 p-2">
               <Toolbar
                 onSave={handleSave}
                 isSaving={saveFlowMutation.isPending}
-                saveError={saveFlowMutation.error}
+                saveError={saveFlowMutation.error as Error | null}
+                onFitView={() => reactFlowInstance?.fitView()}
+                onZoomIn={() => reactFlowInstance?.zoomIn()}
+                onZoomOut={() => reactFlowInstance?.zoomOut()}
               />
             </Panel>
           )}

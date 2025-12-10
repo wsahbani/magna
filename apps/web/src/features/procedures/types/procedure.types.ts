@@ -1,11 +1,11 @@
 export interface Procedure {
   id: string
   processId: string
-  name: string
+  title: string
+  code: string
   description?: string
   objective?: string
   scope?: string
-  version: string
   status: 'DRAFT' | 'IN_REVIEW' | 'VALIDATED' | 'PUBLISHED' | 'ARCHIVED' | 'OBSOLETE'
   validatedBy?: string
   validatedAt?: string
@@ -141,19 +141,21 @@ export type QualigramEdgeType = 'SEQUENCE' | 'CONDITIONAL' | 'DEFAULT' | 'MESSAG
 
 export interface CreateProcedureDto {
   processId: string
-  name: string
+  title: string
+  code: string
+  workspaceId: string
+  departmentId?: string
   description?: string
   objective?: string
   scope?: string
-  version?: string
 }
 
 export interface UpdateProcedureDto {
-  name?: string
+  title?: string
+  code?: string
   description?: string
   objective?: string
   scope?: string
-  version?: string
 }
 
 export interface CreateDiagramNodeDto {

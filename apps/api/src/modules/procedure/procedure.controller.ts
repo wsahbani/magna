@@ -10,10 +10,20 @@ import {
   HttpCode,
   HttpStatus,
   UseGuards,
+  Request,
 } from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiParam,
+} from '@nestjs/swagger';
 import { ProcedureService } from './services/procedure.service';
+import { ProcedureFlowService } from './services/procedure-flow.service';
 import { CreateProcedureDto } from './dto/create-procedure.dto';
 import { UpdateProcedureDto } from './dto/update-procedure.dto';
+import { SaveProcedureFlowDto } from './dto/save-procedure-flow.dto';
 import { CreateDiagramNodeDto } from './dto/create-diagram-node.dto';
 import { CreateDiagramEdgeDto } from './dto/create-diagram-edge.dto';
 import { CreateDiagramLaneDto } from './dto/create-diagram-lane.dto';
@@ -22,11 +32,14 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtPayload } from '../auth/interfaces/auth.interface';
 import { ProcedureValidationService } from './services/procedure-validation.service';
 
+@ApiTags('procedures')
+@ApiBearerAuth()
 @Controller('procedures')
 @UseGuards(JwtAuthGuard)
 export class ProcedureController {
   constructor(
     private readonly procedureService: ProcedureService,
+    private readonly flowService: ProcedureFlowService,
     private readonly validationService: ProcedureValidationService,
   ) {}
 
@@ -39,6 +52,46 @@ export class ProcedureController {
   @Get()
   findAll(@Query('processId') processId?: string) {
     return this.procedureService.findAll(processId);
+  }
+
+  // ====================================
+  // FLOW DIAGRAM ENDPOINTS
+  // Must be defined BEFORE generic :id routes to avoid route conflicts
+  // ====================================
+
+  @Post(':id/flow/save')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Save FlowDiagram for Procedure (Level 3)' })
+  @ApiParam({ name: 'id', description: 'Procedure ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'FlowDiagram saved successfully',
+  })
+  @ApiResponse({ status: 404, description: 'Procedure not found' })
+  saveFlow(
+    @Param('id') id: string,
+    @Body() saveFlowDto: SaveProcedureFlowDto | Omit<SaveProcedureFlowDto, 'procedureId'>,
+    @Request() req: any,
+  ) {
+    const userId = req.user?.id || req.user?.sub || 'system';
+    // Use procedureId from param if not provided in body, otherwise use body's procedureId
+    const finalDto: SaveProcedureFlowDto = {
+      ...saveFlowDto,
+      procedureId: (saveFlowDto as SaveProcedureFlowDto).procedureId || id,
+    };
+    return this.flowService.saveFlow(finalDto, userId);
+  }
+
+  @Get(':id/flow')
+  @ApiOperation({ summary: 'Get FlowDiagram for Procedure (Level 3)' })
+  @ApiParam({ name: 'id', description: 'Procedure ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'FlowDiagram data',
+  })
+  @ApiResponse({ status: 404, description: 'Procedure not found' })
+  getFlow(@Param('id') id: string) {
+    return this.flowService.getFlow(id);
   }
 
   @Get(':id')

@@ -13,6 +13,10 @@ import type {
   CreateDiagramLaneDto,
   ValidationResult,
 } from '../../features/procedures/types/procedure.types'
+import type {
+  ProcedureFlowDiagram,
+  SaveProcedureFlowDto,
+} from '../../features/procedures/types/flow-diagram.types'
 
 class ProcedureApiService {
   private readonly baseUrl = '/procedures'
@@ -259,7 +263,54 @@ class ProcedureApiService {
       throw new Error(handleApiError(error))
     }
   }
+
+  // Flow Diagram (Level 3) - New FlowDiagram API
+  /**
+   * Get flow diagram for a procedure
+   */
+  async getProcedureFlow(procedureId: string): Promise<ProcedureFlowDiagram> {
+    try {
+      return await get<ProcedureFlowDiagram>(`${this.baseUrl}/${procedureId}/flow`)
+    } catch (error) {
+      throw new Error(handleApiError(error))
+    }
+  }
+
+  /**
+   * Save flow diagram for a procedure
+   */
+  async saveProcedureFlow(
+    procedureId: string,
+    nodes: any[],
+    edges: any[],
+  ): Promise<{ diagramId: string; message: string }> {
+    try {
+      return await post<{ diagramId: string; message: string }>(
+        `${this.baseUrl}/${procedureId}/flow/save`,
+        {
+          procedureId,
+          nodes,
+          edges,
+        },
+      )
+    } catch (error) {
+      throw new Error(handleApiError(error))
+    }
+  }
 }
 
 export const procedureApi = new ProcedureApiService()
+
+// Named exports for React Query hooks compatibility
+export async function getProcedureFlow(procedureId: string): Promise<ProcedureFlowDiagram> {
+  return procedureApi.getProcedureFlow(procedureId)
+}
+
+export async function saveProcedureFlow(
+  procedureId: string,
+  nodes: any[],
+  edges: any[],
+): Promise<{ diagramId: string; message: string }> {
+  return procedureApi.saveProcedureFlow(procedureId, nodes, edges)
+}
 

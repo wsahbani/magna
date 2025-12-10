@@ -1,19 +1,16 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  BadRequestException,
+  Logger,
+} from '@nestjs/common';
 import { ProcessRepository } from '../repositories/process.repository';
-import { PrismaService } from '../../../database/prisma.service';
 import { CreateProcessDto } from '../dto/create-process.dto';
 import { UpdateProcessDto } from '../dto/update-process.dto';
-import { ProcessQueryDto } from '../dto/process-query.dto';
-import { ProcessEntity } from '../entities/process.entity';
+import { PrismaService } from '../../../database/prisma.service';
 import { ProcessStatus, ProcessType } from '@prisma/client';
 import { SipocService } from '../../sipoc/services/sipoc.service';
-import { FipService } from '../../fip/services/fip.service';
-import { ProcessMetadataService } from './process-metadata.service';
-import { CreateProcessActorDto } from '../dto/create-process-actor.dto';
-import { CreateProcessIODto } from '../dto/create-process-io.dto';
-import { CreateIndicatorDto } from '../dto/create-indicator.dto';
-import { CreateRiskDto } from '../dto/create-risk.dto';
-import { CreateLinkedDocumentDto } from '../dto/create-linked-document.dto';
 
 @Injectable()
 export class ProcessService {
@@ -23,295 +20,352 @@ export class ProcessService {
     private readonly processRepository: ProcessRepository,
     private readonly prisma: PrismaService,
     private readonly sipocService: SipocService,
-    private readonly fipService: FipService,
-    private readonly metadataService: ProcessMetadataService,
   ) {}
 
-  async create(createProcessDto: CreateProcessDto, userId: string): Promise<ProcessEntity> {
-    this.logger.log(`Creating new process: ${createProcessDto.title}`);
-    
-    if (!userId) {
-      throw new Error('User ID is required to create a process');
+  /**
+   * Create a new Process
+   * Automatically creates a FlowDiagram (level=2) for the Process
+   */
+  async create(createProcessDto: CreateProcessDto, userId: string) {
+    // Check if code already exists within the ProcessMap
+    const existing = await this.processRepository.findByCode(
+      createProcessDto.processMapId,
+      createProcessDto.code,
+    );
+    if (existing) {
+      throw new ConflictException(
+        `Process with code "${createProcessDto.code}" already exists in this ProcessMap`,
+      );
     }
 
-    // Validate required fields
-    if (!createProcessDto.processMapId) {
-      throw new Error('processMapId is required to create a process');
-    }
-    if (!createProcessDto.workspaceId) {
-      throw new Error('workspaceId is required to create a process');
-    }
-    if (!createProcessDto.code) {
-      throw new Error('code is required to create a process');
-    }
-
-    // Check if processMap exists
+    // Validate ProcessMap exists
     const processMap = await this.prisma.processMap.findUnique({
       where: { id: createProcessDto.processMapId },
     });
     if (!processMap) {
-      throw new NotFoundException(`ProcessMap with ID "${createProcessDto.processMapId}" not found`);
+      throw new NotFoundException(
+        `ProcessMap with ID "${createProcessDto.processMapId}" not found`,
+      );
     }
 
-    // Check if code already exists in this processMap
-    const existingProcess = await this.processRepository.findByCodeAndProcessMap(
-      createProcessDto.code,
-      createProcessDto.processMapId,
-    );
-    if (existingProcess) {
-      throw new Error(`Process with code "${createProcessDto.code}" already exists in this ProcessMap`);
-    }
-    
-    const processType = createProcessDto.type || ProcessType.FLOW;
-    
-    const processData: any = {
-      title: createProcessDto.title,
-      description: createProcessDto.description,
-      code: createProcessDto.code,
-      type: processType,
-      processMapId: createProcessDto.processMapId,
-      workspaceId: createProcessDto.workspaceId,
-      departmentId: createProcessDto.departmentId,
-      createdById: userId,
-      status: ProcessStatus.DRAFT,
-      objectif: createProcessDto.objectif,
-      perimetre: createProcessDto.perimetre,
-      finalite: createProcessDto.finalite,
-      priority: createProcessDto.priority,
-      confidentiality: createProcessDto.confidentiality,
-      reviewFrequency: createProcessDto.reviewFrequency,
-    };
-
-    const createdProcess = await this.prisma.$transaction(async (tx) => {
-      // Create process
-      const process = await tx.process.create({
-        data: processData,
-      });
-
-      // Automatically create a FlowDiagram for this Process (level 2)
-      await tx.flowDiagram.create({
-        data: {
-          level: 2,
-          processId: process.id,
-          processId_ref: process.id,
-        },
-      });
-
-      return process;
+    // Validate workspace exists
+    const workspace = await this.prisma.workspace.findUnique({
+      where: { id: createProcessDto.workspaceId },
     });
+    if (!workspace) {
+      throw new NotFoundException(
+        `Workspace with ID "${createProcessDto.workspaceId}" not found`,
+      );
+    }
 
-    this.logger.log(`Process created successfully: ${createdProcess.id}`);
-
-    // If process type is SIPOC, create a corresponding SIPOC diagram
-    if (processType === ProcessType.SIPOC) {
-      this.logger.log(`Creating SIPOC diagram for process: ${createdProcess.id}`);
-      try {
-        await this.sipocService.createDiagram(
-          {
-            title: createProcessDto.title,
-            description: createProcessDto.description,
-            process_owner: createProcessDto.authorName,
-            status: 'draft',
-            version: 1,
-            processId: createdProcess.id,
-          },
-          userId,
+    // Validate department exists if provided
+    if (createProcessDto.departmentId) {
+      const department = await this.prisma.department.findUnique({
+        where: { id: createProcessDto.departmentId },
+      });
+      if (!department) {
+        throw new NotFoundException(
+          `Department with ID "${createProcessDto.departmentId}" not found`,
         );
-        this.logger.log(`SIPOC diagram created successfully for process: ${createdProcess.id}`);
-      } catch (error) {
-        this.logger.error(`Failed to create SIPOC diagram for process: ${createdProcess.id}`, error);
-        // Don't fail the process creation if SIPOC creation fails
       }
     }
 
-    // Create FIP (Fiche Identité Processus) for all process types
-    this.logger.log(`Creating FIP for process: ${createdProcess.id}`);
-    try {
-      await this.fipService.create(
-        {
-          processId: createdProcess.id,
-          status: 'draft',
-          objectives: createProcessDto.objectives || '',
-          scope: createProcessDto.applicationScope || '',
-          indicators: [],
-          stakeholders: [],
-          risks: [],
-          opportunities: [],
-          resources: [],
-          performanceTargets: [],
+    // Validate userId exists or use fallback
+    let validUserId = userId;
+    if (userId && userId !== 'system') {
+      const userExists = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { id: true },
+      });
+      if (!userExists) {
+        // Try to find a system user or any user as fallback
+        const systemUser = await this.prisma.user.findFirst({
+          where: { email: 'system@magna.local' },
+          select: { id: true },
+        });
+        if (systemUser) {
+          validUserId = systemUser.id;
+        } else {
+          // If no system user, get the first available user
+          const firstUser = await this.prisma.user.findFirst({
+            select: { id: true },
+          });
+          if (firstUser) {
+            validUserId = firstUser.id;
+          } else {
+            throw new NotFoundException(
+              'No user found in database. Please create at least one user.',
+            );
+          }
+        }
+        this.logger.warn(
+          `User ${userId} not found, using fallback: ${validUserId}`,
+        );
+      }
+    } else {
+      // If userId is 'system' or empty, try to find system user or any user
+      const systemUser = await this.prisma.user.findFirst({
+        where: { email: 'system@magna.local' },
+        select: { id: true },
+      });
+      if (systemUser) {
+        validUserId = systemUser.id;
+      } else {
+        // If no system user, get the first available user
+        const firstUser = await this.prisma.user.findFirst({
+          select: { id: true },
+        });
+        if (firstUser) {
+          validUserId = firstUser.id;
+        } else {
+          throw new NotFoundException(
+            'No user found in database. Please create at least one user.',
+          );
+        }
+      }
+    }
+
+    // Create Process and FlowDiagram in a transaction
+    return this.prisma.$transaction(async (tx) => {
+      // Create Process
+      const process = await tx.process.create({
+        data: {
+          title: createProcessDto.title,
+          code: createProcessDto.code,
+          description: createProcessDto.description,
+          type: createProcessDto.type || ProcessType.FLOW,
+          status: createProcessDto.status || ProcessStatus.DRAFT,
+          processMapId: createProcessDto.processMapId,
+          workspaceId: createProcessDto.workspaceId,
+          departmentId: createProcessDto.departmentId,
+          objectif: createProcessDto.objectif,
+          perimetre: createProcessDto.perimetre,
+          finalite: createProcessDto.finalite,
+          priority: createProcessDto.priority,
+          confidentiality: createProcessDto.confidentiality,
+          reviewFrequency: createProcessDto.reviewFrequency,
+          createdById: validUserId,
         },
-        userId,
+        include: {
+          processMap: {
+            select: {
+              id: true,
+              title: true,
+              code: true,
+            },
+          },
+          workspace: {
+            select: {
+              id: true,
+              name: true,
+              code: true,
+            },
+          },
+          department: {
+            select: {
+              id: true,
+              name: true,
+              code: true,
+            },
+          },
+          createdBy: {
+            select: {
+              id: true,
+              email: true,
+              firstName: true,
+              lastName: true,
+            },
+          },
+        },
+      });
+
+      // Create diagram conditionally based on Process type
+      if (process.type === ProcessType.FLOW) {
+        // Create FlowDiagram (level=2) for FLOW type
+        await tx.flowDiagram.create({
+          data: {
+            level: 2,
+            processId: process.id, // Generic field for unique constraint
+            processId_ref: process.id, // Specific relation to Process
+          },
+        });
+      } else if (process.type === ProcessType.SIPOC) {
+        // Create SipocDiagram for SIPOC type (in the same transaction)
+        try {
+          await tx.sipocDiagram.create({
+            data: {
+              title: process.title,
+              description: process.description || undefined,
+              processId: process.id,
+              process_owner: undefined, // Can be set later
+              department: process.departmentId || undefined,
+              createdBy: validUserId,
+              status: 'draft',
+              is_template: false,
+            },
+          });
+          this.logger.log(`SipocDiagram created successfully for Process ${process.id}`);
+        } catch (error) {
+          // Log error and rethrow to fail the transaction
+          // This ensures data consistency: if SipocDiagram creation fails, Process creation should also fail
+          this.logger.error(
+            `Failed to create SipocDiagram for Process ${process.id}:`,
+            error,
+          );
+          throw error;
+        }
+      }
+
+      return this.processRepository.findByIdWithDetails(process.id);
+    });
+  }
+
+  /**
+   * Find all Processes with pagination
+   */
+  async findAll(processMapId?: string, workspaceId?: string, page = 1, limit = 20) {
+    const skip = (page - 1) * limit;
+
+    const where: any = {};
+    if (processMapId) {
+      where.processMapId = processMapId;
+    }
+    if (workspaceId) {
+      where.workspaceId = workspaceId;
+    }
+
+    const [data, total] = await Promise.all([
+      workspaceId
+        ? this.processRepository.findByWorkspace(workspaceId, {
+            where,
+            skip,
+            take: limit,
+          })
+        : processMapId
+          ? this.processRepository.findByProcessMap(processMapId, {
+              where,
+              skip,
+              take: limit,
+            })
+          : this.processRepository.findAll({
+              where,
+              skip,
+              take: limit,
+            }),
+      this.processRepository.count(where),
+    ]);
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  /**
+   * Find Process by ID
+   */
+  async findOne(id: string) {
+    const process = await this.processRepository.findByIdWithDetails(id);
+    if (!process) {
+      throw new NotFoundException(`Process with ID "${id}" not found`);
+    }
+    return process;
+  }
+
+  /**
+   * Update Process
+   */
+  async update(id: string, updateProcessDto: UpdateProcessDto, userId: string) {
+    const process = await this.processRepository.findById(id);
+    if (!process) {
+      throw new NotFoundException(`Process with ID "${id}" not found`);
+    }
+
+    // Validate ProcessMap exists if being updated
+    if (updateProcessDto.processMapId) {
+      const processMap = await this.prisma.processMap.findUnique({
+        where: { id: updateProcessDto.processMapId },
+      });
+      if (!processMap) {
+        throw new NotFoundException(
+          `ProcessMap with ID "${updateProcessDto.processMapId}" not found`,
+        );
+      }
+
+      // Check if code already exists in the new ProcessMap
+      if (updateProcessDto.code && updateProcessDto.code !== process.code) {
+        const existing = await this.processRepository.findByCode(
+          updateProcessDto.processMapId,
+          updateProcessDto.code,
+        );
+        if (existing) {
+          throw new ConflictException(
+            `Process with code "${updateProcessDto.code}" already exists in this ProcessMap`,
+          );
+        }
+      }
+    } else if (updateProcessDto.code && updateProcessDto.code !== process.code) {
+      // Check if code already exists in the current ProcessMap
+      const existing = await this.processRepository.findByCode(
+        process.processMapId,
+        updateProcessDto.code,
       );
-      this.logger.log(`FIP created successfully for process: ${createdProcess.id}`);
-    } catch (error) {
-      this.logger.error(`Failed to create FIP for process: ${createdProcess.id}`, error);
-      // Don't fail the process creation if FIP creation fails
+      if (existing) {
+        throw new ConflictException(
+          `Process with code "${updateProcessDto.code}" already exists in this ProcessMap`,
+        );
+      }
     }
 
-    return createdProcess;
-  }
-
-  async findById(id: string): Promise<ProcessEntity | null> {
-    return this.processRepository.findById(id);
-  }
-
-  async findByIdWithRelations(id: string): Promise<any> {
-    return this.processRepository.findByIdWithRelations(id);
-  }
-
-  async findAll(query: ProcessQueryDto): Promise<any> {
-    return this.processRepository.findProcessesWithFilters(query);
-  }
-
-  async update(id: string, updateProcessDto: UpdateProcessDto): Promise<ProcessEntity> {
-    this.logger.log(`Updating process: ${id}`);
-
-    const existingProcess = await this.processRepository.findById(id);
-    if (!existingProcess) {
-      throw new NotFoundException('Process not found');
+    // Validate workspace exists if being updated
+    if (updateProcessDto.workspaceId) {
+      const workspace = await this.prisma.workspace.findUnique({
+        where: { id: updateProcessDto.workspaceId },
+      });
+      if (!workspace) {
+        throw new NotFoundException(
+          `Workspace with ID "${updateProcessDto.workspaceId}" not found`,
+        );
+      }
     }
 
-    const updatedProcess = await this.processRepository.update(id, updateProcessDto);
-    this.logger.log(`Process updated successfully: ${id}`);
-    return updatedProcess;
-  }
-
-  async remove(id: string): Promise<ProcessEntity> {
-    this.logger.log(`Deleting process: ${id}`);
-
-    const existingProcess = await this.processRepository.findById(id);
-    if (!existingProcess) {
-      throw new NotFoundException('Process not found');
+    // Validate department exists if being updated
+    if (updateProcessDto.departmentId) {
+      const department = await this.prisma.department.findUnique({
+        where: { id: updateProcessDto.departmentId },
+      });
+      if (!department) {
+        throw new NotFoundException(
+          `Department with ID "${updateProcessDto.departmentId}" not found`,
+        );
+      }
     }
 
-    const deletedProcess = await this.processRepository.delete(id);
-    this.logger.log(`Process deleted successfully: ${id}`);
-    return deletedProcess;
+    // Update Process
+    const updatedProcess = await this.processRepository.update(id, {
+      ...updateProcessDto,
+    });
+
+    return this.processRepository.findByIdWithDetails(updatedProcess.id);
   }
 
-  async updateStatus(id: string, status: ProcessStatus): Promise<ProcessEntity> {
-    this.logger.log(`Updating process status: ${id} to ${status}`);
-    return this.processRepository.updateStatus(id, status);
-  }
+  /**
+   * Delete Process
+   */
+  async remove(id: string) {
+    const process = await this.processRepository.findById(id);
+    if (!process) {
+      throw new NotFoundException(`Process with ID "${id}" not found`);
+    }
 
-  async getProcessesByProcessMap(processMapId: string): Promise<any[]> {
-    return this.processRepository.findProcessesByProcessMap(processMapId);
-  }
+    // Delete Process (FlowDiagram will be cascade deleted)
+    await this.processRepository.delete(id);
 
-  async getProcessHierarchy(processMapId: string): Promise<any> {
-    return this.processRepository.getProcessHierarchy(processMapId);
-  }
-
-  // ====================================
-  // METADATA METHODS (delegated to ProcessMetadataService)
-  // ====================================
-
-  // Actors
-  async getActors(processId: string) {
-    return this.metadataService.getActors(processId);
-  }
-
-  async createActor(processId: string, dto: CreateProcessActorDto) {
-    return this.metadataService.createActor(processId, dto);
-  }
-
-  async updateActor(
-    processId: string,
-    actorId: string,
-    dto: Partial<CreateProcessActorDto>,
-  ) {
-    return this.metadataService.updateActor(processId, actorId, dto);
-  }
-
-  async deleteActor(processId: string, actorId: string) {
-    return this.metadataService.deleteActor(processId, actorId);
-  }
-
-  // Inputs/Outputs
-  async getInputs(processId: string) {
-    return this.metadataService.getInputs(processId);
-  }
-
-  async getOutputs(processId: string) {
-    return this.metadataService.getOutputs(processId);
-  }
-
-  async createIO(processId: string, dto: CreateProcessIODto) {
-    return this.metadataService.createIO(processId, dto);
-  }
-
-  async updateIO(
-    processId: string,
-    ioId: string,
-    dto: Partial<CreateProcessIODto>,
-  ) {
-    return this.metadataService.updateIO(processId, ioId, dto);
-  }
-
-  async deleteIO(processId: string, ioId: string) {
-    return this.metadataService.deleteIO(processId, ioId);
-  }
-
-  // Indicators
-  async getIndicators(processId: string) {
-    return this.metadataService.getIndicators(processId);
-  }
-
-  async createIndicator(processId: string, dto: CreateIndicatorDto) {
-    return this.metadataService.createIndicator(processId, dto);
-  }
-
-  async updateIndicator(
-    processId: string,
-    indicatorId: string,
-    dto: Partial<CreateIndicatorDto>,
-  ) {
-    return this.metadataService.updateIndicator(processId, indicatorId, dto);
-  }
-
-  async deleteIndicator(processId: string, indicatorId: string) {
-    return this.metadataService.deleteIndicator(processId, indicatorId);
-  }
-
-  // Risks
-  async getRisks(processId: string) {
-    return this.metadataService.getRisks(processId);
-  }
-
-  async createRisk(processId: string, dto: CreateRiskDto) {
-    return this.metadataService.createRisk(processId, dto);
-  }
-
-  async updateRisk(
-    processId: string,
-    riskId: string,
-    dto: Partial<CreateRiskDto>,
-  ) {
-    return this.metadataService.updateRisk(processId, riskId, dto);
-  }
-
-  async deleteRisk(processId: string, riskId: string) {
-    return this.metadataService.deleteRisk(processId, riskId);
-  }
-
-  // Documents
-  async getDocuments(processId: string) {
-    return this.metadataService.getDocuments(processId);
-  }
-
-  async createDocument(processId: string, dto: CreateLinkedDocumentDto) {
-    return this.metadataService.createDocument(processId, dto);
-  }
-
-  async updateDocument(
-    processId: string,
-    documentId: string,
-    dto: Partial<CreateLinkedDocumentDto>,
-  ) {
-    return this.metadataService.updateDocument(processId, documentId, dto);
-  }
-
-  async deleteDocument(processId: string, documentId: string) {
-    return this.metadataService.deleteDocument(processId, documentId);
+    return { message: 'Process deleted successfully' };
   }
 }

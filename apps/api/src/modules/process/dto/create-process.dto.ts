@@ -1,133 +1,124 @@
-import {
-  IsNotEmpty,
-  IsString,
-  IsOptional,
-  IsEnum,
-  IsNumber,
-  MinLength,
-  MaxLength,
-  IsUUID,
-  Min,
-  Max,
-} from 'class-validator';
-import { ProcessType, ProcessPriority, ConfidentialityLevel } from '@prisma/client';
+import { IsString, IsNotEmpty, IsOptional, IsEnum } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ProcessStatus, ProcessType, ProcessPriority, ConfidentialityLevel } from '@prisma/client';
 
 export class CreateProcessDto {
-  @IsNotEmpty()
+  @ApiProperty({
+    description: 'Process title',
+    example: 'Processus de Recrutement',
+  })
   @IsString()
-  @IsUUID()
-  processMapId: string; // Relation vers ProcessMap (niveau 1)
-
   @IsNotEmpty()
-  @IsString()
-  @MinLength(2)
-  @MaxLength(50)
-  code: string; // Code unique Qualigram
-
-  @IsNotEmpty()
-  @IsString()
-  @MinLength(2)
-  @MaxLength(200)
   title: string;
 
-  @IsOptional()
+  @ApiProperty({
+    description: 'Process code (unique within ProcessMap)',
+    example: 'PROC-RH-001',
+  })
   @IsString()
-  @MaxLength(1000)
+  @IsNotEmpty()
+  code: string;
+
+  @ApiPropertyOptional({
+    description: 'Process description',
+    example: 'Processus complet de recrutement des candidats',
+  })
+  @IsString()
+  @IsOptional()
   description?: string;
 
-  @IsOptional()
-  @IsEnum(ProcessType)
-  type?: ProcessType; // FLOW ou SIPOC
-
-  @IsNotEmpty()
+  @ApiProperty({
+    description: 'ProcessMap ID (parent)',
+    example: 'clx1234567890',
+  })
   @IsString()
-  @IsUUID()
+  @IsNotEmpty()
+  processMapId: string;
+
+  @ApiProperty({
+    description: 'Workspace ID',
+    example: 'clx1234567890',
+  })
+  @IsString()
+  @IsNotEmpty()
   workspaceId: string;
 
-  @IsOptional()
+  @ApiPropertyOptional({
+    description: 'Department ID',
+    example: 'clx1234567890',
+  })
   @IsString()
-  @IsUUID()
+  @IsOptional()
   departmentId?: string;
 
+  @ApiPropertyOptional({
+    description: 'Process type',
+    enum: ProcessType,
+    example: ProcessType.FLOW,
+    default: ProcessType.FLOW,
+  })
+  @IsEnum(ProcessType)
   @IsOptional()
-  @IsString()
-  @MaxLength(1000)
-  objectif?: string; // Objectif du processus
+  type?: ProcessType;
 
+  @ApiPropertyOptional({
+    description: 'Process status',
+    enum: ProcessStatus,
+    example: ProcessStatus.DRAFT,
+    default: ProcessStatus.DRAFT,
+  })
+  @IsEnum(ProcessStatus)
   @IsOptional()
-  @IsString()
-  @MaxLength(1000)
-  perimetre?: string; // Périmètre d'application
+  status?: ProcessStatus;
 
-  @IsOptional()
+  @ApiPropertyOptional({
+    description: 'Process objective',
+    example: 'Recruter les meilleurs talents',
+  })
   @IsString()
-  @MaxLength(500)
-  finalite?: string; // Purpose/Goal
-
   @IsOptional()
+  objectif?: string;
+
+  @ApiPropertyOptional({
+    description: 'Process scope',
+    example: 'Tous les départements',
+  })
+  @IsString()
+  @IsOptional()
+  perimetre?: string;
+
+  @ApiPropertyOptional({
+    description: 'Process purpose',
+    example: 'Améliorer la qualité du recrutement',
+  })
+  @IsString()
+  @IsOptional()
+  finalite?: string;
+
+  @ApiPropertyOptional({
+    description: 'Process priority',
+    enum: ProcessPriority,
+    example: ProcessPriority.MEDIUM,
+    default: ProcessPriority.MEDIUM,
+  })
   @IsEnum(ProcessPriority)
+  @IsOptional()
   priority?: ProcessPriority;
 
-  @IsOptional()
+  @ApiPropertyOptional({
+    description: 'Confidentiality level',
+    enum: ConfidentialityLevel,
+    example: ConfidentialityLevel.INTERNAL,
+    default: ConfidentialityLevel.INTERNAL,
+  })
   @IsEnum(ConfidentialityLevel)
+  @IsOptional()
   confidentiality?: ConfidentialityLevel;
 
+  @ApiPropertyOptional({
+    description: 'Review frequency in months',
+    example: 12,
+  })
   @IsOptional()
-  @IsNumber()
-  @Min(1)
   reviewFrequency?: number;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(100)
-  authorName?: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(100)
-  validatorName?: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(100)
-  approverName?: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(500)
-  applicationScope?: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(500)
-  objectives?: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(500)
-  resources?: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(500)
-  indicators?: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(500)
-  risks?: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(500)
-  improvements?: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(500)
-  documentationLinks?: string;
-
-  @IsOptional()
-  @IsUUID()
-  createdById?: string;
 }

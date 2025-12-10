@@ -14,10 +14,15 @@ import { UsersPage } from './features/users'
 import { GroupsPage } from './features/groups/pages/GroupsPage'
 import { MacroProcessListPage } from './features/macro-processes/pages/MacroProcessListPage'
 import ProcedureDetailPage from './features/procedures/pages/ProcedureDetailPage'
+import ProcedureFlowEditorPage from './features/procedures/pages/ProcedureFlowEditorPage'
+import ProceduresPage from './features/procedures/pages/ProceduresPage'
 import QualigramEditorPage from './features/qualigram/pages/QualigramEditorPage'
 import ProcessMapsPage from './features/process-map/pages/ProcessMapsPage'
 import ProcessMapDetailPage from './features/process-map/pages/ProcessMapDetailPage'
 import ProcessMapFlowEditorPage from './features/process-map/pages/ProcessMapFlowEditorPage'
+import ProcessesPageLevel2 from './features/process/pages/ProcessesPage'
+import ProcessDetailPageLevel2 from './features/process/pages/ProcessDetailPage'
+import ProcessFlowEditorPageLevel2 from './features/process/pages/ProcessFlowEditorPage'
 
 // Check if user is authenticated
 const isAuthenticated = () => {
@@ -293,6 +298,94 @@ const processMapFlowEditorRoute = createRoute({
   component: () => <ProcessMapFlowEditorPage />,
 })
 
+// Process (Level 2) routes - protected routes
+const processesLevel2Route = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/processes-level2',
+  beforeLoad: () => {
+    if (!isAuthenticated()) {
+      throw redirect({ to: '/login' })
+    }
+  },
+  component: () => (
+    <AdminLayout>
+      <ProcessesPageLevel2 />
+    </AdminLayout>
+  ),
+})
+
+// Process (Level 2) detail route - protected route
+const processDetailLevel2Route = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/processes-level2/$id',
+  beforeLoad: () => {
+    if (!isAuthenticated()) {
+      throw redirect({ to: '/login' })
+    }
+  },
+  component: () => (
+    <AdminLayout>
+      <ProcessDetailPageLevel2 />
+    </AdminLayout>
+  ),
+})
+
+// Process (Level 2) Flow Editor route - protected route (full-screen, no layout)
+const processFlowEditorLevel2Route = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/processes-level2/$id/flow',
+  beforeLoad: () => {
+    if (!isAuthenticated()) {
+      throw redirect({ to: '/login' })
+    }
+  },
+  component: () => <ProcessFlowEditorPageLevel2 />,
+})
+
+// Procedure (Level 3) routes - protected routes
+const proceduresLevel3Route = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/procedures-level3',
+  beforeLoad: () => {
+    if (!isAuthenticated()) {
+      throw redirect({ to: '/login' })
+    }
+  },
+  component: () => (
+    <AdminLayout>
+      <ProceduresPage />
+    </AdminLayout>
+  ),
+})
+
+// Procedure (Level 3) detail route - protected route
+const procedureDetailLevel3Route = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/procedures-level3/$id',
+  beforeLoad: () => {
+    if (!isAuthenticated()) {
+      throw redirect({ to: '/login' })
+    }
+  },
+  component: () => (
+    <AdminLayout>
+      <ProcedureDetailPage />
+    </AdminLayout>
+  ),
+})
+
+// Procedure (Level 3) Flow Editor route - protected route (full-screen, no layout)
+const procedureFlowEditorLevel3Route = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/procedures-level3/$id/flow',
+  beforeLoad: () => {
+    if (!isAuthenticated()) {
+      throw redirect({ to: '/login' })
+    }
+  },
+  component: () => <ProcedureFlowEditorPage />,
+})
+
 // Qualigram Editor route - protected route
 const qualigramEditorRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -376,6 +469,12 @@ const routeTree = rootRoute.addChildren([
   processMapsRoute,
   processMapDetailRoute,
   processMapFlowEditorRoute,
+  processesLevel2Route,
+  processDetailLevel2Route,
+  processFlowEditorLevel2Route,
+  proceduresLevel3Route,
+  procedureDetailLevel3Route,
+  procedureFlowEditorLevel3Route,
   qualigramEditorRoute,
   qualigramEditorWithMacroRoute,
   qualigramEditorWithProcessRoute,

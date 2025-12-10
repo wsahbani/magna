@@ -1,15 +1,18 @@
 import { useParams, useNavigate } from '@tanstack/react-router'
-import { ArrowLeft, Building2, Plus, Users, FileText, Heading4Icon } from 'lucide-react'
-import { Button, Heading1, Heading3, Body, BodySmall, Caption } from '@repo/ui'
+import { Building2, Plus, Users, FileText, Map } from 'lucide-react'
+import { Button, Heading3, Body, BodySmall } from '@repo/ui'
 import { PageWrapper } from '../../../components/layout/PageWrapper'
 import { ProcessCard } from '../../processes/components/ProcessCard'
+import { ProcessMapCard } from '../../process-map/components/ProcessMapCard'
 import { useWorkspace } from '../hooks/useWorkspaces'
 import { useProcesses } from '../../processes/hooks/useProcesses'
+import { useProcessMaps, useDeleteProcessMap } from '../../process-map/hooks/useProcessMaps'
 import { useState } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@repo/ui'
 import { ProcessForm } from '../../processes/components/ProcessForm'
 import { useCreateProcess, useUpdateProcess, useDeleteProcess } from '../../processes/hooks/useProcesses'
 import type { Process } from '../../processes/types/process.types'
+import type { ProcessMap } from '../../process-map/types/process-map.types'
 
 export default function WorkspaceDetailPage() {
   const { id } = useParams({ from: '/workspaces/$id' })
@@ -26,9 +29,18 @@ export default function WorkspaceDetailPage() {
     workspaceId: id,
   })
 
+  // Fetch ProcessMaps for this workspace
+  const { data: processMapsData, isLoading: isLoadingProcessMaps } = useProcessMaps({
+    workspaceId: id,
+    page: 1,
+    limit: 100, // Get all ProcessMaps for this workspace
+  })
+
+  // All hooks must be called before any conditional returns
   const createMutation = useCreateProcess()
   const updateMutation = useUpdateProcess()
   const deleteMutation = useDeleteProcess()
+  const deleteProcessMapMutation = useDeleteProcessMap()
 
   const handleCreate = async (formData: any) => {
     await createMutation.mutateAsync({
@@ -104,6 +116,21 @@ export default function WorkspaceDetailPage() {
   }
 
   const processes = processesData?.data || []
+  const processMaps = processMapsData?.data || []
+
+  const handleViewProcessMap = (processMap: ProcessMap) => {
+    navigate({ to: '/process-maps/$id', params: { id: processMap.id } })
+  }
+
+  const handleEditProcessMap = (processMap: ProcessMap) => {
+    navigate({ to: '/process-maps/$id/flow', params: { id: processMap.id } })
+  }
+
+  const handleDeleteProcessMap = async (processMap: ProcessMap) => {
+    if (window.confirm('Êtes-vous sûr de vouloir supprimer cette carte de processus ?')) {
+      await deleteProcessMapMutation.mutateAsync(processMap.id)
+    }
+  }
 
   return (
     <PageWrapper
@@ -125,7 +152,7 @@ export default function WorkspaceDetailPage() {
     >
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-blue-100 rounded-lg">
@@ -135,6 +162,20 @@ export default function WorkspaceDetailPage() {
               <BodySmall>Processus</BodySmall>
               <p className="text-2xl font-bold text-gray-900">
                 {workspace._count?.processes || 0}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-orange-100 rounded-lg">
+              <Map className="w-5 h-5 text-orange-600" />
+            </div>
+            <div>
+              <BodySmall>Cartes de processus</BodySmall>
+              <p className="text-2xl font-bold text-gray-900">
+                {processMapsData?.data?.length || 0}
               </p>
             </div>
           </div>
@@ -214,6 +255,57 @@ export default function WorkspaceDetailPage() {
                 onEdit={handleEdit}
                 onView={() => handleView(process)}
                 onDelete={() => handleDelete(process.id)}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ProcessMaps Section */}
+      <div className="space-y-4 mt-8">
+        <div className="flex items-center justify-between">
+          <Heading3 className="text-gray-900">
+            Cartes de processus de cet espace de travail
+          </Heading3>
+          <BodySmall>
+            {processMaps.length} carte{processMaps.length > 1 ? 's' : ''} au total
+          </BodySmall>
+        </div>
+
+        {isLoadingProcessMaps ? (
+          <div className="flex justify-center items-center h-64">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600"></div>
+          </div>
+        ) : processMaps.length === 0 ? (
+          <div className="bg-white rounded-lg shadow p-12 text-center">
+            <div className="max-w-md mx-auto space-y-4">
+              <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto">
+                <Map className="w-8 h-8 text-orange-600" />
+              </div>
+              <Heading3 className="text-gray-900">
+                Aucune carte de processus pour le moment
+              </Heading3>
+              <Body className="text-gray-600">
+                Créez votre première carte de processus pour visualiser et organiser vos processus.
+              </Body>
+              <Button
+                onClick={() => navigate({ to: '/process-maps' })}
+                className="bg-orange-600 hover:bg-orange-700 text-white"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                <Body as="span">Créer une carte de processus</Body>
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {processMaps.map((processMap: ProcessMap) => (
+              <ProcessMapCard
+                key={processMap.id}
+                processMap={processMap}
+                onView={handleViewProcessMap}
+                onEdit={handleEditProcessMap}
+                onDelete={handleDeleteProcessMap}
               />
             ))}
           </div>

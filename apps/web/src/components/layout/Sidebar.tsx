@@ -22,6 +22,7 @@ import {
   Shield,
   Layers,
   GitBranch,
+  Map,
 } from 'lucide-react'
 import { useAuth } from '../../features/auth'
 import { appConfig } from '../../config'
@@ -36,10 +37,15 @@ interface NavItem {
 
 const navigationItems: NavItem[] = [
   { label: 'Dashboard', icon: LayoutDashboard, href: '/' },
-  { label: 'Qualigram', icon: GitBranch, href: '/qualigram/editor' },
-  { label: 'Macro-Processus', icon: Layers, href: '/macro-processes' },
-  { label: 'Processes', icon: Workflow, href: '/processes' },
   { label: 'Workspaces', icon: Building2, href: '/workspaces' },
+  // Hiérarchie Qualigram - 3 niveaux
+  { label: 'Cartes de Processus', icon: Map, href: '/process-maps' },
+  { label: 'Processus (Niveau 2)', icon: Workflow, href: '/processes-level2' },
+  { label: 'Procédures (Niveau 3)', icon: FileText, href: '/procedures-level3' },
+  // Legacy routes
+
+  // Autres
+
   { label: 'Documents', icon: FileText, href: '/documents' },
   { label: 'Projects', icon: FolderKanban, href: '/projects' },
   { label: 'Tags', icon: Tags, href: '/tags' },

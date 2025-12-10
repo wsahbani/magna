@@ -11,7 +11,8 @@ import {
   Shield, 
   Users, 
   Building2,
-  Globe
+  Globe,
+  Link2
 } from 'lucide-react'
 import { createNode, defineNodeConfig, HANDLE_CONFIGS, COLOR_SCHEMES } from './BaseNode'
 
@@ -21,7 +22,7 @@ import { createNode, defineNodeConfig, HANDLE_CONFIGS, COLOR_SCHEMES } from './B
  */
 export const MainProcessNode = createNode(
   defineNodeConfig({
-    shape: 'rounded-rectangle',
+    shape: 'custom',
     backgroundColor: 'white',
     borderColor: 'border-purple-500',
     borderWidth: 2,
@@ -37,6 +38,35 @@ export const MainProcessNode = createNode(
     ],
     showLabel: true,
     labelPosition: 'inside',
+    customRender: ({ data, selected, renderHandles, renderIcon, renderLabel, width, height }) => {
+      const selectedClass = selected ? 'ring-4 ring-orange-400 ring-opacity-50 shadow-lg' : 'shadow'
+      const hasLink = !!data?.linkedProcessId
+      
+      const inlineStyle: any = {
+        width: width ? `${width}px` : undefined,
+        height: height ? `${height}px` : undefined,
+      }
+      if (data?.style?.backgroundColor) inlineStyle.backgroundColor = data.style.backgroundColor
+      if (data?.style?.color) inlineStyle.color = data.style.color
+      
+      return (
+        <div
+          className={`relative bg-white border-2 border-purple-500 rounded-lg px-5 py-4 min-w-[140px] min-h-[80px] flex flex-col items-center justify-center w-full h-full ${selectedClass} transition-all`}
+          style={inlineStyle}
+        >
+          {renderHandles()}
+          {hasLink && (
+            <div className="absolute top-1 right-1 bg-orange-500 rounded-full p-1 shadow-sm">
+              <Link2 className="w-3 h-3 text-white" />
+            </div>
+          )}
+          <div className="flex items-center gap-2 mb-2">
+            {renderIcon()}
+          </div>
+          {renderLabel()}
+        </div>
+      )
+    },
   })
 )
 
@@ -66,6 +96,7 @@ export const SupportProcessNode = createNode(
     labelPosition: 'inside',
     customRender: ({ data, selected, renderHandles, renderIcon, renderLabel, width, height }) => {
       const selectedClass = selected ? 'ring-4 ring-orange-400 ring-opacity-50 shadow-lg' : 'shadow'
+      const hasLink = !!data?.linkedProcessId
       
       const inlineStyle: any = {
         width: width ? `${width}px` : undefined,
@@ -76,10 +107,15 @@ export const SupportProcessNode = createNode(
       
       return (
         <div
-          className={`bg-white border-2 border-blue-500 border-dashed rounded-lg px-5 py-4 min-w-[140px] min-h-[80px] flex flex-col items-center justify-center ${selectedClass} transition-all w-full h-full`}
+          className={`relative bg-white border-2 border-blue-500 border-dashed rounded-lg px-5 py-4 min-w-[140px] min-h-[80px] flex flex-col items-center justify-center ${selectedClass} transition-all w-full h-full`}
           style={inlineStyle}
         >
           {renderHandles()}
+          {hasLink && (
+            <div className="absolute top-1 right-1 bg-orange-500 rounded-full p-1 shadow-sm">
+              <Link2 className="w-3 h-3 text-white" />
+            </div>
+          )}
           <div className="flex items-center gap-2 mb-2">
             {renderIcon()}
           </div>
@@ -118,6 +154,7 @@ export const ManagementProcessNode = createNode(
     labelPosition: 'inside',
     customRender: ({ data, selected, renderHandles, renderIcon, renderLabel, width, height }) => {
       const selectedClass = selected ? 'ring-4 ring-orange-400 ring-opacity-50 shadow-lg' : 'shadow'
+      const hasLink = !!data?.linkedProcessId
       
       const inlineStyle: any = {
         width: width ? `${width}px` : undefined,
@@ -132,6 +169,11 @@ export const ManagementProcessNode = createNode(
           style={inlineStyle}
         >
           {renderHandles()}
+          {hasLink && (
+            <div className="absolute top-1 right-1 bg-orange-500 rounded-full p-1 shadow-sm z-20">
+              <Link2 className="w-3 h-3 text-white" />
+            </div>
+          )}
           {/* Hexagon shape using CSS clip-path */}
           <div
             className="absolute inset-0 border-2 border-purple-500 bg-white"

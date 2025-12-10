@@ -18,6 +18,7 @@ export class DiagramService {
     private readonly prisma: PrismaService,
     @Inject(forwardRef(() => ProcessService))
     private readonly processService: ProcessService,
+    @Inject(forwardRef(() => ProcedureService))
     private readonly procedureService: ProcedureService,
   ) {}
 

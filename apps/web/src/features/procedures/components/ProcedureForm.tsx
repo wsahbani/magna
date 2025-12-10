@@ -1,6 +1,6 @@
 /**
- * ProcessMap Form Component
- * Form for creating and editing ProcessMaps
+ * Procedure Form Component
+ * Form for creating and editing Procedures (Level 3)
  */
 
 import { useState } from 'react'
@@ -15,42 +15,47 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@repo/ui/components/ui/select'
-import { Building2, Code2, FileText, Hash, MapPin } from 'lucide-react'
+import { FileText, Code2, Target, Hash, Building2, Workflow, AlertCircle } from 'lucide-react'
+import { useProcesses } from '../../process/hooks/useProcesses'
 import { useWorkspaces } from '../../workspaces/hooks/useWorkspaces'
-import type { ProcessMap, CreateProcessMapDto, UpdateProcessMapDto } from '../types/process-map.types'
-import { ProcessStatus } from '../types/enums'
+import type { CreateProcedureDto, UpdateProcedureDto } from '../types/procedure.types'
 
-interface ProcessMapFormProps {
-  processMap?: ProcessMap
+interface ProcedureFormProps {
+  procedure?: any // Procedure type
+  defaultProcessId?: string
   defaultWorkspaceId?: string
-  onSubmit: (data: CreateProcessMapDto | UpdateProcessMapDto) => void
+  onSubmit: (data: CreateProcedureDto | UpdateProcedureDto & { workspaceId: string }) => void
   onCancel: () => void
   isLoading?: boolean
 }
 
-const statusOptions = [
-  { value: ProcessStatus.DRAFT, label: 'Brouillon' },
-  { value: ProcessStatus.PUBLISHED, label: 'Publié' },
-  { value: ProcessStatus.ARCHIVED, label: 'Archivé' },
-]
-
-export function ProcessMapForm({
-  processMap,
+export function ProcedureForm({
+  procedure,
+  defaultProcessId,
   defaultWorkspaceId,
   onSubmit,
   onCancel,
   isLoading,
-}: ProcessMapFormProps) {
+}: ProcedureFormProps) {
   const { data: workspacesData, isLoading: isLoadingWorkspaces } = useWorkspaces()
   const workspaces = workspacesData?.data || []
 
+  // Fetch Processes for the selected workspace
+  const selectedWorkspaceId = procedure?.workspaceId || defaultWorkspaceId || ''
+  const { data: processesData, isLoading: isLoadingProcesses } = useProcesses({
+    workspaceId: selectedWorkspaceId || undefined,
+    limit: 100,
+  })
+  const processes = processesData?.data || []
+
   const [formData, setFormData] = useState({
-    title: processMap?.title || '',
-    code: processMap?.code || '',
-    description: processMap?.description || '',
-    workspaceId: processMap?.workspaceId || defaultWorkspaceId || '',
-    departmentId: processMap?.departmentId || '',
-    status: processMap?.status || ProcessStatus.DRAFT,
+    title: procedure?.title || procedure?.name || '',
+    code: procedure?.code || '',
+    description: procedure?.description || '',
+    processId: procedure?.processId || defaultProcessId || '',
+    workspaceId: procedure?.workspaceId || defaultWorkspaceId || '',
+    objective: procedure?.objective || '',
+    scope: procedure?.scope || '',
   })
 
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -61,47 +66,22 @@ export function ProcessMapForm({
 
     if (!formData.title.trim()) {
       newErrors.title = 'Le titre est requis'
-    } else if (formData.title.length < 2) {
-      newErrors.title = 'Le titre doit contenir au moins 2 caractères'
-    } else if (formData.title.length > 200) {
-      newErrors.title = 'Le titre ne peut pas dépasser 200 caractères'
     }
 
     if (!formData.code.trim()) {
       newErrors.code = 'Le code est requis'
-    } else if (formData.code.length < 2) {
-      newErrors.code = 'Le code doit contenir au moins 2 caractères'
-    } else if (formData.code.length > 50) {
-      newErrors.code = 'Le code ne peut pas dépasser 50 caractères'
+    }
+
+    if (!formData.processId) {
+      newErrors.processId = 'Le processus parent est requis'
     }
 
     if (!formData.workspaceId) {
       newErrors.workspaceId = 'Le workspace est requis'
     }
 
-    if (formData.description && formData.description.length > 1000) {
-      newErrors.description = 'La description ne peut pas dépasser 1000 caractères'
-    }
-
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
-  }
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-
-    if (validateForm()) {
-      const submitData: CreateProcessMapDto | UpdateProcessMapDto = {
-        title: formData.title.trim(),
-        code: formData.code.trim(),
-        description: formData.description?.trim() || undefined,
-        workspaceId: formData.workspaceId,
-        departmentId: formData.departmentId || undefined,
-        status: formData.status,
-      }
-
-      onSubmit(submitData)
-    }
   }
 
   const handleBlur = (field: string) => {
@@ -113,6 +93,21 @@ export function ProcessMapForm({
     // Prevent form submission on Enter key press in input fields
     if (e.key === 'Enter' && e.target instanceof HTMLInputElement) {
       e.preventDefault()
+    }
+  }
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (validateForm()) {
+      onSubmit({
+        processId: formData.processId,
+        title: formData.title, // API expects 'title'
+        code: formData.code,
+        description: formData.description || undefined,
+        objective: formData.objective || undefined,
+        scope: formData.scope || undefined,
+        workspaceId: formData.workspaceId,
+      } as any)
     }
   }
 
@@ -135,7 +130,7 @@ export function ProcessMapForm({
               e.preventDefault()
             }
           }}
-          placeholder="Ex: Carte des Processus RH"
+          placeholder="Ex: Procédure de gestion des commandes"
           className={touched.title && errors.title ? 'border-red-500' : ''}
         />
         {touched.title && errors.title && (
@@ -146,21 +141,21 @@ export function ProcessMapForm({
       {/* Code */}
       <div className="space-y-2">
         <Label htmlFor="code" className="flex items-center gap-2">
-          <Hash className="h-4 w-4 text-orange-600" />
+          <Code2 className="h-4 w-4 text-orange-600" />
           Code <span className="text-red-500">*</span>
         </Label>
         <Input
           id="code"
           type="text"
           value={formData.code}
-          onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
+          onChange={(e) => setFormData({ ...formData, code: e.target.value })}
           onBlur={() => handleBlur('code')}
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
               e.preventDefault()
             }
           }}
-          placeholder="Ex: MAP-RH-001"
+          placeholder="Ex: PROC-001"
           className={touched.code && errors.code ? 'border-red-500' : ''}
         />
         {touched.code && errors.code && (
@@ -177,7 +172,7 @@ export function ProcessMapForm({
         <Select
           value={formData.workspaceId || ''}
           onValueChange={(value) => {
-            setFormData({ ...formData, workspaceId: value })
+            setFormData({ ...formData, workspaceId: value, processId: '' })
             setTouched((prev) => ({ ...prev, workspaceId: true }))
             validateForm()
           }}
@@ -208,49 +203,89 @@ export function ProcessMapForm({
         )}
       </div>
 
-      {/* Status */}
+      {/* Process */}
       <div className="space-y-2">
-        <Label htmlFor="status" className="flex items-center gap-2">
-          <MapPin className="h-4 w-4 text-orange-600" />
-          Statut
+        <Label htmlFor="processId" className="flex items-center gap-2">
+          <Workflow className="h-4 w-4 text-orange-600" />
+          Processus parent <span className="text-red-500">*</span>
         </Label>
         <Select
-          value={formData.status}
+          value={formData.processId || ''}
           onValueChange={(value) => {
-            setFormData({ ...formData, status: value as ProcessStatus })
+            setFormData({ ...formData, processId: value })
+            setTouched((prev) => ({ ...prev, processId: true }))
+            validateForm()
           }}
+          disabled={isLoadingProcesses || !formData.workspaceId || !!defaultProcessId}
         >
-          <SelectTrigger id="status">
-            <SelectValue placeholder="Sélectionner un statut" />
+          <SelectTrigger
+            id="processId"
+            className={touched.processId && errors.processId ? 'border-red-500' : ''}
+          >
+            <SelectValue placeholder={isLoadingProcesses ? 'Chargement...' : 'Sélectionner un processus'} />
           </SelectTrigger>
-          <SelectContent className="z-[150]" position="popper">
-            {statusOptions.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
+          <SelectContent className="max-h-[300px] z-[150]" position="popper">
+            {processes.length === 0 ? (
+              <div className="px-2 py-1.5 text-sm text-gray-500">
+                {isLoadingProcesses ? 'Chargement...' : formData.workspaceId ? 'Aucun processus disponible' : 'Sélectionnez d\'abord un workspace'}
+              </div>
+            ) : (
+              processes.map((process) => (
+                <SelectItem key={process.id} value={process.id}>
+                  {process.title} ({process.code})
+                </SelectItem>
+              ))
+            )}
           </SelectContent>
         </Select>
+        {touched.processId && errors.processId && (
+          <p className="text-sm text-red-500">{errors.processId}</p>
+        )}
       </div>
 
       {/* Description */}
       <div className="space-y-2">
         <Label htmlFor="description" className="flex items-center gap-2">
-          <Code2 className="h-4 w-4 text-orange-600" />
+          <FileText className="h-4 w-4 text-orange-600" />
           Description
         </Label>
         <Textarea
           id="description"
           value={formData.description}
           onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-          onBlur={() => handleBlur('description')}
-          placeholder="Description de la carte des processus..."
+          placeholder="Description de la procédure..."
           rows={4}
-          className={touched.description && errors.description ? 'border-red-500' : ''}
         />
-        {touched.description && errors.description && (
-          <p className="text-sm text-red-500">{errors.description}</p>
-        )}
+      </div>
+
+      {/* Objective */}
+      <div className="space-y-2">
+        <Label htmlFor="objective" className="flex items-center gap-2">
+          <Target className="h-4 w-4 text-orange-600" />
+          Objectif
+        </Label>
+        <Textarea
+          id="objective"
+          value={formData.objective}
+          onChange={(e) => setFormData({ ...formData, objective: e.target.value })}
+          placeholder="Objectif de la procédure..."
+          rows={3}
+        />
+      </div>
+
+      {/* Scope */}
+      <div className="space-y-2">
+        <Label htmlFor="scope" className="flex items-center gap-2">
+          <Hash className="h-4 w-4 text-orange-600" />
+          Périmètre
+        </Label>
+        <Textarea
+          id="scope"
+          value={formData.scope}
+          onChange={(e) => setFormData({ ...formData, scope: e.target.value })}
+          placeholder="Périmètre d'application de la procédure..."
+          rows={3}
+        />
       </div>
 
       {/* Actions */}
@@ -258,8 +293,8 @@ export function ProcessMapForm({
         <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading}>
           Annuler
         </Button>
-        <Button type="submit" disabled={isLoading} className="bg-orange-600 hover:bg-orange-700">
-          {isLoading ? 'Enregistrement...' : processMap ? 'Mettre à jour' : 'Créer'}
+        <Button type="submit" className="bg-orange-600 hover:bg-orange-700" disabled={isLoading}>
+          {isLoading ? 'Enregistrement...' : procedure ? 'Modifier' : 'Créer'}
         </Button>
       </div>
     </form>

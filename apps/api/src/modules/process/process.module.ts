@@ -1,29 +1,16 @@
 import { Module, forwardRef } from '@nestjs/common';
-import { ProcessService } from './services/process.service';
-import { FlowService } from './services/flow.service';
-import { ProcessMetadataService } from './services/process-metadata.service';
 import { ProcessController } from './process.controller';
+import { ProcessService } from './services/process.service';
+import { ProcessFlowService } from './services/process-flow.service';
 import { ProcessRepository } from './repositories/process.repository';
-import { PrismaService } from '../../database/prisma.service';
-import { SipocModule } from '../sipoc/sipoc.module';
-import { FipModule } from '../fip/fip.module';
+import { PrismaModule } from '../../database/prisma.module';
 import { ProcedureModule } from '../procedure/procedure.module';
+import { SipocModule } from '../sipoc/sipoc.module';
 
 @Module({
-  imports: [SipocModule, FipModule, forwardRef(() => ProcedureModule)],
+  imports: [PrismaModule, forwardRef(() => ProcedureModule), SipocModule],
   controllers: [ProcessController],
-  providers: [
-    ProcessService,
-    FlowService,
-    ProcessMetadataService,
-    ProcessRepository,
-    PrismaService,
-  ],
-  exports: [
-    ProcessService,
-    FlowService,
-    ProcessMetadataService,
-    ProcessRepository,
-  ],
+  providers: [ProcessService, ProcessFlowService, ProcessRepository],
+  exports: [ProcessService, ProcessFlowService, ProcessRepository],
 })
 export class ProcessModule {}
