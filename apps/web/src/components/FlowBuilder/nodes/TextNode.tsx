@@ -16,7 +16,7 @@ export const TextNode = createNode(
     resizable: true,
     minWidth: 80,
     minHeight: 30,
-    maxWidth: 500,
+    maxWidth: 1500,
     maxHeight: 200,
     handles: [], // No handles - text nodes don't connect to other nodes
     showLabel: true,

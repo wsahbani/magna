@@ -18,7 +18,6 @@ import {
   Connection,
   Edge,
   Node,
-  BackgroundVariant,
   ReactFlowInstance,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
@@ -30,6 +29,7 @@ import { Toolbar } from '../../../components/FlowBuilder/Toolbar';
 import { nodeTypes } from '../../../components/FlowBuilder/nodeTypes';
 import { useProcessMapFlow, useSaveProcessMapFlow } from '../hooks/useProcessMapFlow';
 import { PaletteConfigFactory } from '../config/palette-config';
+import { getBackgroundVariant } from '../../../components/FlowBuilder/utils/gridUtils';
 
 interface ProcessMapFlowDiagramProps {
   processMapId: string;
@@ -49,6 +49,15 @@ export function ProcessMapFlowDiagram({
   const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<Edge | null>(null);
+  
+  // Grid settings state
+  const [gridSettings, setGridSettings] = useState({
+    snapToGrid: false,
+    gridSize: 15,
+    showGrid: true,
+    backgroundPattern: 'dots' as 'dots' | 'lines' | 'cross' | 'none',
+  });
+  const [showHelperLines, setShowHelperLines] = useState(true);
 
   // Get palette configuration for ProcessMap (level 1)
   const paletteConfig = PaletteConfigFactory.createByEntityType('processMap');
@@ -286,6 +295,47 @@ export function ProcessMapFlowDiagram({
     onEdgeSelect?.(null);
   }, [onNodeSelect, onEdgeSelect]);
 
+  // Handle change handle positions
+  const handleChangeHandlePosition = useCallback(
+    (sourcePos: 'top' | 'right' | 'bottom' | 'left', targetPos: 'top' | 'right' | 'bottom' | 'left') => {
+      if (!selectedNode) return;
+      
+      setNodes((nds) =>
+        nds.map((node) => {
+          if (node.id === selectedNode.id) {
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                handlePositions: {
+                  source: sourcePos,
+                  target: targetPos,
+                },
+              },
+            };
+          }
+          return node;
+        }),
+      );
+      
+      // Update selectedNode state
+      setSelectedNode((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          data: {
+            ...prev.data,
+            handlePositions: {
+              source: sourcePos,
+              target: targetPos,
+            },
+          },
+        };
+      });
+    },
+    [selectedNode, setNodes],
+  );
+
   // Handle save
   const handleSave = useCallback(() => {
     saveFlowMutation.mutate({
@@ -338,18 +388,22 @@ export function ProcessMapFlowDiagram({
           nodesConnectable={!readOnly}
           elementsSelectable={!readOnly}
           deleteKeyCode={readOnly ? null : 'Delete'}
+          snapToGrid={gridSettings.snapToGrid}
+          snapGrid={[gridSettings.gridSize, gridSettings.gridSize]}
           fitView
           attributionPosition="bottom-right"
           multiSelectionKeyCode="Control"
         >
           {/* Background */}
-          <Background
-            variant={BackgroundVariant.Dots}
-            gap={20}
-            size={1}
-            color="#ff6900"
-            className="bg-gray-50"
-          />
+          {gridSettings.showGrid && getBackgroundVariant(gridSettings.backgroundPattern) && (
+            <Background
+              variant={getBackgroundVariant(gridSettings.backgroundPattern)!}
+              gap={gridSettings.gridSize}
+              size={gridSettings.backgroundPattern === 'dots' ? 1 : 0.5}
+              color={gridSettings.backgroundPattern === 'lines' ? '#ddd' : '#ff6900'}
+              className="bg-gray-50"
+            />
+          )}
 
           {/* Controls */}
           <Controls
@@ -374,11 +428,29 @@ export function ProcessMapFlowDiagram({
 
           {/* Top Toolbar (hidden in readOnly mode) */}
           {!readOnly && (
-            <Panel position="top-left" className="bg-white shadow-lg rounded-lg border border-gray-200 p-2">
+            <Panel position="top-left" className="bg-white shadow-lg rounded-lg border border-gray-200 p-2 z-50">
               <Toolbar
                 onSave={handleSave}
                 isSaving={saveFlowMutation.isPending}
                 saveError={saveFlowMutation.error}
+                onFitView={() => reactFlowInstance?.fitView()}
+                onZoomIn={() => reactFlowInstance?.zoomIn()}
+                onZoomOut={() => reactFlowInstance?.zoomOut()}
+                onDelete={() => {
+                  const selectedNodes = nodes.filter(n => n.selected)
+                  const selectedEdges = edges.filter(e => e.selected)
+                  if (selectedNodes.length > 0 || selectedEdges.length > 0) {
+                    setNodes((nds) => nds.filter(n => !n.selected))
+                    setEdges((eds) => eds.filter(e => !e.selected))
+                  }
+                }}
+                onChangeHandlePosition={handleChangeHandlePosition}
+                onGridSettingsChange={setGridSettings}
+                onHelperLinesToggle={setShowHelperLines}
+                hasSelectedNode={!!selectedNode}
+                selectedNodeCount={nodes.filter(n => n.selected).length}
+                gridSettings={gridSettings}
+                showHelperLines={showHelperLines}
               />
             </Panel>
           )}

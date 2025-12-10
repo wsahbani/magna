@@ -114,7 +114,7 @@ export function Toolbar({
   }
 
   return (
-    <>
+    <div className="flex items-center gap-1">
       {/* Save Actions */}
       <div className="flex items-center gap-1 border-r border-gray-200 pr-2">
         <Button
@@ -484,6 +484,6 @@ export function Toolbar({
           <AlignRight className="w-4 h-4" />
         </Button>
       </div>
-    </>
+    </div>
   )
 }

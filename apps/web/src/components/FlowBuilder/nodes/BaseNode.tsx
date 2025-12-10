@@ -104,7 +104,7 @@ export const createNode = (config: BaseNodeConfig) => {
       resizable = false,
       minWidth = 50,
       minHeight = 50,
-      maxWidth = 500,
+      maxWidth = 1500,
       maxHeight = 500,
     } = config
 

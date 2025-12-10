@@ -14,7 +14,7 @@ export const TaskNode = createNode(
     resizable: true,
     minWidth: 120,
     minHeight: 60,
-    maxWidth: 400,
+    maxWidth: 1400,
     maxHeight: 300,
     handles: [
       HANDLE_CONFIGS.targetLeft,
