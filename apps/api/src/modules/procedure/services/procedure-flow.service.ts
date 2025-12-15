@@ -215,7 +215,9 @@ export class ProcedureFlowService {
           width: node.width,
           height: node.height,
           zIndex: node.zIndex,
-          parentNodeId: node.data?.parentNode || node.parentNodeId,
+          // parentNodeId should come from node.parentId (same level as data, type, position)
+          // Use parentId first, then fallback to parentNodeId for backward compatibility
+          parentNodeId: node.parentId || node.parentNodeId || node.data?.parentNodeId,
           groupId: node.groupId,
           sourcePosition: node.sourcePosition,
           targetPosition: node.targetPosition,
@@ -223,6 +225,13 @@ export class ProcedureFlowService {
           isDraggable: node.isDraggable ?? true,
           isSelectable: node.isSelectable ?? true,
           style: node.style,
+          // Swimlane specific properties
+          orientation: node.data?.orientation,
+          order: node.data?.order,
+          collapsed: node.data?.collapsed,
+          poolId: node.data?.poolId,
+          laneId: node.data?.laneId,
+          color: node.data?.color,
           ...(node.data || {}),
         },
       },
@@ -259,7 +268,8 @@ export class ProcedureFlowService {
           width: node.width !== undefined && node.width !== null ? node.width : (node.data?.width ?? existingData.width),
           height: node.height !== undefined && node.height !== null ? node.height : (node.data?.height ?? existingData.height),
           zIndex: node.zIndex,
-          parentNodeId: node.data?.parentNode || node.parentNodeId,
+          // parentNodeId should come from node.parentId (same level as data, type, position)
+          parentNodeId: node.parentId || (node.data?.parentNodeId ?? existingData.parentNodeId),
           groupId: node.groupId,
           sourcePosition: node.sourcePosition,
           targetPosition: node.targetPosition,
@@ -267,6 +277,13 @@ export class ProcedureFlowService {
           isDraggable: node.isDraggable ?? true,
           isSelectable: node.isSelectable ?? true,
           style: node.style,
+          // Swimlane specific properties (preserve existing or use new)
+          orientation: node.data?.orientation ?? existingData.orientation,
+          order: node.data?.order ?? existingData.order,
+          collapsed: node.data?.collapsed ?? existingData.collapsed,
+          poolId: node.data?.poolId ?? existingData.poolId,
+          laneId: node.data?.laneId ?? existingData.laneId,
+          color: node.data?.color ?? existingData.color,
           ...(node.data || {}),
         },
       },
@@ -372,9 +389,12 @@ export class ProcedureFlowService {
     }
 
     // Restore parent-child relationship if parentNodeId exists
+    // parentId and extent should be at the same level as data, type, position
     if (nodeData.parentNodeId) {
-      reactFlowNode.parentNode = nodeData.parentNodeId;
+      reactFlowNode.parentId = nodeData.parentNodeId;
       reactFlowNode.extent = 'parent';
+      // Also set parentNode for ReactFlow compatibility
+      reactFlowNode.parentNode = nodeData.parentNodeId;
     }
 
     return reactFlowNode;
@@ -477,6 +497,10 @@ export class ProcedureFlowService {
       ACTIVITY: FlowNodeType.ACTION,
       DECISION: FlowNodeType.DECISION,
       SUBPROCESS: FlowNodeType.SUBFLOW,
+      
+      // Swimlanes (BPMN)
+      POOL: FlowNodeType.SUBFLOW, // Pool is a container, use SUBFLOW type
+      LANE: FlowNodeType.SUBFLOW, // Lane is also a container, use SUBFLOW type
       
       // Text/Title node
       TEXT: FlowNodeType.ACTION,

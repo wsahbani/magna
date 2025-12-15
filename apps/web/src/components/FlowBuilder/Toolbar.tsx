@@ -17,7 +17,10 @@ import {
   FolderPlus,
   Ungroup,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  Layers,
+  Plus,
+  Image as ImageIcon
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -60,6 +63,12 @@ interface ToolbarProps {
   isAutoSaving?: boolean
   saveError?: Error | null
   isLoadingFlow?: boolean
+  // Swimlane props
+  onAddPool?: () => void
+  onAddLane?: () => void
+  hasPool?: boolean
+  // Image extraction props
+  onExtractFromImage?: () => void
 }
 
 export function Toolbar({
@@ -91,6 +100,12 @@ export function Toolbar({
   isAutoSaving = false,
   saveError = null,
   isLoadingFlow = false,
+  // Swimlane props
+  onAddPool,
+  onAddLane,
+  hasPool = false,
+  // Image extraction props
+  onExtractFromImage,
 }: ToolbarProps) {
   const [showHandleMenu, setShowHandleMenu] = useState(false)
   const [showGridMenu, setShowGridMenu] = useState(false)
@@ -246,6 +261,52 @@ export function Toolbar({
           <span className="text-sm font-medium">Ungroup</span>
         </button>
       </div>
+
+      {/* Swimlanes */}
+      {(onAddPool || onAddLane) && (
+        <div className="flex items-center gap-1 border-r border-gray-200 pr-2">
+          {!hasPool && onAddPool && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onAddPool}
+              className="h-9"
+              title="Ajouter un Pool"
+            >
+              <Layers className="w-4 h-4 mr-2" />
+              Ajouter Pool
+            </Button>
+          )}
+          {hasPool && onAddLane && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onAddLane}
+              className="h-9"
+              title="Ajouter une Lane"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Ajouter Lane
+            </Button>
+          )}
+        </div>
+      )}
+
+      {/* AI Image Extraction */}
+      {onExtractFromImage && (
+        <div className="flex items-center gap-1 border-r border-gray-200 pr-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onExtractFromImage}
+            className="h-9 border-orange-600 text-orange-600 hover:bg-orange-50"
+            title="Extraire depuis une image"
+          >
+            <ImageIcon className="w-4 h-4 mr-2" />
+            Extraire depuis image
+          </Button>
+        </div>
+      )}
 
       {/* Grid Settings */}
       <div className="flex items-center gap-1 border-r border-gray-200 pr-2 relative">

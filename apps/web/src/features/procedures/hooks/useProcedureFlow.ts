@@ -8,9 +8,9 @@ import { getProcedureFlow, saveProcedureFlow } from '../../../lib/api/procedure.
 import type { ProcedureFlowDiagram } from '../types/flow-diagram.types'
 import type { Node, Edge } from '@xyflow/react'
 
-const QUERY_KEYS = {
+export const procedureFlowKeys = {
   all: ['procedure-flows'] as const,
-  flow: (procedureId: string) => [...QUERY_KEYS.all, procedureId] as const,
+  detail: (procedureId: string) => ['procedure-flows', procedureId] as const,
 }
 
 /**
@@ -18,7 +18,7 @@ const QUERY_KEYS = {
  */
 export function useProcedureFlow(procedureId: string | undefined) {
   return useQuery({
-    queryKey: QUERY_KEYS.flow(procedureId!),
+    queryKey: procedureFlowKeys.detail(procedureId!),
     queryFn: () => getProcedureFlow(procedureId!),
     enabled: !!procedureId,
     staleTime: 1000 * 60 * 5, // 5 minutes
@@ -47,6 +47,16 @@ export function useSaveProcedureFlow() {
         const width = node.width ?? node.data?.width ?? undefined
         const height = node.height ?? node.data?.height ?? undefined
         
+        // Get parentId from node level (same level as data, type, position)
+        const parentId = (node as any).parentId || (node as any).parentNode
+        
+        // For pool nodes, ensure lanes are saved in data.lanes
+        const nodeData = { ...node.data };
+        if ((node.type === 'pool' || node.type === 'swimlane') && nodeData.lanes) {
+          // Lanes are already in data.lanes, just ensure they're properly structured
+          nodeData.lanes = nodeData.lanes;
+        }
+        
         return {
           id: node.id,
           type: node.type || 'action',
@@ -56,12 +66,26 @@ export function useSaveProcedureFlow() {
           width,
           height,
           description: node.data?.description,
+          // parentId should be at the same level as data, type, position
+          parentId: parentId,
           data: {
-            ...node.data,
+            ...nodeData,
             // Ensure width/height are also in data for consistency
             width: width ?? node.data?.width,
             height: height ?? node.data?.height,
-            parentNode: node.parentNode, // Store parentNode
+            // Store parentNodeId in data for persistence (backward compatibility)
+            parentNodeId: parentId,
+            // Swimlane specific properties
+            orientation: node.data?.orientation,
+            // Lanes are stored in data.lanes for pool nodes
+            lanes: (node.type === 'pool' || node.type === 'swimlane') ? nodeData.lanes : undefined,
+            // Legacy properties (for backward compatibility)
+            order: node.data?.order,
+            collapsed: node.data?.collapsed,
+            poolId: node.data?.poolId,
+            // laneId is critical for node-lane attachment
+            laneId: node.data?.laneId,
+            color: node.data?.color,
           },
         }
       })
@@ -81,7 +105,7 @@ export function useSaveProcedureFlow() {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
-        queryKey: QUERY_KEYS.flow(variables.procedureId),
+        queryKey: procedureFlowKeys.detail(variables.procedureId),
       })
       toast.success('Diagramme sauvegardé avec succès')
     },

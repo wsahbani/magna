@@ -57,10 +57,55 @@ export class ProcessMapFlowService {
       };
     }
     
+    // Map all nodes first to get their rfIds for parent validation
+    const allReactFlowNodes = flowDiagram.nodes.map(this.mapFlowNodeToReactFlow);
+    const nodeRfIdSet = new Set(allReactFlowNodes.map((n) => n.id));
+    
+    // Validate and clean up parent relationships
+    const validatedNodes = allReactFlowNodes.map((node) => {
+      const parentId = (node as any).parentId || (node as any).parentNode;
+      if (parentId) {
+        // Check if parent exists in the flow
+        if (!nodeRfIdSet.has(parentId)) {
+          this.logger.warn(
+            `Node ${node.id} has parent ${parentId} that does not exist. Removing parent relationship.`,
+          );
+          // Remove invalid parent reference
+          const nodeData = node.data || {};
+          delete nodeData.parentNodeId;
+          return {
+            ...node,
+            parentId: undefined,
+            parentNode: undefined,
+            extent: undefined,
+            data: nodeData,
+          };
+        }
+        
+        // Verify parent is a group node
+        const parentNode = allReactFlowNodes.find((n) => n.id === parentId);
+        if (parentNode && parentNode.type !== 'domainGroup') {
+          this.logger.warn(
+            `Node ${node.id} has parent ${parentId} that is not a domainGroup. Removing parent relationship.`,
+          );
+          const nodeData = node.data || {};
+          delete nodeData.parentNodeId;
+          return {
+            ...node,
+            parentId: undefined,
+            parentNode: undefined,
+            extent: undefined,
+            data: nodeData,
+          };
+        }
+      }
+      return node;
+    });
+    
     return {
       processMapId,
       diagramId: flowDiagram.id,
-      nodes: flowDiagram.nodes.map(this.mapFlowNodeToReactFlow),
+      nodes: validatedNodes,
       edges: flowDiagram.edges.map(this.mapFlowEdgeToReactFlow),
     };
   }
@@ -103,7 +148,9 @@ export class ProcessMapFlowService {
     }
 
     // Save in transaction to ensure consistency
-    return await this.prisma.$transaction(async (tx) => {
+    // Increase timeout to 30 seconds for large operations (e.g., image extraction with many nodes)
+    return await this.prisma.$transaction(
+      async (tx) => {
       // Get all existing nodes and edges from database
       const existingNodes = await tx.flowNode.findMany({
         where: { diagramId: flowDiagram.id },
@@ -190,6 +237,44 @@ export class ProcessMapFlowService {
         (e) => !e.id || !edgesToDeleteRfIds.has(e.id),
       );
 
+      // Create a map of all node rfIds (existing + new) for parent validation
+      const allNodeRfIds = new Set<string>();
+      existingNodes.forEach((n) => allNodeRfIds.add(n.rfId));
+      nodesToProcess.forEach((n) => {
+        if (n.id) allNodeRfIds.add(n.id);
+      });
+
+      // Validate parent relationships: ensure parent exists and is a valid group
+      nodesToProcess.forEach((node) => {
+        const parentId = node.parentId || node.data?.parentNodeId;
+        if (parentId) {
+          // Check if parent exists in the flow
+          if (!allNodeRfIds.has(parentId)) {
+            this.logger.warn(
+              `Node ${node.id} has parent ${parentId} that does not exist in the flow. Removing parent relationship.`,
+            );
+            // Remove invalid parent reference
+            node.parentId = undefined;
+            if (node.data) {
+              node.data.parentNodeId = undefined;
+            }
+          } else {
+            // Verify parent is a group node (domainGroup)
+            const parentNode = saveFlowDto.nodes.find((n) => n.id === parentId);
+            if (parentNode && parentNode.type !== 'domainGroup') {
+              this.logger.warn(
+                `Node ${node.id} has parent ${parentId} that is not a domainGroup. Removing parent relationship.`,
+              );
+              // Remove invalid parent reference
+              node.parentId = undefined;
+              if (node.data) {
+                node.data.parentNodeId = undefined;
+              }
+            }
+          }
+        }
+      });
+
       // Process nodes by action (excluding deleted ones)
       const nodesToAdd = nodesToProcess.filter(
         (n) =>
@@ -204,9 +289,14 @@ export class ProcessMapFlowService {
 
       // Create new nodes - auto-create Process if PROCESS_NODE
       const nodeRfIdMapping: Record<string, string> = {};
+      // Utiliser un compteur pour générer des codes uniques pour les Process
+      let processCounter = 0;
+      const baseTimestamp = Date.now();
+      
       const createdNodesWithMapping = await Promise.all(
-        nodesToAdd.map(async (node) => {
-          const rfId = node.id || `node-${Date.now()}-${Math.random()}`;
+        nodesToAdd.map(async (node, index) => {
+          // Générer un rfId unique avec timestamp, index et random pour éviter les collisions
+          const rfId = node.id || `node-${baseTimestamp}-${index}-${Math.random().toString(36).substring(2, 9)}`;
           
           // Auto-create Process if mainProcess, supportProcess, or managementProcess is dropped
           let referencedEntityId: string | undefined;
@@ -218,9 +308,11 @@ export class ProcessMapFlowService {
             node.type === 'managementProcess'
           ) {
             try {
+              // Générer un code unique avec timestamp, compteur et random
+              const processCode = `PROC-${baseTimestamp}-${processCounter++}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
               const newProcess = await this.processService.create(
                 {
-                  code: `PROC-${Date.now()}`,
+                  code: processCode,
                   title: node.label || 'Nouveau Processus',
                   description: node.data?.description || node.description,
                   processMapId: saveFlowDto.processMapId!,
@@ -229,10 +321,16 @@ export class ProcessMapFlowService {
                 },
                 userId,
               );
-              referencedEntityId = newProcess.id;
+              if (!newProcess || !newProcess.id) {
+                this.logger.warn(`Process creation returned null/undefined for node ${rfId}`);
+                referencedEntityId = undefined;
+              } else {
+                referencedEntityId = newProcess.id;
+              }
             } catch (error) {
               this.logger.error(`Failed to auto-create Process for node ${rfId}:`, error);
               // Continue without referenced entity
+              referencedEntityId = undefined;
             }
           }
 
@@ -315,7 +413,12 @@ export class ProcessMapFlowService {
         nodesCount: allNodes.length,
         edgesCount: allEdges.length,
       };
-    });
+      },
+      {
+        maxWait: 10000, // Maximum time to wait for a transaction slot (10 seconds)
+        timeout: 30000, // Maximum time the transaction can run (30 seconds)
+      },
+    );
   }
 
   /**
@@ -348,7 +451,7 @@ export class ProcessMapFlowService {
           width: node.width,
           height: node.height,
           zIndex: node.zIndex,
-          parentNodeId: node.data?.parentNode || node.parentNodeId, // Store parentNode from ReactFlow
+          parentNodeId: node.parentId || node.data?.parentNodeId || node.data?.parentNode || node.parentNodeId, // Store parentId from ReactFlow (top level)
           groupId: node.groupId,
           sourcePosition: node.sourcePosition,
           targetPosition: node.targetPosition,
@@ -392,7 +495,7 @@ export class ProcessMapFlowService {
           width: node.width !== undefined && node.width !== null ? node.width : (node.data?.width ?? existingData.width),
           height: node.height !== undefined && node.height !== null ? node.height : (node.data?.height ?? existingData.height),
           zIndex: node.zIndex,
-          parentNodeId: node.data?.parentNode || node.parentNodeId, // Store parentNode from ReactFlow
+          parentNodeId: node.parentId || node.data?.parentNodeId || node.data?.parentNode || node.parentNodeId, // Store parentId from ReactFlow (top level)
           groupId: node.groupId,
           sourcePosition: node.sourcePosition,
           targetPosition: node.targetPosition,
@@ -506,8 +609,10 @@ export class ProcessMapFlowService {
     }
 
     // Restore parent-child relationship if parentNodeId exists
+    // ReactFlow uses parentId at top level, not parentNode
     if (nodeData.parentNodeId) {
-      reactFlowNode.parentNode = nodeData.parentNodeId;
+      reactFlowNode.parentId = nodeData.parentNodeId;
+      reactFlowNode.parentNode = nodeData.parentNodeId; // Keep for backward compatibility
       reactFlowNode.extent = 'parent';
     }
 

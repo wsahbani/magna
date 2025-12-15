@@ -2,13 +2,57 @@
  * Flow Diagram Types for Procedure (Level 3)
  */
 
-import { FlowNodeType } from '../../process/types/enums'
-
 export interface ProcedureFlowDiagram {
   procedureId: string
   diagramId: string | null
   nodes: ProcedureFlowNode[]
   edges: ProcedureFlowEdge[]
+}
+
+/**
+ * Swimlane Types
+ */
+export type SwimlaneOrientation = 'vertical' | 'horizontal'
+
+/**
+ * Lane Data - stored in pool.data.lanes
+ */
+export interface LaneData {
+  id: string
+  label: string
+  size: number // height for horizontal, width for vertical
+  color?: string
+  collapsed?: boolean
+}
+
+/**
+ * Pool Node Data - contains lanes in data.lanes array
+ */
+export interface PoolNodeData {
+  label?: string
+  orientation: SwimlaneOrientation
+  lanes: LaneData[] // Lanes are stored here, not as separate nodes
+  color?: string
+  // Callbacks for the SwimlaneNode component
+  onLabelChange?: (label: string) => void
+  onToggleOrientation?: (poolId: string) => void
+  onAddLane?: (poolId: string) => void
+  onRemoveLane?: (poolId: string, laneId: string) => void
+  onLaneResize?: (poolId: string, laneId: string, size: number) => void
+  onLaneLabelChange?: (poolId: string, laneId: string, label: string) => void
+  [key: string]: any
+}
+
+export interface LaneNodeData {
+  label: string // Actor name, role, or department
+  orientation: SwimlaneOrientation
+  width?: number
+  height?: number
+  color?: string
+  order: number
+  collapsed?: boolean
+  poolId?: string // ID of parent pool
+  [key: string]: any
 }
 
 export interface ProcedureFlowNode {
@@ -29,6 +73,12 @@ export interface ProcedureFlowNode {
     isDraggable?: boolean
     isSelectable?: boolean
     style?: Record<string, any>
+    // Swimlane specific
+    orientation?: SwimlaneOrientation
+    order?: number
+    collapsed?: boolean
+    poolId?: string
+    laneId?: string
     [key: string]: any
   }
   width?: number

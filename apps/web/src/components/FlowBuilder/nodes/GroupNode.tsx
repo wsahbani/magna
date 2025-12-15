@@ -119,7 +119,7 @@ export const GroupNode = memo(({ data, selected }: NodeProps) => {
           <NodeResizer
             minWidth={200}
             minHeight={150}
-            maxWidth={1200}
+            maxWidth={2200}
             maxHeight={800}
             color="#ff6600"
             handleClassName="!bg-orange-500 !border-2 !border-white !pointer-events-auto"

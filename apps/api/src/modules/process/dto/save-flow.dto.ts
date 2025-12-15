@@ -91,7 +91,11 @@ export class SaveNodeDto {
 
   @IsOptional()
   @IsString()
-  parentNodeId?: string;
+  parentId?: string; // Parent node ID (for swimlanes/lanes) - same level as data, type, position
+
+  @IsOptional()
+  @IsString()
+  parentNodeId?: string; // Deprecated - use parentId instead, kept for backward compatibility
 
   @IsOptional()
   @IsString()

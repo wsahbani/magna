@@ -35,6 +35,9 @@ interface PropertiesPanelProps {
   selectedEdge: Edge | null
   onNodeUpdate: (nodeId: string, data: Partial<Node['data']>) => void
   onEdgeUpdate: (edgeId: string, data: Partial<Edge>) => void
+  // Swimlane props
+  lanes?: Node[]
+  onAssignNodeToLane?: (nodeId: string, laneId: string | null) => void
 }
 
 export function PropertiesPanel({
@@ -42,6 +45,8 @@ export function PropertiesPanel({
   selectedEdge,
   onNodeUpdate,
   onEdgeUpdate,
+  lanes = [],
+  onAssignNodeToLane,
 }: PropertiesPanelProps) {
   const hasSelection = selectedNode || selectedEdge
   

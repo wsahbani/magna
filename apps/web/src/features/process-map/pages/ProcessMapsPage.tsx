@@ -2,26 +2,32 @@ import { useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, BodySmall, Button } from '@repo/ui'
 import { PageWrapper } from '../../../components/layout/PageWrapper'
-import { MapPin, Plus } from 'lucide-react'
+import { MapPin, Plus, Sparkles } from 'lucide-react'
 import { ViewModeToggle } from '../components/ViewModeToggle'
 import { ProcessMapGridView } from '../components/ProcessMapGridView'
 import { ProcessMapTable } from '../components/ProcessMapTable'
 import { ProcessMapEmptyState } from '../components/ProcessMapEmptyState'
 import { ProcessMapForm } from '../components/ProcessMapForm'
+import { AIGenerateModal } from '../components/AIGenerateModal'
 import {
   useProcessMaps,
   useCreateProcessMap,
   useUpdateProcessMap,
   useDeleteProcessMap,
 } from '../hooks/useProcessMaps'
+import { createProcessMapFromAI } from '../../../lib/api/ai.api'
 import type { ProcessMap } from '../types/process-map.types'
+import type { GeneratedProcessMapStructure } from '../../../lib/api/ai.api'
+import { toast } from 'sonner'
 
 export default function ProcessMapsPage() {
   const navigate = useNavigate()
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid')
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
+  const [isAIGenerateDialogOpen, setIsAIGenerateDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [selectedProcessMap, setSelectedProcessMap] = useState<ProcessMap | null>(null)
+  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string>('')
 
   // Fetch ProcessMaps
   const { data, isLoading } = useProcessMaps()
@@ -33,6 +39,40 @@ export default function ProcessMapsPage() {
   const handleCreate = async (formData: any) => {
     await createMutation.mutateAsync(formData)
     setIsCreateDialogOpen(false)
+  }
+
+  const handleAIGenerateSuccess = async (response: {
+    structure: GeneratedProcessMapStructure
+    estimatedCost: number
+    cached: boolean
+    tokensUsed: { prompt: number; completion: number; total: number }
+    workspaceId?: string
+  }) => {
+    try {
+      // Récupérer le workspaceId depuis la réponse ou le state
+      const workspaceId = response.workspaceId || selectedWorkspaceId
+      if (!workspaceId) {
+        toast.error('Workspace ID manquant')
+        return
+      }
+
+      // Créer la ProcessMap à partir de la structure IA
+      const processMap = await createProcessMapFromAI(
+        response.structure,
+        workspaceId,
+        undefined, // departmentId optionnel
+        undefined, // code généré automatiquement
+      )
+      toast.success('Carte des processus créée avec succès avec IA')
+      setIsAIGenerateDialogOpen(false)
+      setSelectedWorkspaceId('')
+      // Naviguer vers la page de détail
+      navigate({ to: '/process-maps/$id', params: { id: processMap.id } })
+    } catch (error: any) {
+      toast.error(
+        error?.response?.data?.message || 'Erreur lors de la création de la carte des processus',
+      )
+    }
   }
 
   const handleEdit = (processMap: ProcessMap) => {
@@ -67,13 +107,23 @@ export default function ProcessMapsPage() {
       description="Gérez vos cartes des processus (Niveau 1 - ProcessMap)"
       breadcrumbs={[{ label: 'Cartes des Processus', icon: <MapPin className="w-4 h-4" /> }]}
       actions={
-        <Button
-          onClick={() => setIsCreateDialogOpen(true)}
-          className="bg-orange-600 hover:bg-orange-700"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Nouvelle Carte
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            onClick={() => setIsAIGenerateDialogOpen(true)}
+            variant="outline"
+            className="border-orange-600 text-orange-600 hover:bg-orange-50"
+          >
+            <Sparkles className="w-4 h-4 mr-2" />
+            Générer avec IA
+          </Button>
+          <Button
+            onClick={() => setIsCreateDialogOpen(true)}
+            className="bg-orange-600 hover:bg-orange-700"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Nouvelle Carte
+          </Button>
+        </div>
       }
     >
       {/* View Mode Toggle */}
@@ -139,7 +189,12 @@ export default function ProcessMapsPage() {
           </DialogHeader>
           <div className="w-full">
             <ProcessMapForm
-              onSubmit={handleCreate}
+              onSubmit={(data) => {
+                if (data.workspaceId) {
+                  setSelectedWorkspaceId(data.workspaceId)
+                }
+                handleCreate(data)
+              }}
               onCancel={() => setIsCreateDialogOpen(false)}
               isLoading={createMutation.isPending}
             />
@@ -168,6 +223,14 @@ export default function ProcessMapsPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* AI Generate Dialog */}
+      <AIGenerateModal
+        open={isAIGenerateDialogOpen}
+        onOpenChange={setIsAIGenerateDialogOpen}
+        workspaceId={selectedWorkspaceId ? selectedWorkspaceId : undefined}
+        onSuccess={handleAIGenerateSuccess}
+      />
     </PageWrapper>
   )
 }

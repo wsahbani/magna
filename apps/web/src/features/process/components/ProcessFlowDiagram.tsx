@@ -5,17 +5,13 @@
  * Automatically creates Procedure when PROCEDURE_NODE is dropped
  */
 
-import { useCallback, useState, useEffect, useRef } from 'react';
+import { useCallback, useState, useRef } from 'react';
 import {
   ReactFlow,
   Background,
   Controls,
   MiniMap,
   Panel,
-  useNodesState,
-  useEdgesState,
-  addEdge,
-  Connection,
   Edge,
   Node,
   BackgroundVariant,
@@ -27,8 +23,11 @@ import { Palette } from '../../../components/FlowBuilder/Palette';
 import { PropertiesPanel } from '../../../components/FlowBuilder/PropertiesPanel';
 import { Toolbar } from '../../../components/FlowBuilder/Toolbar';
 import { nodeTypes } from '../../../components/FlowBuilder/nodeTypes';
-import { useProcessFlow, useSaveProcessFlow } from '../hooks/useProcessFlow';
+import { useProcessFlowStore } from '../hooks/useProcessFlowStore';
 import { PaletteConfigFactory } from '../../process-map/config/palette-config';
+import { ImageExtractionModal } from './ImageExtractionModal';
+import { useQueryClient } from '@tanstack/react-query';
+import { processFlowKeys } from '../hooks/useProcessFlow';
 
 interface ProcessFlowDiagramProps {
   processId: string;
@@ -45,37 +44,33 @@ export function ProcessFlowDiagram({
 }: ProcessFlowDiagramProps) {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null);
-  const [selectedNode, setSelectedNode] = useState<Node | null>(null);
-  const [selectedEdge, setSelectedEdge] = useState<Edge | null>(null);
+  const queryClient = useQueryClient();
+  const [isImageExtractionModalOpen, setIsImageExtractionModalOpen] = useState(false);
 
   // Get palette configuration for Process (level 2)
   const paletteConfig = PaletteConfigFactory.createByEntityType('process');
 
-  // Load flow data
-  const { data: flowData, isLoading } = useProcessFlow(processId);
-  const saveFlowMutation = useSaveProcessFlow();
-
-  // Initialize nodes and edges from API with explicit typing
-  const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
-
-  // Load flow data when available
-  useEffect(() => {
-    if (flowData) {
-      setNodes(flowData.nodes || []);
-      setEdges(flowData.edges || []);
-    }
-  }, [flowData, setNodes, setEdges]);
-
-  // Sync selectedNode with nodes when nodes change
-  useEffect(() => {
-    if (selectedNode) {
-      const updatedNode = nodes.find(n => n.id === selectedNode.id);
-      if (updatedNode && updatedNode !== selectedNode) {
-        setSelectedNode(updatedNode);
-      }
-    }
-  }, [nodes, selectedNode]);
+  // Use Zustand store for flow state
+  const {
+    nodes,
+    edges,
+    selectedNode,
+    selectedEdge,
+    isLoading,
+    isSaving,
+    addNode,
+    updateNode,
+    deleteNodes,
+    deleteEdges,
+    updateEdge,
+    setSelectedNodes,
+    setSelectedEdges,
+    clearSelection,
+    onNodesChange,
+    onEdgesChange,
+    onConnect,
+    saveFlow,
+  } = useProcessFlowStore(processId);
 
   // Drag and drop from palette
   const onDragStart = useCallback((event: React.DragEvent, nodeType: string) => {
@@ -116,77 +111,44 @@ export function ProcessFlowDiagram({
         },
       };
 
-      setNodes((nds) => [...nds, newNode]);
+      addNode(newNode);
     },
-    [reactFlowInstance, setNodes, readOnly],
-  );
-
-  // Handle connections
-  const onConnect = useCallback(
-    (params: Connection) => {
-      if (readOnly) return;
-      setEdges((eds) => addEdge(params, eds));
-    },
-    [setEdges, readOnly],
+    [reactFlowInstance, addNode, readOnly],
   );
 
   // Handle node/edge selection
   const onNodeClick = useCallback(
     (_event: React.MouseEvent, node: Node) => {
-      setSelectedNode(node);
-      setSelectedEdge(null);
+      setSelectedNodes([node.id]);
+      setSelectedEdges([]);
       onNodeSelect?.(node);
     },
-    [onNodeSelect],
+    [setSelectedNodes, setSelectedEdges, onNodeSelect],
   );
 
   const onEdgeClick = useCallback(
     (_event: React.MouseEvent, edge: Edge) => {
-      setSelectedEdge(edge);
-      setSelectedNode(null);
+      setSelectedEdges([edge.id]);
+      setSelectedNodes([]);
       onEdgeSelect?.(edge);
     },
-    [onEdgeSelect],
+    [setSelectedEdges, setSelectedNodes, onEdgeSelect],
   );
 
   const onPaneClick = useCallback(() => {
-    setSelectedNode(null);
-    setSelectedEdge(null);
+    clearSelection();
     onNodeSelect?.(null);
     onEdgeSelect?.(null);
-  }, [onNodeSelect, onEdgeSelect]);
-
-  // Handle node update (from PropertiesPanel)
-  const onNodeUpdate = useCallback(
-    (nodeId: string, updates: Partial<Node>) => {
-      setNodes((nds) =>
-        nds.map((n) => {
-          if (n.id === nodeId) {
-            const updatedNode = { ...n, ...updates };
-            // Merge style objects if they exist
-            if (updates.data?.style && n.data?.style) {
-              updatedNode.data = {
-                ...updatedNode.data,
-                style: { ...n.data.style, ...updates.data.style },
-              };
-            }
-            return updatedNode;
-          }
-          return n;
-        }),
-      );
-    },
-    [setNodes],
-  );
+  }, [clearSelection, onNodeSelect, onEdgeSelect]);
 
   // Handle save
-  const handleSave = useCallback(() => {
-    saveFlowMutation.mutate({
-      processId,
-      nodes,
-      edges,
-    });
-  }, [processId, nodes, edges, saveFlowMutation]);
+  const handleSave = useCallback(async () => {
+    try {
+      await saveFlow();
+    } catch (error) {
+      // Error handling is done in the mutation
+    }
+  }, [saveFlow]);
 
   if (isLoading) {
     return (
@@ -260,14 +222,25 @@ export function ProcessFlowDiagram({
           
           {/* Toolbar (hidden in readOnly mode) */}
           {!readOnly && (
-            <Panel position="top-left" className="bg-white shadow-lg rounded-lg border border-gray-200 p-2">
+            <Panel position="top-left" className="bg-white shadow-lg rounded-lg border border-gray-200 p-2 z-50 !left-4 !top-4">
               <Toolbar
                 onSave={handleSave}
-                isSaving={saveFlowMutation.isPending}
-                saveError={saveFlowMutation.error as Error | null}
+                isSaving={isSaving}
+                saveError={null}
                 onFitView={() => reactFlowInstance?.fitView()}
                 onZoomIn={() => reactFlowInstance?.zoomIn()}
                 onZoomOut={() => reactFlowInstance?.zoomOut()}
+                onDelete={() => {
+                  if (selectedNode) {
+                    deleteNodes([selectedNode.id]);
+                  }
+                  if (selectedEdge) {
+                    deleteEdges([selectedEdge.id]);
+                  }
+                }}
+                hasSelectedNode={!!selectedNode || !!selectedEdge}
+                selectedNodeCount={(selectedNode ? 1 : 0) + (selectedEdge ? 1 : 0)}
+                onExtractFromImage={() => setIsImageExtractionModalOpen(true)}
               />
             </Panel>
           )}
@@ -281,39 +254,30 @@ export function ProcessFlowDiagram({
             selectedNode={selectedNode}
             selectedEdge={selectedEdge}
             onNodeUpdate={(nodeId, data) => {
-              setNodes((nds) =>
-                nds.map((node) => {
-                  if (node.id === nodeId) {
-                    // Merge style properly if it exists in data
-                    const updatedData = { ...node.data, ...data };
-                    if (data.style && node.data?.style) {
-                      updatedData.style = { ...node.data.style, ...data.style };
-                    }
-                    return { ...node, data: updatedData };
-                  }
-                  return node;
-                }),
-              );
-              // Update selectedNode to reflect changes immediately
-              if (selectedNode && selectedNode.id === nodeId) {
-                const updatedData = { ...selectedNode.data, ...data };
-                if (data.style && selectedNode.data?.style) {
-                  updatedData.style = { ...selectedNode.data.style, ...data.style };
-                }
-                setSelectedNode({ ...selectedNode, data: updatedData });
-              }
+              updateNode(nodeId, { data });
             }}
             onEdgeUpdate={(edgeId, data) => {
-              setEdges((eds) =>
-                eds.map((edge) => (edge.id === edgeId ? { ...edge, ...data } : edge)),
-              );
-              // Update selectedEdge to reflect changes immediately
-              if (selectedEdge && selectedEdge.id === edgeId) {
-                setSelectedEdge({ ...selectedEdge, ...data });
-              }
+              updateEdge(edgeId, data);
             }}
           />
         </div>
+      )}
+
+      {/* Image Extraction Modal */}
+      {!readOnly && (
+        <ImageExtractionModal
+          open={isImageExtractionModalOpen}
+          onOpenChange={setIsImageExtractionModalOpen}
+          processId={processId}
+          existingNodesCount={nodes.length}
+          onSuccess={async (result) => {
+            // Invalidate and refetch flow data to get the new nodes
+            await queryClient.invalidateQueries({
+              queryKey: processFlowKeys.detail(processId),
+            });
+            setIsImageExtractionModalOpen(false);
+          }}
+        />
       )}
     </div>
   );

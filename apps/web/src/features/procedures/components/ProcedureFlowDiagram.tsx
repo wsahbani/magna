@@ -4,17 +4,13 @@
  * Supports all BPMN elements
  */
 
-import { useCallback, useState, useEffect, useRef } from 'react';
+import { useCallback, useState, useRef, useEffect } from 'react';
 import {
   ReactFlow,
   Background,
   Controls,
   MiniMap,
   Panel,
-  useNodesState,
-  useEdgesState,
-  addEdge,
-  Connection,
   Edge,
   Node,
   BackgroundVariant,
@@ -25,9 +21,16 @@ import { Loader2 } from 'lucide-react';
 import { Palette } from '../../../components/FlowBuilder/Palette';
 import { PropertiesPanel } from '../../../components/FlowBuilder/PropertiesPanel';
 import { Toolbar } from '../../../components/FlowBuilder/Toolbar';
+import { ContextMenu } from '../../../components/FlowBuilder/ContextMenu';
 import { nodeTypes } from '../../../components/FlowBuilder/nodeTypes';
-import { useProcedureFlow, useSaveProcedureFlow } from '../hooks/useProcedureFlow';
+import { useProcedureFlowStore } from '../hooks/useProcedureFlowStore';
+import { useProcedureFlowStore as useStore } from '../store/procedureFlowStore';
 import { PaletteConfigFactory } from '../../process-map/config/palette-config';
+import { useSwimlanes } from '../hooks/useSwimlanes';
+import { findLaneAtPosition, calculateRelativePositionInLane } from '../utils/lanePosition';
+import { ImageExtractionModal } from './ImageExtractionModal';
+import { useQueryClient } from '@tanstack/react-query';
+import { procedureFlowKeys } from '../hooks/useProcedureFlow';
 
 interface ProcedureFlowDiagramProps {
   procedureId: string;
@@ -44,37 +47,117 @@ export function ProcedureFlowDiagram({
 }: ProcedureFlowDiagramProps) {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null);
-  const [selectedNode, setSelectedNode] = useState<Node | null>(null);
-  const [selectedEdge, setSelectedEdge] = useState<Edge | null>(null);
+  const queryClient = useQueryClient();
+  const [isImageExtractionModalOpen, setIsImageExtractionModalOpen] = useState(false);
 
   // Get palette configuration for Procedure (level 3)
   const paletteConfig = PaletteConfigFactory.createByEntityType('procedure');
 
-  // Load flow data
-  const { data: flowData, isLoading } = useProcedureFlow(procedureId);
-  const saveFlowMutation = useSaveProcedureFlow();
+  // Use Zustand store for flow state
+  const {
+    nodes,
+    edges,
+    selectedNode,
+    selectedEdge,
+    isLoading,
+    isSaving,
+    addNode,
+    updateNode,
+    deleteNodes,
+    deleteEdges,
+    updateEdge,
+    setSelectedNodes,
+    setSelectedEdges,
+    clearSelection,
+    onNodesChange,
+    onEdgesChange,
+    onConnect,
+    saveFlow,
+    setNodes,
+    addLaneToPool,
+    removeLaneFromPool,
+    updateLaneSize,
+    updateLaneLabel,
+    toggleLaneCollapsed,
+    togglePoolOrientation,
+    updatePoolLabel,
+  } = useProcedureFlowStore(procedureId);
 
-  // Initialize nodes and edges from API
-  const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
-
-  // Load flow data when available
-  useEffect(() => {
-    if (flowData) {
-      setNodes(flowData.nodes || []);
-      setEdges(flowData.edges || []);
-    }
-  }, [flowData, setNodes, setEdges]);
-
-  // Sync selectedNode with nodes when nodes change
-  useEffect(() => {
-    if (selectedNode) {
-      const updatedNode = nodes.find(n => n.id === selectedNode.id);
-      if (updatedNode && updatedNode !== selectedNode) {
-        setSelectedNode(updatedNode);
+  // Create a wrapper for setNodes that supports both direct array and function updates
+  // This is needed for compatibility with useSwimlanes which uses functional updates
+  const setNodesWrapper = useCallback(
+    (nodesOrUpdater: Node[] | ((nodes: Node[]) => Node[])) => {
+      if (typeof nodesOrUpdater === 'function') {
+        const currentNodes = useStore.getState().nodes;
+        const updatedNodes = nodesOrUpdater(currentNodes);
+        setNodes(updatedNodes);
+      } else {
+        setNodes(nodesOrUpdater);
       }
-    }
-  }, [nodes, selectedNode]);
+    },
+    [setNodes],
+  );
+
+  // Swimlanes management - pass store actions for optimal performance
+  const {
+    pools,
+    createPool,
+    createLane,
+    deleteLane,
+    assignNodeToLane,
+    autoResizeLane,
+    changePoolOrientation,
+    toggleLaneCollapsed: toggleLaneCollapsedHook,
+  } = useSwimlanes({
+    nodes,
+    setNodes: setNodesWrapper,
+    readOnly,
+    addLaneToPool,
+    removeLaneFromPool,
+    updateLaneSize,
+    updateLaneLabel,
+    toggleLaneCollapsed,
+    togglePoolOrientation,
+    updatePoolLabel,
+  });
+
+  // Update pool nodes with callbacks for SwimlaneNode component
+  const updatePoolCallbacks = useCallback(() => {
+    const pools = nodes.filter((n) => n.type === 'pool' || n.type === 'swimlane');
+    pools.forEach((pool) => {
+      const poolData = pool.data as any;
+      if (!poolData.onLabelChange || !poolData.onToggleOrientation) {
+        updateNode(pool.id, {
+          data: {
+            ...poolData,
+            onLabelChange: (label: string) => {
+              updatePoolLabel(pool.id, label);
+            },
+            onToggleOrientation: () => {
+              togglePoolOrientation(pool.id);
+            },
+            onAddLane: () => {
+              addLaneToPool(pool.id);
+            },
+            onRemoveLane: (poolId: string, laneId: string) => {
+              removeLaneFromPool(poolId, laneId);
+            },
+            onLaneResize: (poolId: string, laneId: string, size: number) => {
+              updateLaneSize(poolId, laneId, size);
+            },
+            onLaneLabelChange: (poolId: string, laneId: string, label: string) => {
+              updateLaneLabel(poolId, laneId, label);
+            },
+          },
+        });
+      }
+    });
+  }, [nodes, updateNode, updatePoolLabel, togglePoolOrientation, addLaneToPool, removeLaneFromPool, updateLaneSize, updateLaneLabel]);
+
+  // Update callbacks when nodes change
+  useEffect(() => {
+    updatePoolCallbacks();
+  }, [nodes.length, updatePoolCallbacks]);
 
   // Drag and drop from palette
   const onDragStart = useCallback((event: React.DragEvent, nodeType: string) => {
@@ -117,90 +200,182 @@ export function ProcedureFlowDiagram({
         },
       };
 
-      setNodes((nds) => nds.concat(newNode));
+      addNode(newNode);
     },
-    [reactFlowInstance, setNodes, readOnly, paletteConfig],
-  );
-
-  const onConnect = useCallback(
-    (params: Connection) => {
-      if (readOnly) return;
-      setEdges((eds) => addEdge(params, eds));
-    },
-    [setEdges, readOnly],
+    [reactFlowInstance, addNode, readOnly, paletteConfig],
   );
 
   const onNodesDelete = useCallback(
     (deleted: Node[]) => {
       if (readOnly) return;
-      setNodes((nds) => nds.filter((node) => !deleted.find((d) => d.id === node.id)));
+      
+      // Handle pool deletion - lanes are in data.lanes, so no separate lane nodes to delete
+      // Just delete the pool nodes
+      
+      const deletedIds = deleted.map((n) => n.id);
+      deleteNodes(deletedIds);
     },
-    [setNodes, readOnly],
+    [deleteNodes, readOnly, deleteLane],
   );
 
   const onEdgesDelete = useCallback(
     (deleted: Edge[]) => {
       if (readOnly) return;
-      setEdges((eds) => eds.filter((edge) => !deleted.find((d) => d.id === edge.id)));
+      const deletedIds = deleted.map((e) => e.id);
+      deleteEdges(deletedIds);
     },
-    [setEdges, readOnly],
+    [deleteEdges, readOnly],
   );
 
   const onNodeClick = useCallback(
     (_event: React.MouseEvent, node: Node) => {
-      setSelectedNode(node);
-      setSelectedEdge(null);
+      setSelectedNodes([node.id]);
+      setSelectedEdges([]);
       onNodeSelect?.(node);
+      
+      // Handle pool orientation change
+      if (node.type === 'pool' && node.data?.onOrientationChange) {
+        const currentOrientation = node.data?.orientation || 'vertical';
+        const newOrientation = currentOrientation === 'vertical' ? 'horizontal' : 'vertical';
+        changePoolOrientation(node.id, newOrientation);
+      }
     },
-    [onNodeSelect],
+    [setSelectedNodes, setSelectedEdges, onNodeSelect, changePoolOrientation],
   );
 
   const onEdgeClick = useCallback(
     (_event: React.MouseEvent, edge: Edge) => {
-      setSelectedEdge(edge);
-      setSelectedNode(null);
+      setSelectedEdges([edge.id]);
+      setSelectedNodes([]);
       onEdgeSelect?.(edge);
     },
-    [onEdgeSelect],
+    [setSelectedEdges, setSelectedNodes, onEdgeSelect],
   );
 
   const onPaneClick = useCallback(() => {
-    setSelectedNode(null);
-    setSelectedEdge(null);
+    clearSelection();
     onNodeSelect?.(null);
     onEdgeSelect?.(null);
-  }, [onNodeSelect, onEdgeSelect]);
+  }, [clearSelection, onNodeSelect, onEdgeSelect]);
 
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback(async () => {
     if (readOnly) return;
-    saveFlowMutation.mutate({
-      procedureId,
-      nodes,
-      edges,
-    });
-  }, [procedureId, nodes, edges, saveFlowMutation, readOnly]);
+    try {
+      await saveFlow();
+    } catch (error) {
+      // Error handling is done in the mutation
+    }
+  }, [saveFlow, readOnly]);
 
-  // Handle node update (from PropertiesPanel)
-  const onNodeUpdate = useCallback(
-    (nodeId: string, updates: Partial<Node>) => {
-      setNodes((nds) =>
-        nds.map((n) => {
-          if (n.id === nodeId) {
-            const updatedNode = { ...n, ...updates };
-            // Merge style objects if they exist
-            if (updates.data?.style && n.data?.style) {
-              updatedNode.data = {
-                ...updatedNode.data,
-                style: { ...n.data.style, ...updates.data.style },
+  // Handle node drag stop - attach/detach from lanes
+  // Lanes are now stored in pool.data.lanes, so we calculate positions from pool
+  const onNodeDragStop = useCallback(
+    (_event: React.MouseEvent, node: Node) => {
+      // Auto-detect if node is dropped in a lane
+      if (readOnly) return;
+
+      // Skip pools (swimlanes)
+      if (node.type === 'pool' || node.type === 'swimlane') {
+        return;
+      }
+
+      // Get the node's absolute position
+      // If node has a parent, calculate absolute position by adding parent position
+      const nodeAbsolutePosition = (node as any).parentId || (node as any).parentNode
+        ? (() => {
+            const parentId = (node as any).parentId || (node as any).parentNode;
+            const parent = nodes.find((n) => n.id === parentId);
+            return parent
+              ? {
+                  x: ((parent.position?.x as number) || 0) + node.position.x,
+                  y: ((parent.position?.y as number) || 0) + node.position.y,
+                }
+              : node.position;
+          })()
+        : node.position;
+
+      // Find if node is now inside a lane (lanes are in pool.data.lanes)
+      // Use utility function for accurate lane detection
+      const pools = nodes.filter((n) => (n.type === 'pool' || n.type === 'swimlane') && n.data?.lanes);
+      let newParentPool: Node | null = null;
+      let newLaneId: string | null = null;
+      let newLaneBounds: { x: number; y: number; width: number; height: number } | null = null;
+
+      for (const pool of pools) {
+        const laneResult = findLaneAtPosition(
+          pool,
+          nodeAbsolutePosition.x,
+          nodeAbsolutePosition.y,
+        );
+
+        if (laneResult) {
+          newParentPool = pool;
+          newLaneId = laneResult.laneId;
+          newLaneBounds = laneResult.laneBounds;
+          break;
+        }
+      }
+
+      const currentParentId = (node as any).parentId || (node as any).parentNode;
+      const currentLaneId = node.data?.laneId;
+      const newParentId = newParentPool?.id;
+
+      // Only update if parent or lane changed
+      if (currentParentId !== newParentId || currentLaneId !== newLaneId) {
+        const updatedNodes = nodes.map((n) => {
+          if (n.id === node.id) {
+            if (newParentPool && newLaneId && newLaneBounds) {
+              // Moving into a lane - attach to pool as parent
+              // Calculate relative position within the lane using utility function
+              const relativePos = calculateRelativePositionInLane(
+                nodeAbsolutePosition.x,
+                nodeAbsolutePosition.y,
+                newLaneBounds,
+              );
+
+              return {
+                ...n,
+                position: {
+                  x: relativePos.x,
+                  y: relativePos.y,
+                },
+                // parentId and extent at the same level as data, type, position
+                ...({ parentId: newParentPool.id, extent: 'parent' } as any),
+                // Also keep parentNode for ReactFlow compatibility
+                ...({ parentNode: newParentPool.id } as any),
+                data: {
+                  ...n.data,
+                  parentNodeId: newParentPool.id, // Keep in data for persistence
+                  laneId: newLaneId, // Store which lane the node is in
+                  poolId: newParentPool.id,
+                },
+              };
+            } else {
+              // Moving out of a lane
+              return {
+                ...n,
+                position: nodeAbsolutePosition,
+                // Remove parentId and extent from node level
+                ...({ parentId: undefined, extent: undefined } as any),
+                ...({ parentNode: undefined } as any),
+                data: {
+                  ...n.data,
+                  parentNodeId: undefined, // Clear from data too
+                  laneId: undefined,
+                  poolId: undefined,
+                },
               };
             }
-            return updatedNode;
           }
           return n;
-        }),
-      );
+        });
+
+        updateNode(node.id, {
+          ...updatedNodes.find((n) => n.id === node.id),
+        });
+      }
     },
-    [setNodes],
+    [nodes, updateNode, readOnly],
   );
 
   if (isLoading) {
@@ -240,6 +415,9 @@ export function ProcedureFlowDiagram({
           onNodeClick={onNodeClick}
           onEdgeClick={onEdgeClick}
           onPaneClick={onPaneClick}
+          onNodeDragStop={onNodeDragStop}
+          onNodesDelete={onNodesDelete}
+          onEdgesDelete={onEdgesDelete}
           nodeTypes={nodeTypes}
           nodesDraggable={!readOnly}
           nodesConnectable={!readOnly}
@@ -274,16 +452,99 @@ export function ProcedureFlowDiagram({
             zoomable
           />
           
+          {/* Context Menu - simplified since lanes are in data.lanes */}
+          {!readOnly && (
+            <ContextMenu
+              onAddLaneAbove={(laneId) => {
+                // Find pool containing this lane
+                const pool = nodes.find(
+                  (n) => (n.type === 'pool' || n.type === 'swimlane') && (n.data as any)?.lanes?.some((l: any) => l.id === laneId),
+                );
+                if (pool) {
+                  createLane(pool.id, {
+                    label: `Lane ${((pool.data as any)?.lanes?.length || 0) + 1}`,
+                  });
+                }
+              }}
+              onAddLaneBelow={(laneId) => {
+                const pool = nodes.find(
+                  (n) => (n.type === 'pool' || n.type === 'swimlane') && (n.data as any)?.lanes?.some((l: any) => l.id === laneId),
+                );
+                if (pool) {
+                  createLane(pool.id, {
+                    label: `Lane ${((pool.data as any)?.lanes?.length || 0) + 1}`,
+                  });
+                }
+              }}
+              onDeleteLane={(laneId) => {
+                // Find pool containing this lane
+                const pool = nodes.find(
+                  (n) => (n.type === 'pool' || n.type === 'swimlane') && (n.data as any)?.lanes?.some((l: any) => l.id === laneId),
+                );
+                if (pool) {
+                  deleteLane(pool.id, laneId);
+                }
+              }}
+              onResizeLane={(laneId) => {
+                const pool = nodes.find(
+                  (n) => (n.type === 'pool' || n.type === 'swimlane') && (n.data as any)?.lanes?.some((l: any) => l.id === laneId),
+                );
+                if (pool) {
+                  autoResizeLane(pool.id, laneId);
+                }
+              }}
+              onToggleLaneCollapsed={(laneId) => {
+                const pool = nodes.find(
+                  (n) => (n.type === 'pool' || n.type === 'swimlane') && (n.data as any)?.lanes?.some((l: any) => l.id === laneId),
+                );
+                if (pool) {
+                  toggleLaneCollapsedHook(pool.id, laneId);
+                }
+              }}
+              onChangePoolOrientation={(poolId) => {
+                togglePoolOrientation(poolId);
+              }}
+            />
+          )}
+          
           {/* Toolbar (hidden in readOnly mode) */}
           {!readOnly && (
-            <Panel position="top-left" className="bg-white shadow-lg rounded-lg border border-gray-200 p-2">
+            <Panel position="top-left" className="bg-white shadow-lg rounded-lg border border-gray-200 p-2 z-50 !left-4 !top-4">
               <Toolbar
                 onSave={handleSave}
-                isSaving={saveFlowMutation.isPending}
-                saveError={saveFlowMutation.error as Error | null}
+                isSaving={isSaving}
+                saveError={null}
                 onFitView={() => reactFlowInstance?.fitView()}
                 onZoomIn={() => reactFlowInstance?.zoomIn()}
                 onZoomOut={() => reactFlowInstance?.zoomOut()}
+                onDelete={() => {
+                  if (selectedNode) {
+                    deleteNodes([selectedNode.id]);
+                  }
+                  if (selectedEdge) {
+                    deleteEdges([selectedEdge.id]);
+                  }
+                }}
+                hasSelectedNode={!!selectedNode || !!selectedEdge}
+                selectedNodeCount={(selectedNode ? 1 : 0) + (selectedEdge ? 1 : 0)}
+                onAddPool={() => {
+                  if (reactFlowInstance) {
+                    const center = reactFlowInstance.screenToFlowPosition({
+                      x: window.innerWidth / 2,
+                      y: window.innerHeight / 2,
+                    });
+                    createPool(center);
+                  } else {
+                    createPool();
+                  }
+                }}
+                onAddLane={() => {
+                  if (pools.length > 0) {
+                    const firstPool = pools[0];
+                    createLane(firstPool.id);
+                  }
+                }}
+                hasPool={pools.length > 0}
               />
             </Panel>
           )}
@@ -296,40 +557,33 @@ export function ProcedureFlowDiagram({
           <PropertiesPanel
             selectedNode={selectedNode}
             selectedEdge={selectedEdge}
+            lanes={nodes.filter((n) => n.type === 'lane')}
+            onAssignNodeToLane={assignNodeToLane}
             onNodeUpdate={(nodeId, data) => {
-              setNodes((nds) =>
-                nds.map((node) => {
-                  if (node.id === nodeId) {
-                    // Merge style properly if it exists in data
-                    const updatedData = { ...node.data, ...data };
-                    if (data.style && node.data?.style) {
-                      updatedData.style = { ...node.data.style, ...data.style };
-                    }
-                    return { ...node, data: updatedData };
-                  }
-                  return node;
-                }),
-              );
-              // Update selectedNode to reflect changes immediately
-              if (selectedNode && selectedNode.id === nodeId) {
-                const updatedData = { ...selectedNode.data, ...data };
-                if (data.style && selectedNode.data?.style) {
-                  updatedData.style = { ...selectedNode.data.style, ...data.style };
-                }
-                setSelectedNode({ ...selectedNode, data: updatedData });
-              }
+              updateNode(nodeId, { data });
             }}
             onEdgeUpdate={(edgeId, data) => {
-              setEdges((eds) =>
-                eds.map((edge) => (edge.id === edgeId ? { ...edge, ...data } : edge)),
-              );
-              // Update selectedEdge to reflect changes immediately
-              if (selectedEdge && selectedEdge.id === edgeId) {
-                setSelectedEdge({ ...selectedEdge, ...data });
-              }
+              updateEdge(edgeId, data);
             }}
           />
         </div>
+      )}
+
+      {/* Image Extraction Modal */}
+      {!readOnly && (
+        <ImageExtractionModal
+          open={isImageExtractionModalOpen}
+          onOpenChange={setIsImageExtractionModalOpen}
+          procedureId={procedureId}
+          existingNodesCount={nodes.length}
+          onSuccess={async () => {
+            // Invalidate and refetch flow data to get the new nodes
+            await queryClient.invalidateQueries({
+              queryKey: procedureFlowKeys.detail(procedureId),
+            });
+            setIsImageExtractionModalOpen(false);
+          }}
+        />
       )}
     </div>
   );

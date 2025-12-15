@@ -4,7 +4,8 @@
  */
 
 import { memo } from 'react'
-import { Position } from '@xyflow/react'
+import type React from 'react'
+import { Position, useNodes } from '@xyflow/react'
 import { 
   Activity, 
   Settings, 
@@ -12,7 +13,8 @@ import {
   Users, 
   Building2,
   Globe,
-  Link2
+  Link2,
+  Plus
 } from 'lucide-react'
 import { createNode, defineNodeConfig, HANDLE_CONFIGS, COLOR_SCHEMES } from './BaseNode'
 
@@ -216,37 +218,103 @@ export const DomainGroupNode = createNode(
     ],
     showLabel: true,
     labelPosition: 'inside',
-    customRender: ({ data, selected, renderHandles, renderIcon, renderLabel, width, height }) => {
-      const selectedClass = selected ? 'ring-4 ring-orange-400 ring-opacity-50 shadow-lg' : 'shadow-md'
-      
-      const inlineStyle: any = {
-        width: width ? `${width}px` : undefined,
-        height: height ? `${height}px` : undefined,
-      }
-      if (data?.style?.backgroundColor) inlineStyle.backgroundColor = data.style.backgroundColor
-      if (data?.style?.color) inlineStyle.color = data.style.color
-      
-      return (
-        <div
-          className={`bg-gray-50 border-2 border-gray-400 border-dashed rounded-xl px-6 py-5 min-w-[200px] min-h-[150px] flex flex-col w-full h-full ${selectedClass} transition-all`}
-          style={inlineStyle}
-        >
-          {renderHandles()}
-          <div className="flex items-center gap-2 mb-3 border-b border-gray-300 pb-2">
-            {renderIcon()}
-            {renderLabel()}
-          </div>
-          {/* Conteneur pour les processus enfants */}
-          <div className="flex-1 flex items-center justify-center text-gray-400 text-xs">
-            {data?.description || 'Glissez des processus ici'}
-          </div>
-        </div>
-      )
+    customRender: ({ data, selected, renderHandles, renderIcon, renderLabel, width, height, id }) => {
+      // DomainGroupNodeWithPlus is a wrapper component that uses useNodes hook
+      return <DomainGroupNodeWithPlus 
+        data={data} 
+        selected={selected} 
+        renderHandles={renderHandles} 
+        renderIcon={renderIcon} 
+        renderLabel={renderLabel} 
+        width={width} 
+        height={height}
+        id={id}
+      />
     },
   })
 )
 
 DomainGroupNode.displayName = 'DomainGroupNode'
+
+/**
+ * Wrapper component for DomainGroupNode that uses useNodes hook
+ * This allows us to detect children and display the plus button
+ */
+const DomainGroupNodeWithPlus = memo(({ 
+  data, 
+  selected, 
+  renderHandles, 
+  renderIcon, 
+  renderLabel, 
+  width, 
+  height,
+  id 
+}: {
+  data: any
+  selected: boolean
+  renderHandles: () => React.ReactNode
+  renderIcon: () => React.ReactNode
+  renderLabel: () => React.ReactNode
+  width?: number | null
+  height?: number | null
+  id: string
+}) => {
+  const allNodes = useNodes()
+  const readOnly = data?.readOnly || false
+  const onAddMainProcess = data?.onAddMainProcess
+
+  // Filter children nodes (nodes with this group as parent)
+  const children = allNodes.filter((n) => (n as any).parentId === id)
+
+  const selectedClass = selected ? 'ring-4 ring-orange-400 ring-opacity-50 shadow-lg' : 'shadow-md'
+  
+  const inlineStyle: any = {
+    width: width ? `${width}px` : undefined,
+    height: height ? `${height}px` : undefined,
+  }
+  if (data?.style?.backgroundColor) inlineStyle.backgroundColor = data.style.backgroundColor
+  if (data?.style?.color) inlineStyle.color = data.style.color
+
+  const isEmpty = children.length === 0
+  const showPlusButton = !readOnly && onAddMainProcess
+
+  return (
+    <div
+      className={`bg-gray-50 border-2 border-gray-400 border-dashed rounded-xl px-6 py-5 min-w-[200px] min-h-[150px] flex flex-col w-full h-full ${selectedClass} transition-all relative`}
+      style={inlineStyle}
+    >
+      {renderHandles()}
+      <div className="flex items-center gap-2 mb-3 border-b border-gray-300 pb-2">
+        {renderIcon()}
+        {renderLabel()}
+      </div>
+      {/* Conteneur pour les processus enfants */}
+      <div className="flex-1 flex items-center justify-center text-gray-400 text-xs relative">
+        {isEmpty && !showPlusButton && (data?.description || 'Glissez des processus ici')}
+      </div>
+      
+      {/* Plus button - center when empty, right when has children */}
+      {showPlusButton && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            onAddMainProcess?.(id)
+          }}
+          className={`absolute z-10 bg-orange-500 hover:bg-orange-600 text-white rounded-full p-2 shadow-lg transition-all hover:scale-110 pointer-events-auto ${
+            isEmpty 
+              ? 'left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2' 
+              : 'right-3 top-1/2 transform -translate-y-1/2'
+          }`}
+          title="Ajouter un processus principal"
+        >
+          <Plus className="w-5 h-5" />
+        </button>
+      )}
+    </div>
+  )
+})
+
+DomainGroupNodeWithPlus.displayName = 'DomainGroupNodeWithPlus'
 
 /**
  * Nœud Acteur/Département - Forme pill

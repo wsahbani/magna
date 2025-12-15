@@ -48,6 +48,9 @@ export const useSaveProcessMapFlow = () => {
         const width = node.width ?? node.data?.width ?? undefined;
         const height = node.height ?? node.data?.height ?? undefined;
         
+        // Use parentId at top level (ReactFlow standard), fallback to parentNode for backward compatibility
+        const parentId = (node as any).parentId || (node as any).parentNode;
+        
         return {
           id: node.id,
           type: node.type || 'process',
@@ -57,13 +60,14 @@ export const useSaveProcessMapFlow = () => {
           width,
           height,
           description: node.data?.description,
+          parentId, // Send parentId at top level
           data: {
             ...node.data,
             // Ensure width/height are also in data for consistency
             width: width ?? node.data?.width,
             height: height ?? node.data?.height,
-            // Store parentNode relationship
-            parentNode: node.parentNode,
+            // Store parentNodeId in data for persistence (backend expects this)
+            parentNodeId: parentId,
           },
         };
       });

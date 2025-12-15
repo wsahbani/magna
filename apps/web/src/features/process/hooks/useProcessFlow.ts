@@ -8,9 +8,9 @@ import { getProcessFlow, saveProcessFlow } from '../../../lib/api/process.api'
 import type { FlowDiagram } from '../types/flow-diagram.types'
 import type { Node, Edge } from '@xyflow/react'
 
-const QUERY_KEYS = {
+export const processFlowKeys = {
   all: ['process-flows'] as const,
-  flow: (processId: string) => [...QUERY_KEYS.all, processId] as const,
+  detail: (processId: string) => ['process-flows', processId] as const,
 }
 
 /**
@@ -18,7 +18,7 @@ const QUERY_KEYS = {
  */
 export function useProcessFlow(processId: string | undefined) {
   return useQuery({
-    queryKey: QUERY_KEYS.flow(processId!),
+    queryKey: processFlowKeys.detail(processId!),
     queryFn: () => getProcessFlow(processId!),
     enabled: !!processId,
     staleTime: 1000 * 60 * 5, // 5 minutes
@@ -81,7 +81,7 @@ export function useSaveProcessFlow() {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
-        queryKey: QUERY_KEYS.flow(variables.processId),
+        queryKey: processFlowKeys.detail(variables.processId),
       })
       toast.success('Diagramme sauvegardé avec succès')
     },

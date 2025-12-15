@@ -119,6 +119,8 @@ import {
 } from './nodes/CustomNodes'
 
 import { GroupNode } from './nodes/GroupNode'
+import { PoolNode, LaneNode } from './nodes/SwimlaneNodes'
+import SwimlaneNode from './nodes/SwimlaneNode'
 
 import {
   MainProcessNode,
@@ -292,4 +294,9 @@ export const nodeTypes: NodeTypes = {
   
   // Text/Title node
   text: TextNode,
+  
+  // Swimlane nodes (BPMN)
+  pool: SwimlaneNode, // New unified swimlane component
+  swimlane: SwimlaneNode, // Alias for consistency
+  lane: LaneNode, // Deprecated - kept for backward compatibility
 }

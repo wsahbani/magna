@@ -13,6 +13,7 @@ import { ProcedureModule } from './modules/procedure/procedure.module';
 import { ProcessMapModule } from './modules/process-map/process-map.module';
 import { PrismaModule } from './database/prisma.module';
 import { ConfigModule } from '@nestjs/config';
+import { AIModule } from './modules/ai/ai.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -28,6 +29,7 @@ import { ConfigModule } from '@nestjs/config';
     FipModule,
     UsersModule,
     GroupsModule,
+    AIModule,
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService],

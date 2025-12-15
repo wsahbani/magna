@@ -15,7 +15,7 @@ export function useAutoSave<T>(
   value: T,
   { delay = 1000, onSave, enabled = true }: UseAutoSaveOptions,
 ) {
-  const timeoutRef = useRef<ReturnType<typeof setTimeout>>()
+  const timeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined)
   const previousValueRef = useRef<T>(value)
 
   const save = useCallback(async () => {

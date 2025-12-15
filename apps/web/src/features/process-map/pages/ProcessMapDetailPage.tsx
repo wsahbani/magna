@@ -73,37 +73,7 @@ export default function ProcessMapDetailPage() {
         </div>
       }
     >
-      {/* ProcessMap Info */}
-      <div className="bg-white rounded-lg shadow p-6 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <BodySmall className="text-gray-500 mb-1">Code</BodySmall>
-            <Body className="font-semibold">{processMap.code}</Body>
-          </div>
-          <div>
-            <BodySmall className="text-gray-500 mb-1">Statut</BodySmall>
-            <Body className="font-semibold">{processMap.status}</Body>
-          </div>
-          {processMap.workspace && (
-            <div>
-              <BodySmall className="text-gray-500 mb-1">Espace de travail</BodySmall>
-              <Body className="font-semibold">{processMap.workspace.name}</Body>
-            </div>
-          )}
-          {processMap.department && (
-            <div>
-              <BodySmall className="text-gray-500 mb-1">Département</BodySmall>
-              <Body className="font-semibold">{processMap.department.name}</Body>
-            </div>
-          )}
-        </div>
-        {processMap.description && (
-          <div className="mt-4">
-            <BodySmall className="text-gray-500 mb-1">Description</BodySmall>
-            <Body>{processMap.description}</Body>
-          </div>
-        )}
-      </div>
+   
 
       {/* FlowDiagram Viewer (ReadOnly) */}
       <div className="bg-white rounded-lg shadow" style={{ height: 'calc(100vh - 20rem)' }}>

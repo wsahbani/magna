@@ -85,7 +85,7 @@ export interface BaseNodeProps extends NodeProps {
  * Provides common functionality for all node types
  */
 export const createNode = (config: BaseNodeConfig) => {
-  return memo(({ data, selected, width, height }: BaseNodeProps) => {
+  return memo(({ id, data, selected, width, height }: BaseNodeProps) => {
     const {
       shape,
       backgroundColor,
@@ -361,6 +361,7 @@ export const createNode = (config: BaseNodeConfig) => {
             getShapeStyles,
             width,
             height,
+            id,
           })}
         </>
       )

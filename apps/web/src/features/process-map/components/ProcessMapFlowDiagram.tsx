@@ -5,17 +5,13 @@
  * Automatically creates Process when PROCESS_NODE is dropped
  */
 
-import { useCallback, useState, useEffect, useRef } from 'react';
+import { useCallback, useState, useRef, useEffect, useMemo } from 'react';
 import {
   ReactFlow,
   Background,
   Controls,
   MiniMap,
   Panel,
-  useNodesState,
-  useEdgesState,
-  addEdge,
-  Connection,
   Edge,
   Node,
   ReactFlowInstance,
@@ -23,13 +19,16 @@ import {
 import '@xyflow/react/dist/style.css';
 import { Loader2 } from 'lucide-react';
 import { useNavigate } from '@tanstack/react-router';
+import { useQueryClient } from '@tanstack/react-query';
 import { Palette } from '../../../components/FlowBuilder/Palette';
 import { PropertiesPanel } from '../../../components/FlowBuilder/PropertiesPanel';
 import { Toolbar } from '../../../components/FlowBuilder/Toolbar';
 import { nodeTypes } from '../../../components/FlowBuilder/nodeTypes';
-import { useProcessMapFlow, useSaveProcessMapFlow } from '../hooks/useProcessMapFlow';
+import { useProcessMapFlowStore } from '../hooks/useProcessMapFlowStore';
 import { PaletteConfigFactory } from '../config/palette-config';
 import { getBackgroundVariant } from '../../../components/FlowBuilder/utils/gridUtils';
+import { ImageExtractionModal } from './ImageExtractionModal';
+import { processMapFlowKeys } from '../hooks/useProcessMapFlow';
 
 interface ProcessMapFlowDiagramProps {
   processMapId: string;
@@ -46,11 +45,10 @@ export function ProcessMapFlowDiagram({
 }: ProcessMapFlowDiagramProps) {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null);
-  const [selectedNode, setSelectedNode] = useState<Node | null>(null);
-  const [selectedEdge, setSelectedEdge] = useState<Edge | null>(null);
   
-  // Grid settings state
+  // Grid settings state (UI state, not flow state)
   const [gridSettings, setGridSettings] = useState({
     snapToGrid: false,
     gridSize: 15,
@@ -59,34 +57,43 @@ export function ProcessMapFlowDiagram({
   });
   const [showHelperLines, setShowHelperLines] = useState(true);
 
+  // Image extraction modal state
+  const [isImageExtractionModalOpen, setIsImageExtractionModalOpen] = useState(false);
+
   // Get palette configuration for ProcessMap (level 1)
   const paletteConfig = PaletteConfigFactory.createByEntityType('processMap');
 
-  // Load flow data
-  const { data: flowData, isLoading } = useProcessMapFlow(processMapId);
-  const saveFlowMutation = useSaveProcessMapFlow();
+  // Use Zustand store for flow state
+  const {
+    nodes,
+    edges,
+    selectedNode,
+    selectedEdge,
+    isLoading,
+    isSaving,
+    addNode,
+    updateNode,
+    deleteNodes,
+    deleteEdges,
+    updateEdge,
+    setSelectedNodes,
+    setSelectedEdges,
+    clearSelection,
+    onNodesChange,
+    onEdgesChange,
+    onConnect,
+    saveFlow,
+  } = useProcessMapFlowStore(processMapId);
 
-  // Initialize nodes and edges from API with explicit typing
-  const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
-
-  // Load flow data when available
-  useEffect(() => {
-    if (flowData) {
-      setNodes(flowData.nodes || []);
-      setEdges(flowData.edges || []);
-    }
-  }, [flowData, setNodes, setEdges]);
-
-  // Sync selectedNode with nodes when nodes change
+  // Sync selectedNode/selectedEdge with store when nodes/edges change
   useEffect(() => {
     if (selectedNode) {
-      const updatedNode = nodes.find(n => n.id === selectedNode.id);
+      const updatedNode = nodes.find((n) => n.id === selectedNode.id);
       if (updatedNode && updatedNode !== selectedNode) {
-        setSelectedNode(updatedNode);
+        setSelectedNodes([updatedNode.id]);
       }
     }
-  }, [nodes, selectedNode]);
+  }, [nodes, selectedNode, setSelectedNodes]);
 
   // Drag and drop from palette
   const onDragStart = useCallback((event: React.DragEvent, nodeType: string) => {
@@ -127,18 +134,9 @@ export function ProcessMapFlowDiagram({
         },
       };
 
-      setNodes((nds) => [...nds, newNode]);
+      addNode(newNode);
     },
-    [reactFlowInstance, setNodes, readOnly],
-  );
-
-  // Handle connections
-  const onConnect = useCallback(
-    (params: Connection) => {
-      if (readOnly) return;
-      setEdges((eds) => addEdge(params, eds));
-    },
-    [setEdges, readOnly],
+    [reactFlowInstance, addNode, readOnly],
   );
 
   // Handle node drag stop - check if node was dropped on a container
@@ -155,12 +153,13 @@ export function ProcessMapFlowDiagram({
       const currentNode = nodes.find((n) => n.id === node.id);
       if (!currentNode) return;
 
-      const currentNodeWithParent = currentNode as Node & { parentNode?: string };
+      // Use parentId at top level (ReactFlow standard)
+      const currentNodeWithParent = currentNode as Node & { parentId?: string };
       
       // Calculate absolute position if node currently has a parent
       let absoluteNodePosition = currentNode.position;
-      if (currentNodeWithParent.parentNode) {
-        const currentParent = nodes.find((n) => n.id === currentNodeWithParent.parentNode);
+      if (currentNodeWithParent.parentId) {
+        const currentParent = nodes.find((n) => n.id === currentNodeWithParent.parentId);
         if (currentParent) {
           // Convert relative position to absolute for overlap calculation
           absoluteNodePosition = {
@@ -210,18 +209,19 @@ export function ProcessMapFlowDiagram({
           y: absoluteNodePosition.y - containerNode.position.y,
         };
         
-        setNodes((nds) =>
-          nds.map((n) => {
-            if (n.id === node.id) {
-              const nodeWithParent = { ...n, parentNode: containerNode.id, position: relativePosition, extent: 'parent' as const };
-              return nodeWithParent as Node;
-            }
-            return n;
-          }),
-        );
-      } else if (currentNodeWithParent.parentNode) {
+        // Set parentId and extent at top level (ReactFlow standard)
+        updateNode(node.id, {
+          parentId: containerNode.id,
+          position: relativePosition,
+          extent: 'parent' as const,
+          data: {
+            ...currentNode.data,
+            parentNodeId: containerNode.id, // Store in data for persistence
+          },
+        } as any);
+      } else if (currentNodeWithParent.parentId) {
         // Node was dragged out of container - remove parent relationship
-        const parentNode = nodes.find((n) => n.id === currentNodeWithParent.parentNode);
+        const parentNode = nodes.find((n) => n.id === currentNodeWithParent.parentId);
         if (parentNode) {
           // Convert relative position back to absolute
           const absolutePosition = {
@@ -229,21 +229,19 @@ export function ProcessMapFlowDiagram({
             y: currentNode.position.y + parentNode.position.y,
           };
           
-          setNodes((nds) =>
-            nds.map((n) => {
-              if (n.id === node.id) {
-                const nodeWithoutParent = { ...n, position: absolutePosition };
-                delete (nodeWithoutParent as any).parentNode;
-                delete (nodeWithoutParent as any).extent;
-                return nodeWithoutParent as Node;
-              }
-              return n;
-            }),
-          );
+          updateNode(node.id, {
+            parentId: undefined,
+            position: absolutePosition,
+            extent: undefined,
+            data: {
+              ...currentNode.data,
+              parentNodeId: undefined, // Remove from data
+            },
+          } as any);
         }
       }
     },
-    [nodes, setNodes, reactFlowInstance, readOnly],
+    [nodes, updateNode, reactFlowInstance, readOnly],
   );
 
   // Handle node/edge selection with navigation for linked nodes
@@ -272,8 +270,8 @@ export function ProcessMapFlowDiagram({
       }
       
       // Normal selection behavior
-      setSelectedNode(node);
-      setSelectedEdge(null);
+      setSelectedNodes([node.id]);
+      setSelectedEdges([]);
       onNodeSelect?.(node);
     },
     [onNodeSelect, navigate, readOnly],
@@ -281,69 +279,151 @@ export function ProcessMapFlowDiagram({
 
   const onEdgeClick = useCallback(
     (_event: React.MouseEvent, edge: Edge) => {
-      setSelectedEdge(edge);
-      setSelectedNode(null);
+      setSelectedEdges([edge.id]);
+      setSelectedNodes([]);
       onEdgeSelect?.(edge);
     },
-    [onEdgeSelect],
+    [onEdgeSelect, setSelectedEdges, setSelectedNodes],
   );
 
   const onPaneClick = useCallback(() => {
-    setSelectedNode(null);
-    setSelectedEdge(null);
+    clearSelection();
     onNodeSelect?.(null);
     onEdgeSelect?.(null);
-  }, [onNodeSelect, onEdgeSelect]);
+  }, [onNodeSelect, onEdgeSelect, clearSelection]);
 
   // Handle change handle positions
   const handleChangeHandlePosition = useCallback(
     (sourcePos: 'top' | 'right' | 'bottom' | 'left', targetPos: 'top' | 'right' | 'bottom' | 'left') => {
       if (!selectedNode) return;
       
-      setNodes((nds) =>
-        nds.map((node) => {
-          if (node.id === selectedNode.id) {
-            return {
-              ...node,
-              data: {
-                ...node.data,
-                handlePositions: {
-                  source: sourcePos,
-                  target: targetPos,
-                },
-              },
-            };
-          }
-          return node;
-        }),
-      );
-      
-      // Update selectedNode state
-      setSelectedNode((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          data: {
-            ...prev.data,
-            handlePositions: {
-              source: sourcePos,
-              target: targetPos,
-            },
+      updateNode(selectedNode.id, {
+        data: {
+          ...selectedNode.data,
+          handlePositions: {
+            source: sourcePos,
+            target: targetPos,
           },
-        };
+        },
       });
     },
-    [selectedNode, setNodes],
+    [selectedNode, updateNode],
   );
 
   // Handle save
-  const handleSave = useCallback(() => {
-    saveFlowMutation.mutate({
-      processMapId,
-      nodes,
-      edges,
+  const handleSave = useCallback(async () => {
+    try {
+      await saveFlow();
+    } catch (error) {
+      // Error handling is done in the mutation
+    }
+  }, [saveFlow]);
+
+  // Handle adding mainProcess to a domainGroup
+  const handleAddMainProcessToGroup = useCallback(
+    (groupId: string) => {
+      if (readOnly) return;
+
+      // Get the group node
+      const groupNode = nodes.find((n) => n.id === groupId);
+      if (!groupNode || groupNode.type !== 'domainGroup') return;
+
+      // Get all children of this group
+      const children = nodes.filter((n) => (n as any).parentId === groupId);
+
+      // Constants for mainProcess node
+      const MAIN_PROCESS_WIDTH = 140; // minWidth of mainProcess
+      const MAIN_PROCESS_HEIGHT = 80; // minHeight of mainProcess
+      const SPACING = 20; // Spacing between nodes
+
+      // Get group dimensions
+      const groupWidth = (groupNode.width as number) || 200;
+      const groupHeight = (groupNode.height as number) || 150;
+
+      // Calculate new positions for all nodes (existing + new)
+      const totalNodes = children.length + 1;
+      const totalWidthNeeded = totalNodes * (MAIN_PROCESS_WIDTH + SPACING) - SPACING;
+      
+      // Check if group width needs to be increased
+      let finalGroupWidth = groupWidth;
+      if (totalWidthNeeded > groupWidth) {
+        finalGroupWidth = totalWidthNeeded + 100; // 100px margin
+        updateNode(groupId, {
+          width: finalGroupWidth,
+        } as any);
+      }
+
+      // Calculate center position for the group
+      const centerX = finalGroupWidth / 2;
+      const centerY = groupHeight / 2;
+
+      // New node always goes to center
+      const newPosition = {
+        x: centerX - MAIN_PROCESS_WIDTH / 2,
+        y: centerY - MAIN_PROCESS_HEIGHT / 2,
+      };
+
+      // Reposition all existing nodes: they all shift left by one position
+      // The new node will be at index 0 (center)
+      // Existing nodes will be at indices -1, -2, -3, etc. (to the left of center)
+      
+      // Sort children by current X position to maintain visual order
+      const sortedChildren = [...children].sort((a, b) => a.position.x - b.position.x);
+      
+      // Calculate positions for all existing nodes
+      // They will be positioned to the left of center, starting from index -1
+      sortedChildren.forEach((child, index) => {
+        // Each existing node moves to index -(index + 1)
+        // First existing node: index -1
+        // Second existing node: index -2
+        // etc.
+        const nodeIndex = -(index + 1);
+        const newX = centerX + nodeIndex * (MAIN_PROCESS_WIDTH + SPACING) - MAIN_PROCESS_WIDTH / 2;
+        
+        updateNode(child.id, {
+          position: {
+            x: newX,
+            y: centerY - MAIN_PROCESS_HEIGHT / 2,
+          },
+        } as any);
+      });
+
+      // Create new mainProcess node
+      const newNode: Node = {
+        id: `mainProcess-${Date.now()}`,
+        type: 'mainProcess',
+        position: newPosition,
+        parentId: groupId,
+        extent: 'parent' as const,
+        width: MAIN_PROCESS_WIDTH,
+        height: MAIN_PROCESS_HEIGHT,
+        data: {
+          label: 'Nouveau Processus',
+          processId: undefined,
+        },
+      };
+
+      addNode(newNode);
+    },
+    [nodes, addNode, updateNode, readOnly],
+  );
+
+  // Enrich nodes with callbacks and readOnly for domainGroup nodes
+  const enrichedNodes = useMemo(() => {
+    return nodes.map((node) => {
+      if (node.type === 'domainGroup') {
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            onAddMainProcess: handleAddMainProcessToGroup,
+            readOnly,
+          },
+        };
+      }
+      return node;
     });
-  }, [processMapId, nodes, edges, saveFlowMutation]);
+  }, [nodes, handleAddMainProcessToGroup, readOnly]);
 
   if (isLoading) {
     return (
@@ -371,7 +451,7 @@ export function ProcessMapFlowDiagram({
       {/* Center - Flow Canvas */}
       <div className="flex-1 relative" ref={reactFlowWrapper}>
         <ReactFlow
-          nodes={nodes}
+          nodes={enrichedNodes}
           edges={edges}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
@@ -431,17 +511,19 @@ export function ProcessMapFlowDiagram({
             <Panel position="top-left" className="bg-white shadow-lg rounded-lg border border-gray-200 p-2 z-50">
               <Toolbar
                 onSave={handleSave}
-                isSaving={saveFlowMutation.isPending}
-                saveError={saveFlowMutation.error}
+                isSaving={isSaving}
+                saveError={undefined}
                 onFitView={() => reactFlowInstance?.fitView()}
                 onZoomIn={() => reactFlowInstance?.zoomIn()}
                 onZoomOut={() => reactFlowInstance?.zoomOut()}
                 onDelete={() => {
-                  const selectedNodes = nodes.filter(n => n.selected)
-                  const selectedEdges = edges.filter(e => e.selected)
-                  if (selectedNodes.length > 0 || selectedEdges.length > 0) {
-                    setNodes((nds) => nds.filter(n => !n.selected))
-                    setEdges((eds) => eds.filter(e => !e.selected))
+                  const selectedNodeIds = nodes.filter((n) => n.selected).map((n) => n.id);
+                  const selectedEdgeIds = edges.filter((e) => e.selected).map((e) => e.id);
+                  if (selectedNodeIds.length > 0) {
+                    deleteNodes(selectedNodeIds);
+                  }
+                  if (selectedEdgeIds.length > 0) {
+                    deleteEdges(selectedEdgeIds);
                   }
                 }}
                 onChangeHandlePosition={handleChangeHandlePosition}
@@ -451,6 +533,7 @@ export function ProcessMapFlowDiagram({
                 selectedNodeCount={nodes.filter(n => n.selected).length}
                 gridSettings={gridSettings}
                 showHelperLines={showHelperLines}
+                onExtractFromImage={() => setIsImageExtractionModalOpen(true)}
               />
             </Panel>
           )}
@@ -464,39 +547,43 @@ export function ProcessMapFlowDiagram({
             selectedNode={selectedNode}
             selectedEdge={selectedEdge}
             onNodeUpdate={(nodeId, data) => {
-              setNodes((nds) =>
-                nds.map((node) => {
-                  if (node.id === nodeId) {
-                    // Merge style properly if it exists in data
-                    const updatedData = { ...node.data, ...data };
-                    if (data.style && node.data?.style) {
-                      updatedData.style = { ...node.data.style, ...data.style };
-                    }
-                    return { ...node, data: updatedData };
-                  }
-                  return node;
-                }),
-              );
-              // Update selectedNode to reflect changes immediately
-              if (selectedNode && selectedNode.id === nodeId) {
-                const updatedData = { ...selectedNode.data, ...data };
-                if (data.style && selectedNode.data?.style) {
-                  updatedData.style = { ...selectedNode.data.style, ...data.style };
-                }
-                setSelectedNode({ ...selectedNode, data: updatedData });
+              const node = nodes.find((n) => n.id === nodeId);
+              if (!node) return;
+
+              // Merge style properly if it exists in data
+              const updatedData = { ...node.data, ...data };
+              if (data.style && node.data?.style) {
+                updatedData.style = { ...node.data.style, ...data.style };
               }
+
+              updateNode(nodeId, {
+                data: updatedData,
+              });
             }}
             onEdgeUpdate={(edgeId, data) => {
-              setEdges((eds) =>
-                eds.map((edge) => (edge.id === edgeId ? { ...edge, ...data } : edge)),
-              );
-              // Update selectedEdge to reflect changes immediately
-              if (selectedEdge && selectedEdge.id === edgeId) {
-                setSelectedEdge({ ...selectedEdge, ...data });
-              }
+              updateEdge(edgeId, data);
             }}
           />
         </div>
+      )}
+
+      {/* Image Extraction Modal */}
+      {!readOnly && (
+        <>
+          <ImageExtractionModal
+            open={isImageExtractionModalOpen}
+            onOpenChange={setIsImageExtractionModalOpen}
+            processMapId={processMapId}
+            existingNodesCount={nodes.length}
+            onSuccess={async () => {
+              // Invalidate and refetch flow data to get the new nodes
+              await queryClient.invalidateQueries({
+                queryKey: processMapFlowKeys.detail(processMapId),
+              });
+              setIsImageExtractionModalOpen(false);
+            }}
+          />
+        </>
       )}
     </div>
   );
