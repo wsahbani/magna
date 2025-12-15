@@ -21,6 +21,10 @@ var __rest = (this && this.__rest) || function (s, e) {
     return t;
 };
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+/**
+ * Input avec validation visuelle (checkmark vert)
+ * Composant réutilisable pour afficher un input avec icône de validation
+ */
 import { Input } from './ui/input';
 import { Check } from 'lucide-react';
 export var ValidatedInput = function (_a) {

@@ -100,18 +100,18 @@ export function Sidebar({ collapsed = false, onCollapse, mobileOpen = false, onM
         <div className="h-16 flex items-center justify-between px-4 border-b border-gray-800">
           {!collapsed && (
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg flex items-center justify-center shadow-lg">
+              <div className="w-10 h-10 bg-[#FF7900] rounded-lg flex items-center justify-center shadow-lg">
                 <LogoOrange />
               </div>
               <div className="flex flex-col">
                 <span className="font-bold text-white text-base tracking-wide">{appConfig.name}</span>
-                <span className="text-[10px] text-orange-400">{appConfig.description}</span>
+                <span className="text-[10px] text-[#FF7900]">{appConfig.description}</span>
               </div>
             </div>
           )}
           
           {collapsed && (
-            <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg flex items-center justify-center mx-auto shadow-lg">
+            <div className="w-10 h-10 bg-[#FF7900] rounded-lg flex items-center justify-center mx-auto shadow-lg">
               <span className="text-white font-bold text-xl">{appConfig.logo.icon}</span>
             </div>
           )}
@@ -139,7 +139,7 @@ export function Sidebar({ collapsed = false, onCollapse, mobileOpen = false, onM
                     className={cn(
                       'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors relative group',
                       active
-                        ? 'bg-orange-600 text-white font-medium'
+                        ? 'bg-[#FF7900] text-white font-medium'
                         : 'text-gray-400 hover:bg-gray-800 hover:text-white'
                     )}
                   >
@@ -148,7 +148,7 @@ export function Sidebar({ collapsed = false, onCollapse, mobileOpen = false, onM
                       <>
                         <span className="flex-1 text-sm">{item.label}</span>
                         {item.badge && (
-                          <span className="px-2 py-0.5 text-[10px] font-medium bg-orange-600 text-white rounded-full">
+                          <span className="px-2 py-0.5 text-[10px] font-medium bg-[#FF7900] text-white rounded-full">
                             {item.badge}
                           </span>
                         )}
@@ -160,7 +160,7 @@ export function Sidebar({ collapsed = false, onCollapse, mobileOpen = false, onM
                       <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap z-50">
                         {item.label}
                         {item.badge && (
-                          <span className="ml-2 px-1.5 py-0.5 text-[10px] bg-orange-600 rounded-full">
+                          <span className="ml-2 px-1.5 py-0.5 text-[10px] bg-[#FF7900] rounded-full">
                             {item.badge}
                           </span>
                         )}
@@ -178,7 +178,7 @@ export function Sidebar({ collapsed = false, onCollapse, mobileOpen = false, onM
           {!collapsed && user && (
             <div className="mb-3">
               <div className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-800">
-                <div className="w-8 h-8 bg-orange-600 rounded-full flex items-center justify-center">
+                <div className="w-8 h-8 bg-[#FF7900] rounded-full flex items-center justify-center">
                   <span className="text-white font-medium text-xs">
                     {user.firstName?.[0]}{user.lastName?.[0]}
                   </span>
@@ -196,7 +196,7 @@ export function Sidebar({ collapsed = false, onCollapse, mobileOpen = false, onM
           <button
             onClick={handleLogout}
             className={cn(
-              'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-400 hover:bg-gray-800 hover:text-orange-500 transition-colors group',
+              'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-400 hover:bg-gray-800 hover:text-[#FF7900] transition-colors group',
               collapsed && 'justify-center'
             )}
           >
@@ -216,7 +216,7 @@ export function Sidebar({ collapsed = false, onCollapse, mobileOpen = false, onM
         <button
           onClick={() => onCollapse?.(!collapsed)}
           className={cn(
-            'hidden lg:flex absolute -right-3 top-20 w-6 h-6 bg-gray-800 border border-gray-700 rounded-full items-center justify-center hover:bg-orange-600 transition-colors',
+            'hidden lg:flex absolute -right-3 top-20 w-6 h-6 bg-gray-800 border border-gray-700 rounded-full items-center justify-center hover:bg-[#FF7900] transition-colors',
             'shadow-sm'
           )}
         >

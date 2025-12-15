@@ -218,7 +218,7 @@ export const DomainGroupNode = createNode(
     ],
     showLabel: true,
     labelPosition: 'inside',
-    customRender: ({ data, selected, renderHandles, renderIcon, renderLabel, width, height, id }) => {
+    customRender: ({ data, selected, renderHandles, renderIcon, renderLabel, width, height, id }: any) => {
       // DomainGroupNodeWithPlus is a wrapper component that uses useNodes hook
       return <DomainGroupNodeWithPlus 
         data={data} 

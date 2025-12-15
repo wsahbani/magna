@@ -2,17 +2,18 @@ import { useParams, useNavigate } from '@tanstack/react-router'
 import { Building2, Plus, Users, FileText, Map } from 'lucide-react'
 import { Button, Heading3, Body, BodySmall } from '@repo/ui'
 import { PageWrapper } from '../../../components/layout/PageWrapper'
-import { ProcessCard } from '../../processes/components/ProcessCard'
+import { ProcessCard } from '../../process/components/ProcessCard'
 import { ProcessMapCard } from '../../process-map/components/ProcessMapCard'
 import { useWorkspace } from '../hooks/useWorkspaces'
-import { useProcesses } from '../../processes/hooks/useProcesses'
+import { useProcesses } from '../../process/hooks/useProcesses'
 import { useProcessMaps, useDeleteProcessMap } from '../../process-map/hooks/useProcessMaps'
 import { useState } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@repo/ui'
-import { ProcessForm } from '../../processes/components/ProcessForm'
-import { useCreateProcess, useUpdateProcess, useDeleteProcess } from '../../processes/hooks/useProcesses'
-import type { Process } from '../../processes/types/process.types'
+import { ProcessForm } from '../../process/components/ProcessForm'
+import { useCreateProcess, useUpdateProcess, useDeleteProcess } from '../../process/hooks/useProcesses'
+import type { Process } from '../../process/types/process.types'
 import type { ProcessMap } from '../../process-map/types/process-map.types'
+import { ProcessType } from '../../process/types/enums'
 
 export default function WorkspaceDetailPage() {
   const { id } = useParams({ from: '/workspaces/$id' })
@@ -56,19 +57,17 @@ export default function WorkspaceDetailPage() {
   }
 
   const handleView = (process: Process) => {
-    // Navigate based on process level (type)
-    switch (process.level) {
-      case 1: // FLOW
-        navigate({ to: '/processes/flow/$id', params: { id: process.id } })
+    // Navigate based on process type - using new routes
+    switch (process.type) {
+      case ProcessType.FLOW:
+        navigate({ to: '/processes-level2/$id/flow', params: { id: process.id } as any })
         break
-      case 2: // SIPOC
-        navigate({ to: '/processes/sipoc/$id', params: { id: process.id } })
-        break
-      case 3: // BPMN
-        navigate({ to: '/processes/bpmn/$id', params: { id: process.id } })
+      case ProcessType.SIPOC:
+        // SIPOC now in dedicated list page or process detail
+        navigate({ to: '/sipoc', search: {} as any })
         break
       default:
-        console.warn('Unknown process level:', process.level)
+        console.warn('Unknown process type:', process.type)
     }
   }
 

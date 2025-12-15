@@ -43,7 +43,7 @@ export function useFlowAutoSave({
   // Handle save success feedback
   useEffect(() => {
     if (saveFlowMutation.isSuccess && saveFlowMutation.data) {
-      onSaveSuccess?.(saveFlowMutation.data.message)
+      onSaveSuccess?.(saveFlowMutation.data.message ?? '')
     }
   }, [saveFlowMutation.isSuccess, saveFlowMutation.data, onSaveSuccess])
   

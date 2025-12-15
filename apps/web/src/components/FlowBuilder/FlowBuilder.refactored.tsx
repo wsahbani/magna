@@ -99,8 +99,7 @@ export function FlowBuilder({
   
   // === Load Flow ===
   useFlowLoading({
-    processVersionId,
-    loadedFlow,
+    loadedFlow: loadedFlow ?? null,
     isLoaded,
     setIsLoaded,
     onNodesChange: onNodesChangeProp,
@@ -118,7 +117,7 @@ export function FlowBuilder({
     nodesRef,
     edgesRef,
     autoSave,
-    saveFlowMutation,
+    saveFlowMutation: saveFlowMutation as any,
     autoSaveError,
     onSaveSuccess,
     onSaveError,
@@ -129,7 +128,7 @@ export function FlowBuilder({
     processVersionId,
     nodes,
     edges,
-    saveFlowMutation,
+    saveFlowMutation as any,
     onSave,
     onSaveSuccess,
     onSaveError

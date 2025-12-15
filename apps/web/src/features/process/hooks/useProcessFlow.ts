@@ -61,7 +61,7 @@ export function useSaveProcessFlow() {
             // Ensure width/height are also in data for consistency
             width: width ?? node.data?.width,
             height: height ?? node.data?.height,
-            parentNode: node.parentNode, // Store parentNode
+            parentId: node.parentId, // Store parentId (ReactFlow v11+)
           },
         }
       })

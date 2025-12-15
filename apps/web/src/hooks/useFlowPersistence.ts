@@ -75,7 +75,7 @@ export const useAutoSaveFlow = (processId: string | null, delay = 2000) => {
   })
 
   // Store mutation in ref to avoid dependency issues
-  mutationRef.current = mutation
+  mutationRef.current = mutation as any
 
   const autoSave = useCallback((nodes: Node[], edges: Edge[]) => {
     // Clear existing timeout

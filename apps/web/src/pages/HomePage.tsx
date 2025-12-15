@@ -40,7 +40,7 @@ const sampleProcesses = [
     id: '1',
     name: 'Customer Onboarding Process',
     description: 'Complete process for new customer registration and activation',
-    type: 'PROCESSUS' as const,
+    type: 'FLOW' as const,
     level: 1 as const,
     status: 'PUBLISHED' as const,
     priority: 'HIGH' as const,

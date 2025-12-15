@@ -62,7 +62,7 @@ export function Header({ onMenuClick }: HeaderProps) {
               className="p-2 hover:bg-gray-800 rounded-lg relative"
             >
               <Bell className="w-5 h-5 text-white" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-orange-600 rounded-full" />
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#FF7900] rounded-full" />
             </button>
 
             {/* Notifications Dropdown */}
@@ -90,7 +90,7 @@ export function Header({ onMenuClick }: HeaderProps) {
                     ))}
                   </div>
                   <div className="p-2 border-t border-gray-200">
-                    <button className="w-full text-center text-sm text-orange-600 hover:text-orange-700 py-2">
+                    <button className="w-full text-center text-sm text-[#FF7900] hover:text-[#E66D00] py-2">
                       View all notifications
                     </button>
                   </div>
@@ -105,7 +105,7 @@ export function Header({ onMenuClick }: HeaderProps) {
               onClick={() => setShowUserMenu(!showUserMenu)}
               className="flex items-center gap-2 px-3 py-2 hover:bg-gray-800 rounded-lg"
             >
-              <div className="w-8 h-8 bg-orange-600 rounded-full flex items-center justify-center">
+              <div className="w-8 h-8 bg-[#FF7900] rounded-full flex items-center justify-center">
                 <span className="text-white font-medium text-sm">
                   {user?.firstName?.[0]}{user?.lastName?.[0]}
                 </span>

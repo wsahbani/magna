@@ -3,7 +3,7 @@
  * Composant réutilisable pour afficher un input avec icône de validation
  */
 
-import * as React from "react";
+
 import { Input } from './ui/input';
 import { Check } from 'lucide-react';
 import type { InputProps } from './ui/input';

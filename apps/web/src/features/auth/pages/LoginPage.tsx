@@ -104,14 +104,14 @@ export function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-orange-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-[#FFF5EB] via-white to-[#FFE6CC] flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Logo/Brand Section */}
         <div className="text-center">
           <div className="inline-flex items-center justify-center w-16 h-16 ">
           <LogoOrange />
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+          <h1 className="text-3xl font-bold text-black mb-2">
            MAGNA
           </h1>
           <p className="text-gray-600">Orange Group</p>
@@ -210,13 +210,13 @@ export function LoginPage() {
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
-                    className="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
+                    className="w-4 h-4 text-[#FF7900] border-gray-300 rounded focus:ring-[#FF7900]"
                   />
                   <span className="text-sm text-gray-700">Remember me</span>
                 </label>
                 <button
                   type="button"
-                  className="text-sm text-orange-600 hover:text-orange-700 font-medium"
+                  className="text-sm text-[#FF7900] hover:text-[#E66D00] font-medium"
                   disabled={isLoading}
                 >
                   Forgot password?
@@ -226,7 +226,7 @@ export function LoginPage() {
               {/* Submit Button */}
               <Button
                 type="submit"
-                className="w-full bg-orange-600 hover:bg-orange-700 text-white"
+                className="w-full bg-[#FF7900] hover:bg-[#E66D00] active:bg-[#CC6100] text-white shadow-sm"
                 disabled={isLoading}
               >
                 {isLoading ? (

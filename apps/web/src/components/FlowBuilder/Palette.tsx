@@ -1,4 +1,3 @@
-import { Heading1, BodySmall } from '@repo/ui'
 import { ReactNode } from 'react'
 import { 
   Play, 
@@ -78,6 +77,7 @@ import {
   Eye,
   EyeOff,
   ChevronDown,
+  ChevronRight,
   Activity,
   Layers,
   Layout,
@@ -100,8 +100,10 @@ import {
   Camera,
   Image,
   FolderPlus,
+  GripVertical,
 } from 'lucide-react'
 import { useState } from 'react'
+import { cn } from '@repo/ui'
 
 interface PaletteItemProps {
   icon: React.ReactNode
@@ -115,23 +117,26 @@ function PaletteItem({ icon, label, nodeType, onDragStart }: PaletteItemProps) {
     <div
       draggable
       onDragStart={(e) => onDragStart(e, nodeType)}
-      className="group relative flex flex-col items-center justify-center gap-1.5 p-2 rounded-lg border-2 border-gray-200 bg-white hover:bg-gradient-to-br hover:from-orange-50 hover:to-orange-100/50 hover:border-orange-400 hover:shadow-md cursor-move transition-all duration-200 ease-out transform hover:scale-[1.02] active:scale-[0.98]"
+      className="group relative flex items-center gap-2.5 px-3 py-2 rounded-md bg-white border border-gray-100 hover:border-[#FF7900]/40 hover:bg-[#FFF5EB] cursor-grab active:cursor-grabbing transition-all duration-150 shadow-sm hover:shadow-md"
       title={label}
     >
-      {/* Icon container with background */}
-      <div className="flex items-center justify-center w-10 h-10 rounded-md bg-gray-50 group-hover:bg-orange-100 group-hover:scale-110 transition-all duration-200">
-        <div className="group-hover:scale-110 transition-transform duration-200 scale-100">
-          {icon}
-        </div>
+      {/* Drag handle */}
+      <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute left-1 top-1/2 -translate-y-1/2">
+        <GripVertical className="w-3 h-3 text-gray-300" />
       </div>
+      
+      {/* Icon container */}
+      <div className="flex items-center justify-center w-8 h-8 rounded-md bg-gray-50 group-hover:bg-[#FF7900]/10 transition-colors ml-2">
+        {icon}
+      </div>
+      
       {/* Label */}
-      <BodySmall className="text-[8px] font-medium text-gray-700 group-hover:text-orange-700 text-center leading-tight truncate w-full transition-colors">
+      <span className="flex-1 text-xs font-medium text-gray-700 group-hover:text-[#FF7900] truncate transition-colors">
         {label}
-      </BodySmall>
-      {/* Drag indicator */}
-      <div className="absolute top-0.5 right-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-        <div className="w-1 h-1 rounded-full bg-orange-500"></div>
-      </div>
+      </span>
+      
+      {/* Hover indicator */}
+      <div className="w-1.5 h-1.5 rounded-full bg-[#FF7900] opacity-0 group-hover:opacity-100 transition-opacity" />
     </div>
   )
 }
@@ -140,31 +145,67 @@ interface PaletteSectionProps {
   title: string
   children: React.ReactNode
   defaultExpanded?: boolean
+  icon?: React.ReactNode
+  count?: number
 }
 
-function PaletteSection({ title, children, defaultExpanded = true }: PaletteSectionProps) {
+function PaletteSection({ title, children, defaultExpanded = true, icon, count }: PaletteSectionProps) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded)
   
   return (
-    <div className="mb-2">
+    <div className="mb-1">
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full flex items-center justify-between px-3 py-1.5 bg-gradient-to-r from-gray-50 to-gray-100 hover:from-orange-50 hover:to-orange-100 border-b-2 border-transparent hover:border-orange-300 transition-all duration-200 rounded-t-lg group"
+        className={cn(
+          "w-full flex items-center gap-2 px-3 py-2.5 transition-all duration-150 group",
+          isExpanded 
+            ? "bg-black text-white" 
+            : "bg-gray-50 text-gray-700 hover:bg-gray-100"
+        )}
       >
-        <BodySmall className="text-[8px] font-bold text-gray-700 uppercase tracking-wider group-hover:text-orange-700 transition-colors">
-          {title}
-        </BodySmall>
-        <ChevronDown 
-          className={`w-3 h-3 text-gray-500 group-hover:text-orange-600 transition-all duration-200 ${
-            isExpanded ? 'rotate-0' : '-rotate-90'
-          }`} 
+        <ChevronRight 
+          className={cn(
+            "w-4 h-4 transition-transform duration-200",
+            isExpanded ? "rotate-90" : "rotate-0",
+            isExpanded ? "text-[#FF7900]" : "text-gray-400 group-hover:text-gray-600"
+          )} 
         />
+        {icon && (
+          <span className={cn(
+            "transition-colors",
+            isExpanded ? "text-[#FF7900]" : "text-gray-500"
+          )}>
+            {icon}
+          </span>
+        )}
+        <span className={cn(
+          "flex-1 text-left text-xs font-semibold uppercase tracking-wide",
+          isExpanded ? "text-white" : "text-gray-700"
+        )}>
+          {title}
+        </span>
+        {count !== undefined && (
+          <span className={cn(
+            "px-1.5 py-0.5 text-[10px] font-bold rounded",
+            isExpanded 
+              ? "bg-[#FF7900] text-white" 
+              : "bg-gray-200 text-gray-600"
+          )}>
+            {count}
+          </span>
+        )}
       </button>
-      {isExpanded && (
-        <div className="grid grid-cols-2 gap-1.5 px-2 py-2 bg-gray-50/50 rounded-b-lg border-x border-b border-gray-200">
-          {children}
+      
+      <div className={cn(
+        "grid gap-1.5 overflow-hidden transition-all duration-200",
+        isExpanded ? "grid-rows-[1fr] p-2 bg-gray-50/80" : "grid-rows-[0fr] p-0"
+      )}>
+        <div className="overflow-hidden">
+          <div className="space-y-1.5">
+            {children}
+          </div>
         </div>
-      )}
+      </div>
     </div>
   )
 }
@@ -350,58 +391,87 @@ export function Palette({
     return acc
   }, {} as Record<string, Array<{ category: string; icon: ReactNode; label: string; type: string }>>)
 
+  // Category icons mapping
+  const categoryIcons: Record<string, React.ReactNode> = {
+    Events: <Zap className="w-4 h-4" />,
+    Tasks: <CheckSquare className="w-4 h-4" />,
+    Gateways: <GitBranch className="w-4 h-4" />,
+    Processes: <Box className="w-4 h-4" />,
+    Data: <Database className="w-4 h-4" />,
+    Integration: <Globe className="w-4 h-4" />,
+    Communication: <MessageSquare className="w-4 h-4" />,
+    Security: <Shield className="w-4 h-4" />,
+    Business: <Briefcase className="w-4 h-4" />,
+    Documents: <FileText className="w-4 h-4" />,
+    UI: <Monitor className="w-4 h-4" />,
+    Location: <MapPin className="w-4 h-4" />,
+    Operations: <Settings className="w-4 h-4" />,
+    Status: <Activity className="w-4 h-4" />,
+  }
+
   return (
     <div className="h-full flex flex-col bg-white">
-      {/* Header with gradient */}
-      <div className="px-3 py-3 border-b-2 border-gray-200 bg-gradient-to-br from-white to-gray-50 sticky top-0 z-10 shadow-sm">
+      {/* Header - Orange Group Style */}
+      <div className="px-4 py-4 bg-black sticky top-0 z-10">
         {/* Title */}
-        <div className="mb-3">
-          <Heading1 className="text-sm font-bold text-gray-900 mb-0.5">{title}</Heading1>
-          <BodySmall className="text-[8px] text-gray-500">
-            Glissez-déposez les éléments sur le canvas
-          </BodySmall>
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-8 h-8 rounded-lg bg-[#FF7900] flex items-center justify-center">
+            <Layers className="w-4 h-4 text-white" />
+          </div>
+          <div>
+            <h2 className="text-sm font-bold text-white">{title}</h2>
+            <p className="text-[10px] text-gray-400">
+              Drag & drop elements
+            </p>
+          </div>
         </div>
         
         {/* Search */}
-        <div className="relative mb-2">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
           <input
             type="text"
-            placeholder="Rechercher un nœud..."
+            placeholder="Search nodes..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-8 pr-8 py-1.5 text-xs border-2 border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all placeholder:text-gray-400"
+            className="w-full pl-10 pr-10 py-2.5 text-sm border-0 rounded-lg bg-gray-900 text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#FF7900] transition-all"
           />
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-orange-600 transition-colors p-0.5 rounded hover:bg-orange-50"
-              aria-label="Effacer la recherche"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-[#FF7900] transition-colors p-1 rounded-full hover:bg-gray-800"
+              aria-label="Clear search"
             >
-              <X className="w-3 h-3" />
+              <X className="w-3.5 h-3.5" />
             </button>
           )}
         </div>
         
-        {/* Stats badge */}
-        <div className="flex items-center gap-1.5">
-          <div className="px-2 py-0.5 bg-orange-100 text-orange-700 rounded-md text-[8px] font-semibold">
-            {filteredNodes.length} {filteredNodes.length === 1 ? 'élément' : 'éléments'}
-          </div>
+        {/* Results count */}
+        <div className="flex items-center justify-between mt-3 px-1">
+          <span className="text-[10px] text-gray-500">
+            {filteredNodes.length} {filteredNodes.length === 1 ? 'element' : 'elements'}
+            {searchQuery && ` for "${searchQuery}"`}
+          </span>
           {searchQuery && (
-            <BodySmall className="text-[8px] text-gray-500">
-              pour "{searchQuery}"
-            </BodySmall>
+            <button 
+              onClick={() => setSearchQuery('')}
+              className="text-[10px] text-[#FF7900] hover:underline"
+            >
+              Clear
+            </button>
           )}
         </div>
       </div>
 
       {/* Scrollable Content */}
-      <div className="flex-1 overflow-y-auto py-3 px-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 hover:scrollbar-thumb-gray-400">
+      <div className="flex-1 overflow-y-auto bg-white">
         {Object.entries(groupedNodes).map(([category, nodes]) => (
           <PaletteSection 
             key={category} 
-            title={`${category} (${nodes.length})`}
+            title={category}
+            icon={categoryIcons[category]}
+            count={nodes.length}
             defaultExpanded={searchQuery ? true : defaultExpandedCategories.includes(category)}
           >
             {nodes.map((node) => (
@@ -416,19 +486,33 @@ export function Palette({
           </PaletteSection>
         ))}
         
+        {/* Empty state */}
         {filteredNodes.length === 0 && (
-          <div className="text-center py-8 px-4">
-            <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-gray-100 flex items-center justify-center">
-              <Search className="w-6 h-6 text-gray-400" />
+          <div className="flex flex-col items-center justify-center py-16 px-6">
+            <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">
+              <Search className="w-8 h-8 text-gray-300" />
             </div>
-            <BodySmall className="text-gray-500 font-medium text-[8px]">
-              Aucun résultat trouvé
-            </BodySmall>
-            <BodySmall className="text-gray-400 text-[8px] mt-1">
-              Essayez avec d'autres mots-clés
-            </BodySmall>
+            <p className="text-sm font-medium text-gray-700 mb-1">
+              No results found
+            </p>
+            <p className="text-xs text-gray-500 text-center mb-4">
+              Try searching with different keywords
+            </p>
+            <button
+              onClick={() => setSearchQuery('')}
+              className="px-4 py-2 text-xs font-medium text-white bg-[#FF7900] rounded-lg hover:bg-[#E66D00] transition-colors"
+            >
+              Clear search
+            </button>
           </div>
         )}
+      </div>
+      
+      {/* Footer */}
+      <div className="px-4 py-3 border-t border-gray-100 bg-gray-50">
+        <p className="text-[10px] text-gray-500 text-center">
+          Drag elements to the canvas to create your flow
+        </p>
       </div>
     </div>
   )

@@ -362,7 +362,7 @@ export const createNode = (config: BaseNodeConfig) => {
             width,
             height,
             id,
-          })}
+          } as any)}
         </>
       )
     }

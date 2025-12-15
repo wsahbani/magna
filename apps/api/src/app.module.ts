@@ -14,6 +14,7 @@ import { ProcessMapModule } from './modules/process-map/process-map.module';
 import { PrismaModule } from './database/prisma.module';
 import { ConfigModule } from '@nestjs/config';
 import { AIModule } from './modules/ai/ai.module';
+import { DatabaseModule } from './modules/database/database.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -30,6 +31,7 @@ import { AIModule } from './modules/ai/ai.module';
     UsersModule,
     GroupsModule,
     AIModule,
+    DatabaseModule,
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService],

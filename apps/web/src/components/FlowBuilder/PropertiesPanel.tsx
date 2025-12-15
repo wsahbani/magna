@@ -459,8 +459,8 @@ export function PropertiesPanel({
             
             <TabsContent value="link" className="mt-0">
               <ProcessLinkSelector
-                selectedProcessId={selectedNode.data?.linkedProcessId}
-                selectedProcessType={selectedNode.data?.linkedProcessType}
+                selectedProcessId={selectedNode.data?.linkedProcessId as string | undefined}
+                selectedProcessType={selectedNode.data?.linkedProcessType as 'processMap' | 'process' | 'procedure' | undefined}
                 onSelect={(item) => {
                   onNodeUpdate(selectedNode.id, {
                     linkedProcessId: item.id,

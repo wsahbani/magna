@@ -1,0 +1,1381 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ====================================
+// WORKSPACE & ORGANIZATION MANAGEMENT
+// ====================================
+
+// Workspace Management for Orange Group Multi-Department System
+model Workspace {
+  id          String        @id @default(cuid())
+  name        String
+  description String?
+  code        String        @unique // e.g., "OTN", "OBS", "OFS"
+  type        WorkspaceType
+  isActive    Boolean       @default(true)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  // Hierarchy - allows nested workspaces (Group > Entity > Direction > Department > Team)
+  parentId String?
+  parent   Workspace?  @relation("WorkspaceHierarchy", fields: [parentId], references: [id])
+  children Workspace[] @relation("WorkspaceHierarchy")
+
+  // Relations
+  departments       Department[]
+  processes         Process[]
+  workspaceMembers  WorkspaceMember[]
+  workspaceSettings WorkspaceSettings?
+  processTemplates  ProcessTemplate[]
+  processTags       ProcessTag[]
+  nodeTemplates     NodeTemplate[] // Workspace node templates
+  processThemes     ProcessTheme[] // Workspace themes
+
+  @@map("workspaces")
+}
+
+enum WorkspaceType {
+  GROUPE // Orange Group level
+  ENTITY // Orange Tunisie, Orange Business Services, etc.
+  DIRECTION // Direction level
+  DEPARTMENT // Department level
+  TEAM // Team level
+
+  @@map("workspace_types")
+}
+
+model Department {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  code        String // e.g., "IT", "HR", "FIN", "OPS"
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  users       User[]
+  processes   Process[]
+
+  @@unique([workspaceId, code])
+  @@map("departments")
+}
+
+model WorkspaceMember {
+  id       String        @id @default(cuid())
+  role     WorkspaceRole
+  joinedAt DateTime      @default(now())
+  isActive Boolean       @default(true)
+
+  // Relations
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, workspaceId])
+  @@map("workspace_members")
+}
+
+enum WorkspaceRole {
+  OWNER // Full control
+  ADMIN // Manage processes and users
+  EDITOR // Create and edit processes
+  REVIEWER // Review and approve processes
+  VIEWER // Read-only access
+
+  @@map("workspace_roles")
+}
+
+model WorkspaceSettings {
+  id                   String  @id @default(cuid())
+  allowExternalUsers   Boolean @default(false)
+  requireApproval      Boolean @default(true)
+  maxProcessLevels     Int     @default(4)
+  customFields         Json? // Custom metadata fields
+  notificationSettings Json? // Email/notification preferences
+
+  // Relations
+  workspaceId String    @unique
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@map("workspace_settings")
+}
+
+// ====================================
+// CORE MODELS
+// ====================================
+
+model User {
+  id          String    @id @default(cuid())
+  email       String    @unique
+  firstName   String
+  lastName    String
+  displayName String? // Optional display name
+  avatarUrl   String? // Profile picture URL
+  phone       String?
+  position    String? // Job title
+  isActive    Boolean   @default(true)
+  lastLoginAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Authentication
+  hashedPassword String?
+  emailVerified  Boolean   @default(false)
+  resetToken     String?
+  resetTokenExp  DateTime?
+
+  // OpenID Connect (Orange SSO)
+  orangeId       String?   @unique // Orange SSO unique identifier
+  provider       String?   @default("local") // local, orange-openid
+  providerData   Json? // Additional provider data
+  
+  // Admin flag - only admins can manage users and groups
+  isAdmin        Boolean   @default(false)
+  
+  // Group Assignment (Un utilisateur appartient à un seul groupe)
+  groupId        String?
+  group          Group?    @relation(fields: [groupId], references: [id])
+
+  // Relations
+  departmentId       String?
+  department         Department?           @relation(fields: [departmentId], references: [id])
+  workspaceMembers   WorkspaceMember[]
+  createdProcesses   Process[]             @relation("ProcessCreator")
+  comments           Comment[]
+  commentResolutions Comment[]             @relation("CommentResolver")
+  approvals          ApprovalRequest[]
+  readings           ReadingConfirmation[]
+  assignments        ProcessAssignment[]
+  auditLogs          AuditLog[]
+  notifications      Notification[]
+  createdTemplates   ProcessTemplate[]
+  nodeTemplates      NodeTemplate[] // Created node templates
+
+  @@map("users")
+  sipocDiagrams          SipocDiagram[]      @relation("UserSipoc")
+  sipocHistory           SipocHistory[]      @relation("SipocHistoryUser")
+  sipocPermissions       SipocPermission[]   @relation("SipocPermissionUser")
+  sipocPermissionsGranted SipocPermission[]  @relation("SipocPermissionGrantedBy")
+  sipocComments          SipocComment[]      @relation("SipocCommentUser")
+  fipCards               ProcessIdentityCard[] @relation("UserFip")
+}
+
+// ====================================
+// GROUP MANAGEMENT (Groupes métier)
+// ====================================
+
+model Group {
+  id          String   @id @default(cuid())
+  name        String   @unique // e.g., "Groupe RH", "Groupe Commercial", "Groupe Qualité"
+  code        String   @unique // Short code: "RH", "COM", "QUAL"
+  description String?
+  color       String?  @default("#EA580C") // Orange by default
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  users       User[] // Users belonging to this group
+  permissions GroupPermission[] // Group-level permissions
+
+  @@map("groups")
+}
+
+// Group Permissions (optional: for fine-grained access control)
+model GroupPermission {
+  id         String   @id @default(cuid())
+  groupId    String
+  resource   String   // e.g., "processes", "workspaces", "users"
+  action     String   // e.g., "create", "read", "update", "delete"
+  conditions Json?    // Optional conditions for permission
+  createdAt  DateTime @default(now())
+
+  // Relations
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, resource, action])
+  @@map("group_permissions")
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  type        RoleType // INTERNE / EXTERNE
+  unitId      String?
+  color       String?
+  description String?
+
+  unit        Unit?               @relation(fields: [unitId], references: [id])
+  nodes       Node[]
+  assignments ProcessAssignment[]
+
+  @@map("roles")
+}
+
+model Unit {
+  id    String @id @default(cuid())
+  name  String @unique
+  roles Role[]
+
+  @@map("units")
+}
+
+enum RoleType {
+  INTERNE
+  EXTERNE
+}
+
+// ====================================
+// PROCESS HIERARCHY & VERSIONING
+// ====================================
+
+// Core Process Management
+model Process {
+  id              String               @id @default(cuid())
+  name            String
+  description     String?
+  type            ProcessType
+  level           Int                  @default(1) // 1=Processus, 2=Procédure, 3=Instruction, 4=Fiche
+  version         Int                  @default(1)
+  status          ProcessStatus        @default(DRAFT)
+  priority        ProcessPriority      @default(MEDIUM)
+  confidentiality ConfidentialityLevel @default(INTERNAL)
+  createdAt       DateTime             @default(now())
+  modifiedAt      DateTime             @updatedAt
+  publishedAt     DateTime?
+  archivedAt      DateTime?
+  nextReviewDate  DateTime? // For process review cycles
+
+  // Hierarchy
+  parentId String?
+  parent   Process?  @relation("ProcessHierarchy", fields: [parentId], references: [id])
+  children Process[] @relation("ProcessHierarchy")
+
+  // Organization
+  workspaceId  String
+  workspace    Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id])
+
+  // Metadata
+  authorName         String?
+  validatorName      String?
+  approverName       String?
+  applicationScope   String?
+  objectives         String?
+  resources          String?
+  indicators         String?
+  risks              String?
+  improvements       String?
+  documentationLinks String?
+  customFields       Json? // Flexible custom metadata
+
+  // Relations
+  createdById        String
+  createdBy          User                @relation("ProcessCreator", fields: [createdById], references: [id])
+  versions           ProcessVersion[]
+  currentDraftId     String?             @unique
+  currentDraft       ProcessVersion?     @relation("CurrentDraft", fields: [currentDraftId], references: [id])
+  currentPublishedId String?             @unique
+  currentPublished   ProcessVersion?     @relation("CurrentPublished", fields: [currentPublishedId], references: [id])
+  assignments        ProcessAssignment[]
+  comments           Comment[]
+  approvalRequests   ApprovalRequest[]
+  documents          Document[]
+  means              Mean[]
+  tags               ProcessTag[]
+  inputs             ProcessInput[]
+  outputs            ProcessOutput[]
+  journalEntries     JournalEntry[]
+  notifications      Notification[]
+
+  // Node relations
+  subProcessNodes  Node[] @relation("NodeSubProcess")
+  instructionNodes Node[] @relation("NodeInstruction")
+
+  @@unique([workspaceId, name, version])
+  @@index([workspaceId, status])
+  @@index([departmentId])
+  @@index([type, level])
+  @@map("processes")
+  sipocDiagrams      SipocDiagram[]
+  identityCard       ProcessIdentityCard?
+}
+
+enum ProcessPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+
+  @@map("process_priorities")
+}
+
+enum ConfidentialityLevel {
+  PUBLIC // Public processes
+  INTERNAL // Internal to Orange Group
+  RESTRICTED // Restricted to specific departments
+  CONFIDENTIAL // Highly confidential
+
+  @@map("confidentiality_levels")
+}
+
+enum ProcessType {
+  FLOW
+  SIPOC
+  BPMN
+}
+
+enum ProcessStatus {
+  DRAFT // En création
+  REVIEW
+  APPROVED
+  PUBLISHED
+  ARCHIVED
+}
+
+model ProcessVersion {
+  id         String        @id @default(cuid())
+  processId  String
+  version    Int
+  status     ProcessStatus
+  releasedAt DateTime?
+  changesLog String?
+  createdAt  DateTime      @default(now())
+
+  process   Process               @relation(fields: [processId], references: [id], onDelete: Cascade)
+  nodes     Node[]
+  edges     Edge[]
+  approvals ApprovalRequest[]
+  readings  ReadingConfirmation[]
+  paniers   Panier[]
+  layout    ProcessLayout? // ReactFlow layout configuration
+
+  // Draft relations
+  asDraft     Process[] @relation("CurrentDraft")
+  asPublished Process[] @relation("CurrentPublished")
+
+  @@unique([processId, version])
+  @@map("process_versions")
+}
+
+// ====================================
+// DIAGRAM NODES (PYX4 Lexique des formes)
+// ====================================
+
+model Node {
+  id          String   @id @default(cuid())
+  versionId   String
+  type        String
+  label       String
+  description String?
+
+  // ReactFlow Positioning & Layout
+  positionX Float  @default(0)
+  positionY Float  @default(0)
+  width     Float? @default(120)
+  height    Float? @default(80)
+  zIndex    Int?   @default(1)
+
+  // ReactFlow Handle Configuration
+  sourcePosition HandlePosition? @default(RIGHT)
+  targetPosition HandlePosition? @default(LEFT)
+  isConnectable  Boolean         @default(true)
+  isDraggable    Boolean         @default(true)
+  isSelectable   Boolean         @default(true)
+
+  // Custom Styling
+  style           Json? // Custom CSS styles
+  className       String? // CSS class names
+  backgroundColor String? // Background color
+  borderColor     String? // Border color
+  borderWidth     Int?    @default(1)
+  borderRadius    Int?    @default(4)
+  fontSize        Int?    @default(12)
+  fontColor       String? @default("#000000")
+  fontWeight      String? @default("normal")
+  opacity         Float?  @default(1.0)
+
+  // Icon & Visual Elements
+  icon         String? // Icon name or URL
+  iconPosition IconPosition? @default(LEFT)
+  iconSize     Int?          @default(16)
+  iconColor    String?
+
+  // Conditional Styling
+  hoverStyle    Json? // Styles when hovered
+  selectedStyle Json? // Styles when selected
+  errorStyle    Json? // Styles when in error state
+
+  // Animation & Effects
+  animation         String? // Animation type (pulse, shake, glow, etc.)
+  animationDuration Int?    @default(1000)
+  transition        String? // CSS transition properties
+
+  // Process Logic
+  roleId              String?
+  subProcessId        String?
+  isMacro             Boolean @default(false) // M. INSTRUCTION
+  isCollaborative     Boolean @default(false) // INSTRUCTION CO.
+  linkedDocumentId    String?
+  linkedInstructionId String?
+
+  // Business Rules & Validation
+  isRequired      Boolean @default(false)
+  validationRules Json? // Custom validation rules
+  businessRules   Json? // Business logic rules
+
+  // Timing & Performance
+  estimatedDuration Int? // Duration in minutes
+  actualDuration    Int? // Actual time taken
+  slaTime           Int? // SLA time limit
+
+  // Status & State
+  status       NodeStatus @default(ACTIVE)
+  isHidden     Boolean    @default(false)
+  isLocked     Boolean    @default(false)
+  lastModified DateTime   @default(now())
+
+  // Data & Context
+  data     Json? // Custom node data
+  metadata Json? // Additional metadata
+  tags     String[] // Node tags for filtering
+
+  // ReactFlow Groups & Layers
+  parentNodeId String? // For grouped nodes
+  groupId      String? // Group identifier
+  layerId      String? // Layer for z-ordering
+
+  // Relations
+  version           ProcessVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  role              Role?          @relation(fields: [roleId], references: [id])
+  subProcess        Process?       @relation("NodeSubProcess", fields: [subProcessId], references: [id])
+  linkedDocument    Document?      @relation("NodeDocument", fields: [linkedDocumentId], references: [id])
+  linkedInstruction Process?       @relation("NodeInstruction", fields: [linkedInstructionId], references: [id])
+  parentNode        Node?          @relation("NodeHierarchy", fields: [parentNodeId], references: [id])
+  childNodes        Node[]         @relation("NodeHierarchy")
+
+  outgoing Edge[] @relation("EdgeFrom")
+  incoming Edge[] @relation("EdgeTo")
+
+  constraints Constraint[]
+  controls    ControlIndicator[]
+  comments    Comment[] // Inline node comments
+
+  @@index([versionId])
+  @@index([type])
+  @@index([status])
+  @@index([groupId])
+  @@map("nodes")
+}
+
+enum NodeType {
+  // Start/End Events
+  START_EVENT // Start Event (circle)
+  END_EVENT // End Event (circle with thick border)
+  INTERMEDIATE_EVENT // Intermediate Event
+
+  // Activities
+  TASK // Basic task (rectangle)
+  USER_TASK // User task (person icon)
+  SERVICE_TASK // Service task (gear icon)
+  SCRIPT_TASK // Script task (script icon)
+  SEND_TASK // Send task (envelope icon)
+  RECEIVE_TASK // Receive task (envelope with arrow)
+  MANUAL_TASK // Manual task (hand icon)
+  BUSINESS_RULE_TASK // Business rule task (table icon)
+
+  // Subprocess
+  SUBPROCESS // Embedded subprocess
+  CALL_ACTIVITY // Call activity (external process)
+
+  // Gateways
+  EXCLUSIVE_GATEWAY // XOR Gateway (diamond with X)
+  INCLUSIVE_GATEWAY // OR Gateway (diamond with O)
+  PARALLEL_GATEWAY // AND Gateway (diamond with +)
+  EVENT_GATEWAY // Event-based gateway
+  COMPLEX_GATEWAY // Complex gateway
+
+  // Data Objects
+  DATA_OBJECT // Data object
+  DATA_STORE // Data store
+
+  // Participants
+  POOL // Pool (swimlane)
+  LANE // Lane within pool
+
+  // Artifacts
+  TEXT_ANNOTATION // Text annotation
+  GROUP // Group/frame
+
+  // Custom Orange-specific (backwards compatibility)
+  DEBUT // Start Event (legacy)
+  FIN // End Event (legacy)
+  INSTRUCTION // PYX4 Instruction
+  SOUS_PROCEDURE // Sub-process (legacy)
+  MACRO_INSTRUCTION // PYX4 Macro Instruction
+  INSTRUCTION_COLLAB // PYX4 Collaborative task
+  ACTION_AMONT // Upstream process
+  ACTION_AVAL // Downstream process
+  DOCUMENT_REF // Document reference
+  MOYEN_REF // Means reference
+
+  // ReactFlow Custom
+  INPUT_NODE // Custom input node
+  OUTPUT_NODE // Custom output node
+  CUSTOM_NODE // Fully custom node
+
+  @@map("node_types")
+}
+
+// ====================================
+// EDGES & LOGIC
+// ====================================
+
+model Edge {
+  id        String   @id @default(cuid())
+  versionId String
+  fromId    String
+  toId      String
+  type      String
+  label     String?
+
+  // ReactFlow Edge Configuration
+  animated Boolean @default(false)
+  hidden   Boolean @default(false)
+  selected Boolean @default(false)
+
+  // Styling
+  style           Json? // Custom CSS styles
+  className       String? // CSS class names
+  strokeColor     String? @default("#b1b1b7")
+  strokeWidth     Float?  @default(1.5)
+  strokeDasharray String? // Dash pattern for dashed lines
+
+  // Arrow/Marker Configuration
+  markerStart String? // Start marker type
+  markerEnd   String? @default("arrowclosed") // End marker type
+  markerSize  Int?    @default(20)
+
+  // Label Configuration
+  labelStyle          Json? // Label styling
+  labelShowBg         Boolean @default(true)
+  labelBgStyle        Json? // Label background styling
+  labelBgPadding      Json? // Label padding
+  labelBgBorderRadius Int?    @default(2)
+
+  // Path Configuration
+  pathType     PathType @default(SMOOTH_STEP)
+  sourceHandle String? // Source handle ID
+  targetHandle String? // Target handle ID
+
+  // Business Logic (backwards compatibility)
+  condition   String? // For conditional flows
+  isAnd       Boolean @default(true) // ET = true, OU = false
+  priority    Int?    @default(0)
+  probability Float? // Probability for stochastic flows
+  isDefault   Boolean @default(false) // Default flow from gateway
+
+  // Timing
+  estimatedTime Int? // Estimated transition time
+  actualTime    Int? // Actual transition time
+
+  // Status & Metadata
+  status   EdgeStatus @default(ACTIVE)
+  metadata Json? // Additional metadata
+  tags     String[] // Edge tags
+
+  // Relations
+  version ProcessVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  from    Node           @relation("EdgeFrom", fields: [fromId], references: [id], onDelete: Cascade)
+  to      Node           @relation("EdgeTo", fields: [toId], references: [id], onDelete: Cascade)
+
+  @@unique([versionId, fromId, toId])
+  @@index([versionId])
+  @@index([type])
+  @@index([status])
+  @@map("edges")
+}
+
+enum EdgeType {
+  // Basic Flow Types
+  SEQUENCE_FLOW // Normal sequence flow
+  CONDITIONAL_FLOW // Conditional sequence flow
+  DEFAULT_FLOW // Default flow from gateway
+
+  // Message Flows
+  MESSAGE_FLOW // Message flow between pools
+
+  // Association
+  ASSOCIATION // Association (dotted line)
+  DATA_ASSOCIATION // Data association
+
+  // Custom Flow Types
+  PARALLEL_FLOW // Parallel execution
+  EXCLUSIVE_FLOW // Exclusive choice
+  INCLUSIVE_FLOW // Inclusive choice
+
+  // Legacy (backwards compatibility)
+  SEQUENCE // Legacy sequence
+  CONDITION // Legacy condition
+  MESSAGE // Legacy message
+
+  // Orange-specific
+  CONTROL_FLOW // Control flow
+  DATA_FLOW // Data flow
+  RESOURCE_FLOW // Resource flow
+
+  @@map("edge_types")
+}
+
+// ReactFlow specific enums
+enum HandlePosition {
+  TOP
+  RIGHT
+  BOTTOM
+  LEFT
+
+  @@map("handle_positions")
+}
+
+enum IconPosition {
+  LEFT
+  RIGHT
+  TOP
+  BOTTOM
+  CENTER
+
+  @@map("icon_positions")
+}
+
+enum NodeStatus {
+  ACTIVE
+  INACTIVE
+  PENDING
+  COMPLETED
+  ERROR
+  WARNING
+
+  @@map("node_status")
+}
+
+enum PathType {
+  STRAIGHT // Straight line
+  SMOOTH_STEP // Smooth step (default)
+  STEP // Step
+  BEZIER // Bezier curve
+  SIMPLE_BEZIER // Simple bezier
+
+  @@map("path_types")
+}
+
+enum EdgeStatus {
+  ACTIVE
+  INACTIVE
+  CONDITIONAL
+  COMPLETED
+
+  @@map("edge_status")
+}
+
+enum LayoutDirection {
+  LEFT_TO_RIGHT // LR
+  RIGHT_TO_LEFT // RL
+  TOP_TO_BOTTOM // TB
+  BOTTOM_TO_TOP // BT
+
+  @@map("layout_directions")
+}
+
+enum MinimapPosition {
+  TOP_LEFT
+  TOP_RIGHT
+  BOTTOM_LEFT
+  BOTTOM_RIGHT
+
+  @@map("minimap_positions")
+}
+
+enum ControlsPosition {
+  TOP_LEFT
+  TOP_RIGHT
+  BOTTOM_LEFT
+  BOTTOM_RIGHT
+
+  @@map("controls_positions")
+}
+
+enum BackgroundType {
+  DOTS
+  LINES
+  CROSS
+  NONE
+
+  @@map("background_types")
+}
+
+// ====================================
+// REACTFLOW LAYOUT & CONFIGURATION
+// ====================================
+
+// ReactFlow Viewport and Layout Configuration
+model ProcessLayout {
+  id        String @id @default(cuid())
+  versionId String @unique
+
+  // Viewport Configuration
+  viewportX    Float @default(0)
+  viewportY    Float @default(0)
+  viewportZoom Float @default(1)
+
+  // Layout Settings
+  layoutDirection LayoutDirection @default(LEFT_TO_RIGHT)
+  nodeSpacing     Int             @default(50)
+  rankSpacing     Int             @default(100)
+
+  // Grid Configuration
+  snapToGrid Boolean @default(true)
+  gridSize   Int     @default(20)
+  showGrid   Boolean @default(true)
+
+  // Minimap Configuration
+  showMinimap     Boolean         @default(true)
+  minimapPosition MinimapPosition @default(BOTTOM_RIGHT)
+
+  // Controls Configuration
+  showControls     Boolean          @default(true)
+  controlsPosition ControlsPosition @default(BOTTOM_LEFT)
+
+  // Background
+  backgroundType  BackgroundType @default(DOTS)
+  backgroundColor String?        @default("#fafafa")
+
+  // Auto-layout Configuration
+  autoLayout      Boolean @default(false)
+  layoutAlgorithm String? @default("dagre") // dagre, elk, etc.
+
+  // Custom Settings
+  customSettings Json? // Additional layout settings
+
+  // Relations
+  version ProcessVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+
+  @@map("process_layouts")
+}
+
+// Node Templates for ReactFlow
+model NodeTemplate {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  category    String // "basic", "gateways", "events", "custom"
+  nodeType    String
+
+  // Default Styling
+  defaultStyle Json // Default styles
+  defaultSize  Json // Default width/height
+  icon         String? // Icon for template
+  thumbnail    String? // Template thumbnail
+
+  // Configuration
+  isCustom   Boolean @default(false)
+  isPublic   Boolean @default(true)
+  usageCount Int     @default(0)
+
+  // Organization
+  workspaceId String?
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  // Metadata
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String?
+  creator   User?    @relation(fields: [createdBy], references: [id])
+
+  @@unique([workspaceId, name])
+  @@index([category])
+  @@map("node_templates")
+}
+
+// ReactFlow Theme Configuration
+model ProcessTheme {
+  id          String  @id @default(cuid())
+  name        String
+  description String?
+
+  // Node Styling
+  nodeStyles Json // Default node styles by type
+
+  // Edge Styling  
+  edgeStyles Json // Default edge styles by type
+
+  // Colors
+  primaryColor   String @default("#1976d2")
+  secondaryColor String @default("#dc004e")
+  successColor   String @default("#388e3c")
+  errorColor     String @default("#d32f2f")
+  warningColor   String @default("#f57c00")
+
+  // Typography
+  fontFamily String @default("'Roboto', sans-serif")
+  fontSize   Json // Font sizes for different elements
+
+  // Layout
+  spacing      Json // Spacing configuration
+  borderRadius Json // Border radius configuration
+
+  // Organization
+  workspaceId String?
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  // Metadata
+  isDefault Boolean  @default(false)
+  isPublic  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([workspaceId, name])
+  @@map("process_themes")
+}
+
+// ====================================
+// PANIER (Messages / Data Flow)
+// ====================================
+
+model Panier {
+  id         String  @id @default(cuid())
+  versionId  String
+  name       String // e.g. "MSG: NP Request Cancel"
+  content    String?
+  sourceRole String? // RÔLE DEST/PROV
+  targetRole String?
+  isInput    Boolean @default(false)
+  isOutput   Boolean @default(false)
+
+  version ProcessVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+
+  @@map("paniers")
+}
+
+// ====================================
+// INPUTS / OUTPUTS
+// ====================================
+
+model ProcessInput {
+  id         String @id @default(cuid())
+  processId  String
+  trigger    String // "MSG: NP Request Cancel"
+  source     String // "Manage MNP FNP Port In OLU final (5/7)"
+  sourceRole String // "MNPC"
+
+  process Process @relation(fields: [processId], references: [id], onDelete: Cascade)
+
+  @@map("process_inputs")
+}
+
+model ProcessOutput {
+  id         String @id @default(cuid())
+  processId  String
+  output     String // "MSG: NP Request Cancel Complete"
+  target     String // "Manage MNP FNP Port In OLU final (7/7)"
+  targetRole String // "MNPC"
+
+  process Process @relation(fields: [processId], references: [id], onDelete: Cascade)
+
+  @@map("process_outputs")
+}
+
+// ====================================
+// CONSTRAINTS & CONTROLS
+// ====================================
+
+model Constraint {
+  id     String         @id @default(cuid())
+  nodeId String
+  type   ConstraintType
+  value  String // e.g. "24h", "100€"
+
+  node Node @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+
+  @@map("constraints")
+}
+
+enum ConstraintType {
+  DELAI // Time
+  QUANTITY
+  COST
+}
+
+model ControlIndicator {
+  id     String      @id @default(cuid())
+  nodeId String
+  type   ControlType
+
+  node Node @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+
+  @@map("control_indicators")
+}
+
+enum ControlType {
+  HYGIENE
+  ENVIRONNEMENT
+  QUALITE
+  SECURITE
+  REGLEMENTAIRE
+}
+
+// ====================================
+// DOCUMENTS & MEANS
+// ====================================
+
+model Document {
+  id        String  @id @default(cuid())
+  name      String
+  fileUrl   String
+  mimeType  String?
+  processId String?
+  nodeRefs  Node[]  @relation("NodeDocument")
+
+  process Process? @relation(fields: [processId], references: [id], onDelete: SetNull)
+
+  @@map("documents")
+}
+
+model Mean {
+  id        String  @id @default(cuid())
+  name      String // e.g. "Ordinateur", "Excel"
+  processId String?
+
+  process Process? @relation(fields: [processId], references: [id], onDelete: SetNull)
+
+  @@map("means")
+}
+
+// ====================================
+// COLLABORATION & DIFFUSION
+// ====================================
+
+model Comment {
+  id         String    @id @default(cuid())
+  content    String
+  isResolved Boolean   @default(false)
+  resolvedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  // Relations
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  processId String?
+  process   Process? @relation(fields: [processId], references: [id], onDelete: Cascade)
+  nodeId    String?
+  node      Node?    @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+
+  // Optional parent for threaded comments
+  parentId String?
+  parent   Comment?  @relation("CommentThread", fields: [parentId], references: [id])
+  replies  Comment[] @relation("CommentThread")
+
+  // Optional resolved by user
+  resolvedById String?
+  resolvedBy   User?   @relation("CommentResolver", fields: [resolvedById], references: [id])
+
+  @@index([processId])
+  @@index([nodeId])
+  @@index([userId])
+  @@map("comments")
+}
+
+model ApprovalRequest {
+  id        String         @id @default(cuid())
+  versionId String
+  userId    String
+  status    ApprovalStatus @default(PENDING)
+  comment   String?
+  createdAt DateTime       @default(now())
+
+  version   ProcessVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  user      User           @relation(fields: [userId], references: [id])
+  Process   Process?       @relation(fields: [processId], references: [id])
+  processId String?
+
+  @@unique([versionId, userId])
+  @@map("approval_requests")
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model ReadingConfirmation {
+  id          String   @id @default(cuid())
+  versionId   String
+  userId      String
+  confirmedAt DateTime @default(now())
+
+  version ProcessVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  user    User           @relation(fields: [userId], references: [id])
+
+  @@unique([versionId, userId])
+  @@map("reading_confirmations")
+}
+
+model ProcessAssignment {
+  id        String @id @default(cuid())
+  processId String
+  userId    String
+  roleId    String
+
+  process Process @relation(fields: [processId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id])
+  role    Role    @relation(fields: [roleId], references: [id])
+
+  @@unique([processId, userId, roleId])
+  @@map("process_assignments")
+}
+
+// ====================================
+// JOURNAL & AUDIT
+// ====================================
+
+model JournalEntry {
+  id        String   @id @default(cuid())
+  processId String
+  action    String // e.g. "Importé depuis le PYX4 Store"
+  actor     String // Name
+  date      DateTime
+  comment   String?
+
+  process Process @relation(fields: [processId], references: [id], onDelete: Cascade)
+
+  @@map("journal_entries")
+}
+
+// ====================================
+// SUPPORTING MODELS
+// ====================================
+
+model ProcessTag {
+  id          String   @id @default(cuid())
+  name        String
+  color       String? // Hex color for UI
+  description String?
+  createdAt   DateTime @default(now())
+
+  // Organization
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  // Relations
+  processes Process[]
+
+  @@unique([workspaceId, name])
+  @@map("process_tags")
+}
+
+// Templates and Standards
+model ProcessTemplate {
+  id          String      @id @default(cuid())
+  name        String
+  description String?
+  type        ProcessType
+  level       Int
+  template    Json // Template structure
+  isPublic    Boolean     @default(false)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // Organization
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  // Relations
+  createdById String
+  createdBy   User   @relation(fields: [createdById], references: [id])
+
+  @@unique([workspaceId, name])
+  @@map("process_templates")
+}
+
+// Audit and Compliance
+model AuditLog {
+  id         String      @id @default(cuid())
+  action     AuditAction
+  entityType String // "Process", "User", "Workspace", etc.
+  entityId   String
+  oldValues  Json? // Previous state
+  newValues  Json? // New state
+  metadata   Json? // Additional context
+  ipAddress  String?
+  userAgent  String?
+  timestamp  DateTime    @default(now())
+
+  // Relations
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@index([entityType, entityId])
+  @@index([userId])
+  @@index([timestamp])
+  @@map("audit_logs")
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  PUBLISH
+  ARCHIVE
+  APPROVE
+  REJECT
+  LOGIN
+  LOGOUT
+  EXPORT
+  IMPORT
+
+  @@map("audit_actions")
+}
+
+// Notification System
+model Notification {
+  id        String           @id @default(cuid())
+  type      NotificationType
+  title     String
+  message   String
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+  readAt    DateTime?
+
+  // Relations
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Optional process reference
+  processId String?
+  process   Process? @relation(fields: [processId], references: [id], onDelete: SetNull)
+
+  @@index([userId, isRead])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+enum NotificationType {
+  PROCESS_CREATED
+  PROCESS_UPDATED
+  PROCESS_PUBLISHED
+  PROCESS_ARCHIVED
+  APPROVAL_REQUESTED
+  APPROVAL_APPROVED
+  APPROVAL_REJECTED
+  COMMENT_ADDED
+  ASSIGNMENT_CREATED
+  REVIEW_DUE
+  WORKSPACE_INVITATION
+
+  @@map("notification_types")
+}
+model SipocDiagram {
+  sipoc_id           String            @id @default(uuid())
+  documentId         String            @unique @default(uuid()) @db.Uuid
+  title              String
+  description        String?
+  process_owner      String?
+  department         String?
+  status             String            @default("draft") // draft, published, archived
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  is_template        Boolean           @default(false)
+  createdBy          String
+  processId          String?
+  
+  // Relations
+  process            Process?          @relation(fields: [processId], references: [id])
+  user               User              @relation("UserSipoc", fields: [createdBy], references: [id])
+  elements           SipocElement[]
+  connections        SipocConnection[]
+  outgoingConnections SipocConnection[] @relation("FromSipoc")
+  incomingConnections SipocConnection[] @relation("ToSipoc")
+  history            SipocHistory[]
+  permissions        SipocPermission[] @relation("PermissionSipoc")
+  comments           SipocComment[]
+  tags               SipocTag[]
+  
+  @@index([status])
+  @@map("sipoc_diagrams")
+}
+
+model SipocElement {
+  id          String      @id @default(uuid())
+  documentId  String      @unique @default(uuid()) @db.Uuid
+  type        ElementType
+  title       String
+  description String
+  position    Int
+  globalOrder Int? // For ordering suppliers
+  flow_id     String? // Flow identifier for grouping elements
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // Type-specific fields (optional)
+  contactInfo     String? // For suppliers/customers
+  qualityCriteria String? // For outputs
+  responsibleRole String? // For process
+  duration        String? // For process
+  
+  // Relations
+  sipoc_id        String
+  sipoc           SipocDiagram      @relation(fields: [sipoc_id], references: [sipoc_id], onDelete: Cascade)
+  outgoing        SipocConnection[] @relation("FromElement")
+  incoming        SipocConnection[] @relation("ToElement")
+  
+  @@index([sipoc_id])
+  @@index([type])
+  @@map("sipoc_elements")
+}
+model SipocTag {
+  sipoc_id   String
+  tag_id     Int
+  documentId String @unique @default(uuid()) @db.Uuid
+
+  sipoc SipocDiagram @relation(fields: [sipoc_id], references: [sipoc_id])
+  tag   Tag          @relation(fields: [tag_id], references: [tag_id])
+
+  @@id([sipoc_id, tag_id])
+}
+
+model SipocConnection {
+  connection_id     String       @id @default(uuid())
+  documentId        String       @unique @default(uuid()) @db.Uuid
+  source_element_id String
+  target_element_id String
+  description       String?
+  status            String       @default("active")
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  
+  // Relations
+  sipoc_id          String
+  source_sipoc_id   String
+  target_sipoc_id   String
+  sipoc             SipocDiagram @relation(fields: [sipoc_id], references: [sipoc_id], onDelete: Cascade)
+  sourceSipoc       SipocDiagram @relation("FromSipoc", fields: [source_sipoc_id], references: [sipoc_id], onDelete: Cascade)
+  targetSipoc       SipocDiagram @relation("ToSipoc", fields: [target_sipoc_id], references: [sipoc_id], onDelete: Cascade)
+  sourceElement     SipocElement @relation("FromElement", fields: [source_element_id], references: [id], onDelete: Cascade)
+  targetElement     SipocElement @relation("ToElement", fields: [target_element_id], references: [id], onDelete: Cascade)
+  
+  @@index([sipoc_id])
+  @@index([source_sipoc_id])
+  @@index([target_sipoc_id])
+  @@index([source_element_id])
+  @@index([target_element_id])
+  @@map("sipoc_connections")
+}
+model SipocHistory {
+  history_id         Int          @id @default(autoincrement())
+  documentId         String       @unique @default(uuid()) @db.Uuid
+  sipoc_id           String
+  changed_by         String
+  changed_at         DateTime     @default(now())
+  change_description String?
+  change_type        String?
+  previous_state     Json?
+  new_state          Json?
+
+  sipoc      SipocDiagram @relation(fields: [sipoc_id], references: [sipoc_id], onDelete: Cascade)
+  changedBy  User         @relation("SipocHistoryUser", fields: [changed_by], references: [id])
+  
+  @@index([sipoc_id])
+  @@index([changed_at])
+  @@map("sipoc_history")
+}
+model SipocPermission {
+  permission_id    Int      @id @default(autoincrement())
+  documentId       String   @unique @default(uuid()) @db.Uuid
+  sipoc_id         String
+  user_id          String
+  permission_level String
+  granted_at       DateTime @default(now())
+  granted_by       String
+
+  sipoc     SipocDiagram @relation("PermissionSipoc", fields: [sipoc_id], references: [sipoc_id])
+  user      User         @relation("SipocPermissionUser", fields: [user_id], references: [id])
+  grantedBy User         @relation("SipocPermissionGrantedBy", fields: [granted_by], references: [id])
+
+  @@unique([sipoc_id, user_id])
+}
+model SipocComment {
+  comment_id        Int      @id @default(autoincrement())
+  documentId        String   @unique @default(uuid()) @db.Uuid
+  sipoc_id          String
+  user_id           String
+  comment_text      String
+  created_at        DateTime @default(now())
+  parent_comment_id Int?
+
+  sipoc         SipocDiagram   @relation(fields: [sipoc_id], references: [sipoc_id])
+  user          User           @relation("SipocCommentUser", fields: [user_id], references: [id])
+  parentComment SipocComment?  @relation("ReplyTo", fields: [parent_comment_id], references: [comment_id])
+  replies       SipocComment[] @relation("ReplyTo")
+}
+model Tag {
+  tag_id     Int        @id @default(autoincrement())
+  documentId String     @unique @default(uuid()) @db.Uuid
+  name       String     @unique
+  color      String?
+  sipocs     SipocTag[]
+}
+
+enum ElementType {
+  supplier
+  input
+  process
+  output
+  customer
+}
+
+// ====================================
+// PROCESS IDENTITY CARD (FIP)
+// ====================================
+
+model ProcessIdentityCard {
+  fip_id             String   @id @default(uuid())
+  documentId         String   @unique @default(uuid()) @db.Uuid
+  processId          String   @unique // One-to-one with Process
+  status             String   @default("draft") // draft, published, archived
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  createdBy          String
+
+  // FIP Specific Fields
+  objectives         String?  // Objectifs du processus
+  scope              String?  // Périmètre d'application
+  indicators         Json?   // Indicateurs de performance/KPIs
+  stakeholders       Json?   // Acteurs et responsabilités
+  risks              Json?   // Risques identifiés
+  opportunities      Json?   // Opportunités
+  resources          Json?   // Ressources nécessaires
+  performanceTargets Json?   // Cibles de performance
+
+  // Relations
+  process Process @relation(fields: [processId], references: [id], onDelete: Cascade)
+  user    User    @relation("UserFip", fields: [createdBy], references: [id])
+
+  @@index([processId])
+  @@index([status])
+  @@map("process_identity_cards")
+}

@@ -84,7 +84,7 @@ export const useSipocStore = create<SipocState>((set) => ({
 
       // Normalize elements if included
       if (diagram.sipocElements) {
-        const elementsMap = diagram.sipocElements.reduce((acc: Record<string, unknown>, element: Record<string, unknown>) => {
+        const elementsMap = diagram.sipocElements.reduce((acc: Record<string, SipocElement>, element: SipocElement) => {
           acc[element.id] = element;
           return acc;
         }, {} as Record<string, SipocElement>);
@@ -107,7 +107,7 @@ export const useSipocStore = create<SipocState>((set) => ({
 
       // Normalize elements if included
       if (diagram.sipocElements) {
-        const elementsMap = diagram.sipocElements.reduce((acc: Record<string, unknown>, element: Record<string, unknown>) => {
+        const elementsMap = diagram.sipocElements.reduce((acc: Record<string, SipocElement>, element: SipocElement) => {
           acc[element.id] = element;
           return acc;
         }, {} as Record<string, SipocElement>);
