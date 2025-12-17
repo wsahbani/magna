@@ -4,7 +4,7 @@
  * Supports all BPMN elements
  */
 
-import { useCallback, useState, useRef, useEffect } from 'react';
+import { useCallback, useState, useRef, useEffect, useMemo } from 'react';
 import {
   ReactFlow,
   Background,
@@ -31,6 +31,16 @@ import { findLaneAtPosition, calculateRelativePositionInLane } from '../utils/la
 import { ImageExtractionModal } from './ImageExtractionModal';
 import { useQueryClient } from '@tanstack/react-query';
 import { procedureFlowKeys } from '../hooks/useProcedureFlow';
+import type { FlowNode, Position, createNodeWithParent, removeNodeParent } from '../types/flow-node.types';
+import { isPoolNode } from '../types/flow-node.types';
+import { getBackgroundVariant } from '../../../components/FlowBuilder/utils/gridUtils';
+
+// Constants
+const BACKGROUND_GAP = 20;
+const BACKGROUND_SIZE = 1;
+const BACKGROUND_COLOR = '#ff6900';
+const PALETTE_WIDTH = 'w-72';
+const PROPERTIES_PANEL_WIDTH = 'w-80';
 
 interface ProcedureFlowDiagramProps {
   procedureId: string;
@@ -49,9 +59,14 @@ export function ProcedureFlowDiagram({
   const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null);
   const queryClient = useQueryClient();
   const [isImageExtractionModalOpen, setIsImageExtractionModalOpen] = useState(false);
+  const [gridSettings, setGridSettings] = useState({ snapToGrid: false, gridSize: 15, showGrid: true, backgroundPattern: 'dots' as const });
+  const [showHelperLines, setShowHelperLines] = useState(true);
 
-  // Get palette configuration for Procedure (level 3)
-  const paletteConfig = PaletteConfigFactory.createByEntityType('procedure');
+  // Get palette configuration for Procedure (level 3) - memoized
+  const paletteConfig = useMemo(
+    () => PaletteConfigFactory.createByEntityType('procedure'),
+    []
+  );
 
   // Use Zustand store for flow state
   const {
@@ -120,6 +135,12 @@ export function ProcedureFlowDiagram({
     togglePoolOrientation,
     updatePoolLabel,
   });
+
+  // Memoize pool nodes for performance
+  const poolNodes = useMemo(
+    () => nodes.filter((n) => (n.type === 'pool' || n.type === 'swimlane') && n.data?.lanes),
+    [nodes]
+  );
 
   // Update pool nodes with callbacks for SwimlaneNode component
   const updatePoolCallbacks = useCallback(() => {
@@ -227,6 +248,24 @@ export function ProcedureFlowDiagram({
     [deleteEdges, readOnly],
   );
 
+  // Handle change handle positions
+  const handleChangeHandlePosition = useCallback(
+    (sourcePos: 'top' | 'right' | 'bottom' | 'left', targetPos: 'top' | 'right' | 'bottom' | 'left') => {
+      if (!selectedNode) return;
+      
+      updateNode(selectedNode.id, {
+        data: {
+          ...selectedNode.data,
+          handlePositions: {
+            source: sourcePos,
+            target: targetPos,
+          },
+        },
+      });
+    },
+    [selectedNode, updateNode],
+  );
+
   const onNodeClick = useCallback(
     (_event: React.MouseEvent, node: Node) => {
       setSelectedNodes([node.id]);
@@ -296,12 +335,11 @@ export function ProcedureFlowDiagram({
 
       // Find if node is now inside a lane (lanes are in pool.data.lanes)
       // Use utility function for accurate lane detection
-      const pools = nodes.filter((n) => (n.type === 'pool' || n.type === 'swimlane') && n.data?.lanes);
       let newParentPool: Node | null = null;
       let newLaneId: string | null = null;
       let newLaneBounds: { x: number; y: number; width: number; height: number } | null = null;
 
-      for (const pool of pools) {
+      for (const pool of poolNodes) {
         const laneResult = findLaneAtPosition(
           pool,
           nodeAbsolutePosition.x,
@@ -375,7 +413,7 @@ export function ProcedureFlowDiagram({
         });
       }
     },
-    [nodes, updateNode, readOnly],
+    [poolNodes, updateNode, readOnly],
   );
 
   if (isLoading) {
@@ -390,7 +428,7 @@ export function ProcedureFlowDiagram({
     <div className="w-full h-full flex" style={{ height: '100%' }}>
       {/* Left Sidebar - Palette (hidden in readOnly mode) */}
       {!readOnly && (
-        <div className="w-72 bg-white border-r-2 border-gray-200 shadow-lg">
+        <div className={`${PALETTE_WIDTH} bg-white border-r-2 border-gray-200 shadow-lg`}>
           <Palette 
             onDragStart={onDragStart}
             allowedNodeTypes={paletteConfig.getAllowedNodeTypes()}
@@ -423,16 +461,20 @@ export function ProcedureFlowDiagram({
           nodesConnectable={!readOnly}
           elementsSelectable={!readOnly}
           deleteKeyCode={readOnly ? null : 'Delete'}
+          snapToGrid={gridSettings.snapToGrid}
+          snapGrid={[gridSettings.gridSize, gridSettings.gridSize]}
           fitView
           className="bg-gray-50"
         >
-          <Background
-            variant={BackgroundVariant.Dots}
-            gap={20}
-            size={1}
-            color="#ff6900"
-            className="bg-gray-50"
-          />
+          {gridSettings.showGrid && getBackgroundVariant(gridSettings.backgroundPattern) && (
+            <Background
+              variant={getBackgroundVariant(gridSettings.backgroundPattern)!}
+              gap={gridSettings.gridSize}
+              size={BACKGROUND_SIZE}
+              color={BACKGROUND_COLOR}
+              className="bg-gray-50"
+            />
+          )}
           <Controls
             showZoom={true}
             showFitView={true}
@@ -525,8 +567,13 @@ export function ProcedureFlowDiagram({
                     deleteEdges([selectedEdge.id]);
                   }
                 }}
+                onChangeHandlePosition={handleChangeHandlePosition}
+                onGridSettingsChange={setGridSettings}
+                onHelperLinesToggle={setShowHelperLines}
                 hasSelectedNode={!!selectedNode || !!selectedEdge}
                 selectedNodeCount={(selectedNode ? 1 : 0) + (selectedEdge ? 1 : 0)}
+                gridSettings={gridSettings}
+                showHelperLines={showHelperLines}
                 onAddPool={() => {
                   if (reactFlowInstance) {
                     const center = reactFlowInstance.screenToFlowPosition({
@@ -553,7 +600,7 @@ export function ProcedureFlowDiagram({
 
       {/* Right Sidebar - Properties Panel (hidden in readOnly mode) */}
       {!readOnly && (
-        <div className="w-80 bg-white border-l border-gray-200 overflow-y-auto">
+        <div className={`${PROPERTIES_PANEL_WIDTH} bg-white border-l border-gray-200 overflow-y-auto`}>
           <PropertiesPanel
             selectedNode={selectedNode}
             selectedEdge={selectedEdge}

@@ -26,6 +26,7 @@ import { Heading3, Body, Button } from '@repo/ui'
 import { GroupNode } from '../../../components/FlowBuilder/nodes/GroupNode'
 import { Toolbar } from '../../../components/FlowBuilder/Toolbar'
 import { useHierarchicalDrag } from '../../../hooks/useHierarchicalDrag'
+import { getBackgroundVariant } from '../../../components/FlowBuilder/utils/gridUtils'
 
 // Define node types with GroupNode
 const nodeTypes: NodeTypes = {
@@ -51,6 +52,8 @@ export function FlowEditor({
   const [selectedNode, setSelectedNode] = useState<Node | null>(null)
   const [selectedEdge, setSelectedEdge] = useState<Edge | null>(null)
   const [groupCounter, setGroupCounter] = useState(1)
+  const [gridSettings, setGridSettings] = useState({ snapToGrid: false, gridSize: 15, showGrid: true, backgroundPattern: 'dots' as const })
+  const [showHelperLines, setShowHelperLines] = useState(true)
   const { zoomIn, zoomOut, fitView } = useReactFlow()
 
   // Track selected nodes from ReactFlow's native selection
@@ -144,6 +147,32 @@ export function FlowEditor({
       setSelectedEdge(null)
     }
   }, [selectedEdge, setEdges])
+
+  // Handle change handle positions
+  const handleChangeHandlePosition = useCallback(
+    (sourcePos: 'top' | 'right' | 'bottom' | 'left', targetPos: 'top' | 'right' | 'bottom' | 'left') => {
+      if (!selectedNode) return;
+      
+      setNodes((nds) => 
+        nds.map((node) => {
+          if (node.id === selectedNode.id) {
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                handlePositions: {
+                  source: sourcePos,
+                  target: targetPos,
+                },
+              },
+            };
+          }
+          return node;
+        })
+      );
+    },
+    [selectedNode, setNodes],
+  );
 
   // Create group from selected nodes
   const createGroup = useCallback(() => {
@@ -274,18 +303,22 @@ export function FlowEditor({
         onNodeDrag={handleNodeDrag}
         onNodeDragStop={handleNodeDragStop}
         nodeTypes={nodeTypes}
+        snapToGrid={gridSettings.snapToGrid}
+        snapGrid={[gridSettings.gridSize, gridSettings.gridSize]}
         fitView
         attributionPosition="bottom-right"
         multiSelectionKeyCode="Control"
       >
         {/* Background pattern */}
-        <Background 
-          variant={BackgroundVariant.Dots} 
-          gap={20} 
-          size={1}
-          color="#ff6900"
-          className="bg-gray-50"
-        />
+        {gridSettings.showGrid && getBackgroundVariant(gridSettings.backgroundPattern) && (
+          <Background 
+            variant={getBackgroundVariant(gridSettings.backgroundPattern)!}
+            gap={gridSettings.gridSize} 
+            size={1}
+            color="#ff6900"
+            className="bg-gray-50"
+          />
+        )}
         
         {/* Controls (zoom, fit view, etc.) */}
         <Controls 
@@ -322,9 +355,14 @@ export function FlowEditor({
               onDelete={deleteNode}
               onGroup={createGroup}
               onUngroup={ungroupSelected}
+              onChangeHandlePosition={handleChangeHandlePosition}
+              onGridSettingsChange={setGridSettings}
+              onHelperLinesToggle={setShowHelperLines}
               hasSelectedNode={!!selectedNode}
               selectedNodeCount={selectedNodeCount}
               isGroupSelected={selectedNode?.type === 'group'}
+              gridSettings={gridSettings}
+              showHelperLines={showHelperLines}
             />
           </div>
         </Panel>
