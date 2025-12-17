@@ -75,7 +75,7 @@ export class ProcessMapImageExtractionService {
         imageBase64,
         mimeType,
         {
-          maxTokens: 3000, // Plus de tokens pour les images
+          maxTokens: 2000, // Limité pour respecter les crédits disponibles
           temperature: 0.7,
         },
       );

@@ -57,6 +57,9 @@ export function ProcessMapFlowDiagram({
   });
   const [showHelperLines, setShowHelperLines] = useState(true);
 
+  // State to track which container is currently highlighted during drag
+  const [highlightedContainerId, setHighlightedContainerId] = useState<string | null>(null);
+
   // Image extraction modal state
   const [isImageExtractionModalOpen, setIsImageExtractionModalOpen] = useState(false);
 
@@ -139,6 +142,185 @@ export function ProcessMapFlowDiagram({
     [reactFlowInstance, addNode, readOnly],
   );
 
+  // Helper function to check if a node is a container
+  const isContainerNode = useCallback((nodeType: string | undefined): boolean => {
+    // Only domainGroup is a container node
+    return nodeType === 'domainGroup'
+  }, [])
+
+  // Helper function to check if a dragged node intersects with a container
+  const checkNodeIntersection = useCallback((
+    draggedNode: Node,
+    containerNode: Node,
+    nodes: Node[]
+  ): boolean => {
+    // Calculate absolute position of the dragged node
+    let absoluteNodePosition = draggedNode.position;
+    if (draggedNode.parentId) {
+      const parent = nodes.find((n) => n.id === draggedNode.parentId);
+      if (parent) {
+        absoluteNodePosition = {
+          x: draggedNode.position.x + parent.position.x,
+          y: draggedNode.position.y + parent.position.y,
+        };
+      }
+    }
+
+    // Calculate container bounds
+    const containerBounds = {
+      x: containerNode.position.x,
+      y: containerNode.position.y,
+      width: (containerNode.width as number) || 200,
+      height: (containerNode.height as number) || 150,
+    };
+
+    // Calculate node bounds
+    const nodeBounds = {
+      x: absoluteNodePosition.x,
+      y: absoluteNodePosition.y,
+      width: (draggedNode.width as number) || 100,
+      height: (draggedNode.height as number) || 50,
+    };
+
+    // Check intersection (at least 50% overlap)
+    const overlapX = Math.max(0,
+      Math.min(nodeBounds.x + nodeBounds.width, containerBounds.x + containerBounds.width) -
+      Math.max(nodeBounds.x, containerBounds.x)
+    );
+    const overlapY = Math.max(0,
+      Math.min(nodeBounds.y + nodeBounds.height, containerBounds.y + containerBounds.height) -
+      Math.max(nodeBounds.y, containerBounds.y)
+    );
+    const overlapArea = overlapX * overlapY;
+    const nodeArea = nodeBounds.width * nodeBounds.height;
+
+    return overlapArea > nodeArea * 0.5;
+  }, []);
+
+  // Handle attaching a node to a container
+  const handleAttachNode = useCallback((nodeId: string, containerId: string) => {
+    if (readOnly) return;
+    
+    const node = nodes.find((n) => n.id === nodeId);
+    const container = nodes.find((n) => n.id === containerId);
+    if (!node || !container) return;
+
+    // Calculate absolute position of the node
+    let absolutePosition = node.position;
+    if (node.parentId) {
+      const currentParent = nodes.find((n) => n.id === node.parentId);
+      if (currentParent) {
+        absolutePosition = {
+          x: node.position.x + currentParent.position.x,
+          y: node.position.y + currentParent.position.y,
+        };
+      }
+    }
+
+    // Calculate relative position within container
+    const relativePosition = {
+      x: absolutePosition.x - container.position.x,
+      y: absolutePosition.y - container.position.y,
+    };
+
+    updateNode(nodeId, {
+      parentId: containerId,
+      position: relativePosition,
+      extent: 'parent' as const,
+      data: {
+        ...node.data,
+        parentNodeId: containerId,
+      },
+    } as any);
+  }, [nodes, updateNode, readOnly]);
+
+  // Handle detaching a node from its container
+  const handleDetachNode = useCallback((nodeId: string) => {
+    if (readOnly) return;
+    
+    const node = nodes.find((n) => n.id === nodeId);
+    if (!node || !node.parentId) return;
+
+    const parent = nodes.find((n) => n.id === node.parentId);
+    if (!parent) return;
+
+    // Convert relative position to absolute
+    const absolutePosition = {
+      x: node.position.x + parent.position.x,
+      y: node.position.y + parent.position.y,
+    };
+
+    updateNode(nodeId, {
+      parentId: undefined,
+      position: absolutePosition,
+      extent: undefined,
+      data: {
+        ...node.data,
+        parentNodeId: undefined,
+      },
+    } as any);
+  }, [nodes, updateNode, readOnly]);
+
+  // Handle node drag - highlight containers when node intersects with them
+  const onNodeDrag = useCallback(
+    (_event: React.MouseEvent, node: Node) => {
+      if (readOnly) return;
+      if (isContainerNode(node.type)) return;
+
+      const containerNodes = nodes.filter((n) =>
+        isContainerNode(n.type) && n.id !== node.id
+      );
+
+      // Find the container that intersects
+      const intersectingContainer = containerNodes.find((container) =>
+        checkNodeIntersection(node, container, nodes)
+      );
+
+      // Update highlight
+      if (intersectingContainer) {
+        if (highlightedContainerId !== intersectingContainer.id) {
+          // Reset old container
+          if (highlightedContainerId) {
+            const oldContainer = nodes.find((n) => n.id === highlightedContainerId);
+            if (oldContainer) {
+              updateNode(highlightedContainerId, {
+                data: {
+                  ...oldContainer.data,
+                  isHighlighted: false,
+                },
+              } as any);
+            }
+          }
+
+          // Highlight new container
+          updateNode(intersectingContainer.id, {
+            data: {
+              ...intersectingContainer.data,
+              isHighlighted: true,
+            },
+          } as any);
+
+          setHighlightedContainerId(intersectingContainer.id);
+        }
+      } else {
+        // No container intersects, reset
+        if (highlightedContainerId) {
+          const oldContainer = nodes.find((n) => n.id === highlightedContainerId);
+          if (oldContainer) {
+            updateNode(highlightedContainerId, {
+              data: {
+                ...oldContainer.data,
+                isHighlighted: false,
+              },
+            } as any);
+          }
+          setHighlightedContainerId(null);
+        }
+      }
+    },
+    [nodes, readOnly, isContainerNode, checkNodeIntersection, highlightedContainerId, updateNode]
+  );
+
   // Handle node drag stop - check if node was dropped on a container
   const onNodeDragStop = useCallback(
     (_event: React.MouseEvent, node: Node) => {
@@ -146,8 +328,8 @@ export function ProcessMapFlowDiagram({
       
       if (!reactFlowInstance) return;
 
-      // Skip if node is a container itself (domainGroup)
-      if (node.type === 'domainGroup') return;
+      // Skip if node is a container itself
+      if (isContainerNode(node.type)) return;
 
       // Get current node state from nodes array (may have been updated by ReactFlow)
       const currentNode = nodes.find((n) => n.id === node.id);
@@ -169,10 +351,10 @@ export function ProcessMapFlowDiagram({
         }
       }
 
-      // Find if node was dropped on a container node (domainGroup)
+      // Find if node was dropped on a container node
       const containerNodes = nodes.filter((n) => {
-        // Check if node type is domainGroup (container) and not the dragged node itself
-        if (n.type === 'domainGroup' && n.id !== node.id) {
+        // Check if node is a container and not the dragged node itself
+        if (isContainerNode(n.type) && n.id !== node.id) {
           const containerBounds = {
             x: n.position.x,
             y: n.position.y,
@@ -240,13 +422,41 @@ export function ProcessMapFlowDiagram({
           } as any);
         }
       }
+
+      // Reset highlight at the end of drag
+      if (highlightedContainerId) {
+        const highlightedContainer = nodes.find((n) => n.id === highlightedContainerId);
+        if (highlightedContainer) {
+          updateNode(highlightedContainerId, {
+            data: {
+              ...highlightedContainer.data,
+              isHighlighted: false,
+            },
+          } as any);
+        }
+        setHighlightedContainerId(null);
+      }
     },
-    [nodes, updateNode, reactFlowInstance, readOnly],
+    [nodes, updateNode, reactFlowInstance, readOnly, highlightedContainerId, setHighlightedContainerId],
   );
 
   // Handle node/edge selection with navigation for linked nodes
   const onNodeClick = useCallback(
     (_event: React.MouseEvent, node: Node) => {
+      if (readOnly) return;
+      
+      // Check if clicking on a container while another node is selected
+      if (isContainerNode(node.type) && reactFlowInstance) {
+        const selectedNodes = nodes.filter((n) => n.selected && n.id !== node.id && !isContainerNode(n.type));
+        
+        if (selectedNodes.length === 1) {
+          // Attach the selected node to this container
+          const selectedNode = selectedNodes[0];
+          handleAttachNode(selectedNode.id, node.id);
+          return; // Don't proceed with navigation
+        }
+      }
+      
       // Check if node has a linked process and we're in read-only mode or double-click
       const linkedProcessId = node.data?.linkedProcessId;
       const linkedProcessType = node.data?.linkedProcessType;
@@ -274,7 +484,7 @@ export function ProcessMapFlowDiagram({
       setSelectedEdges([]);
       onNodeSelect?.(node);
     },
-    [onNodeSelect, navigate, readOnly],
+    [onNodeSelect, navigate, readOnly, nodes, reactFlowInstance, isContainerNode, handleAttachNode, setSelectedNodes, setSelectedEdges],
   );
 
   const onEdgeClick = useCallback(
@@ -408,22 +618,198 @@ export function ProcessMapFlowDiagram({
     [nodes, addNode, updateNode, readOnly],
   );
 
-  // Enrich nodes with callbacks and readOnly for domainGroup nodes
+  /**
+   * Handle auto-layout for domainGroup children
+   * Arranges child nodes in a grid layout within the group
+   * Dynamically calculates spacing based on actual node dimensions to avoid overlaps
+   * 
+   * @param groupId - The ID of the domain group node
+   * @param options - Optional layout parameters:
+   *   - minHorizontalSpacing: Minimum space between nodes horizontally (default: 20px)
+   *   - minVerticalSpacing: Minimum space between nodes vertically (default: 20px)
+   *   - padding: Padding from group edges (default: 40px)
+   * 
+   * Layout parameters can also be set via group node data:
+   *   - layoutMinHorizontalSpacing
+   *   - layoutMinVerticalSpacing
+   *   - layoutPadding
+   * 
+   * Priority: options > groupNode.data > defaults
+   */
+  const handleAutoLayout = useCallback(
+    (groupId: string, options?: { minHorizontalSpacing?: number; minVerticalSpacing?: number; padding?: number }) => {
+      if (readOnly) return;
+
+      // Get the group node
+      const groupNode = nodes.find((n) => n.id === groupId);
+      if (!groupNode || groupNode.type !== 'domainGroup') return;
+
+      // Get all children of this group
+      const children = nodes.filter((n) => (n as any).parentId === groupId);
+      
+      if (children.length === 0) return;
+
+      // Layout constants - can be overridden via options or group node data
+      const PADDING: number = (options?.padding ?? groupNode.data?.layoutPadding ?? 40) as number; // Padding from group edges
+      const HEADER_HEIGHT: number = 60; // Height of the header with label
+      const MIN_HORIZONTAL_SPACING: number = (options?.minHorizontalSpacing ?? groupNode.data?.layoutMinHorizontalSpacing ?? 20) as number; // Minimum spacing between nodes horizontally
+      const MIN_VERTICAL_SPACING: number = (options?.minVerticalSpacing ?? groupNode.data?.layoutMinVerticalSpacing ?? 20) as number; // Minimum spacing between nodes vertically
+
+      // Default node dimensions if not specified
+      const DEFAULT_NODE_WIDTH = 140;
+      const DEFAULT_NODE_HEIGHT = 80;
+
+      // Get actual dimensions for each child node
+      const nodesWithDimensions = children.map((child) => {
+        const width = (child.width as number) || (child.data?.width as number) || DEFAULT_NODE_WIDTH;
+        const height = (child.height as number) || (child.data?.height as number) || DEFAULT_NODE_HEIGHT;
+        return {
+          ...child,
+          actualWidth: width,
+          actualHeight: height,
+        };
+      });
+
+      // Calculate optimal grid layout
+      const childCount = children.length;
+      const columns = Math.ceil(Math.sqrt(childCount));
+      const rows = Math.ceil(childCount / columns);
+
+      // Calculate max width per column and max height per row
+      const columnWidths: number[] = Array.from({ length: columns }, () => 0);
+      const rowHeights: number[] = Array.from({ length: rows }, () => 0);
+
+      nodesWithDimensions.forEach((node, index) => {
+        const col = index % columns;
+        const row = Math.floor(index / columns);
+        
+        columnWidths[col] = Math.max(columnWidths[col] || 0, node.actualWidth);
+        rowHeights[row] = Math.max(rowHeights[row] || 0, node.actualHeight);
+      });
+
+      // Calculate cumulative positions for each column and row
+      const columnPositions: number[] = [PADDING];
+      for (let i = 0; i < columns - 1; i++) {
+        const colWidth: number = columnWidths[i] ?? 0;
+        const currentPos: number = columnPositions[i] ?? 0;
+        columnPositions.push(
+          currentPos + colWidth + MIN_HORIZONTAL_SPACING
+        );
+      }
+
+      const rowPositions: number[] = [PADDING + HEADER_HEIGHT];
+      for (let i = 0; i < rows - 1; i++) {
+        const rowHeight: number = rowHeights[i] ?? 0;
+        const currentPos: number = rowPositions[i] ?? 0;
+        rowPositions.push(
+          currentPos + rowHeight + MIN_VERTICAL_SPACING
+        );
+      }
+
+      // Calculate required dimensions for the grid
+      const lastColIndex = columns - 1;
+      const lastRowIndex = rows - 1;
+      const lastColWidth: number = columnWidths[lastColIndex] ?? 0;
+      const lastRowHeight: number = rowHeights[lastRowIndex] ?? 0;
+      const lastColPos: number = columnPositions[lastColIndex] ?? 0;
+      const lastRowPos: number = rowPositions[lastRowIndex] ?? 0;
+      const totalWidth = lastColPos + lastColWidth + PADDING;
+      const totalHeight = lastRowPos + lastRowHeight + PADDING;
+
+      // Get group dimensions
+      const groupWidth = (groupNode.width as number) || 200;
+      const groupHeight = (groupNode.height as number) || 150;
+
+      // Update group size if needed
+      let finalGroupWidth = Math.max(groupWidth, totalWidth);
+      let finalGroupHeight = Math.max(groupHeight, totalHeight);
+      
+      if (finalGroupWidth !== groupWidth || finalGroupHeight !== groupHeight) {
+        updateNode(groupId, {
+          width: finalGroupWidth,
+          height: finalGroupHeight,
+        } as any);
+      }
+
+      // Calculate positions for each child node (centered within its grid cell)
+      nodesWithDimensions.forEach((node, index) => {
+        const col = index % columns;
+        const row = Math.floor(index / columns);
+        
+        // Center the node within its grid cell
+        const cellWidth = columnWidths[col];
+        const cellHeight = rowHeights[row];
+        
+        const relativeX = columnPositions[col] + (cellWidth - node.actualWidth) / 2;
+        const relativeY = rowPositions[row] + (cellHeight - node.actualHeight) / 2;
+
+        updateNode(node.id, {
+          position: {
+            x: relativeX,
+            y: relativeY,
+          },
+        } as any);
+      });
+    },
+    [nodes, updateNode, readOnly],
+  );
+
+  // Handle node style update
+  const handleNodeStyleUpdate = useCallback((nodeId: string, data: Partial<Node['data']>) => {
+    const node = nodes.find((n) => n.id === nodeId);
+    if (!node) return;
+
+    // Merge style properly if it exists in data (same as PropertiesPanel)
+    const updatedData = { ...node.data, ...data };
+    if (data.style && node.data?.style) {
+      updatedData.style = { ...node.data.style, ...data.style };
+    } else if (data.style) {
+      updatedData.style = data.style;
+    }
+    
+    updateNode(nodeId, {
+      data: updatedData,
+    } as any);
+  }, [nodes, updateNode]);
+
+  // Enrich nodes with callbacks, readOnly, and isContainer
   const enrichedNodes = useMemo(() => {
+    const containerNodes = nodes.filter((n) => isContainerNode(n.type));
+    
     return nodes.map((node) => {
+      const isContainer = isContainerNode(node.type)
+      const currentStyle = (node.data?.style as Record<string, any>) || {}
+      
       if (node.type === 'domainGroup') {
         return {
           ...node,
           data: {
             ...node.data,
+            isContainer: true,
             onAddMainProcess: handleAddMainProcessToGroup,
+            onAutoLayout: handleAutoLayout,
             readOnly,
           },
         };
       }
-      return node;
+      
+      // Add isContainer: false and attach/detach handlers to all other nodes
+      return {
+        ...node,
+        data: {
+          ...node.data,
+          isContainer: false,
+          onAttach: handleAttachNode,
+          onDetach: handleDetachNode,
+          availableContainers: containerNodes.filter((c) => c.id !== node.id),
+          parentId: node.parentId,
+          onNodeUpdate: handleNodeStyleUpdate,
+          currentStyle,
+          currentHandlePositions: node.data?.handlePositions as { source?: string; target?: string } | undefined,
+        },
+      };
     });
-  }, [nodes, handleAddMainProcessToGroup, readOnly]);
+  }, [nodes, handleAddMainProcessToGroup, handleAutoLayout, handleAttachNode, handleDetachNode, handleNodeStyleUpdate, readOnly, isContainerNode]);
 
   if (isLoading) {
     return (
@@ -457,6 +843,7 @@ export function ProcessMapFlowDiagram({
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
           onNodeClick={onNodeClick}
+          onNodeDrag={onNodeDrag}
           onNodeDragStop={onNodeDragStop}
           onEdgeClick={onEdgeClick}
           onPaneClick={onPaneClick}
@@ -480,8 +867,8 @@ export function ProcessMapFlowDiagram({
               variant={getBackgroundVariant(gridSettings.backgroundPattern)!}
               gap={gridSettings.gridSize}
               size={gridSettings.backgroundPattern === 'dots' ? 1 : 0.5}
-              color={gridSettings.backgroundPattern === 'lines' ? '#ddd' : '#ff6900'}
-              className="bg-gray-50"
+              color={gridSettings.backgroundPattern === 'lines' ? '#ddd' : '#000'}
+              className="bg-gray-100"
             />
           )}
 

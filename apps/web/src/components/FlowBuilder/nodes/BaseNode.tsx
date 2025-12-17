@@ -56,6 +56,12 @@ export interface CustomRenderProps {
   data: {
     label?: string
     description?: string
+    onAttach?: (nodeId: string, containerId: string) => void
+    onDetach?: (nodeId: string) => void
+    availableContainers?: Array<{ id: string; data?: { label?: string; [key: string]: any } }>
+    parentId?: string
+    onNodeUpdate?: (nodeId: string, data: Partial<any>) => void
+    currentStyle?: Record<string, any>
     [key: string]: any
   }
   selected: boolean
@@ -67,6 +73,7 @@ export interface CustomRenderProps {
   getShapeStyles: () => string
   width?: number | null
   height?: number | null
+  id: string
 }
 
 /**
@@ -231,7 +238,7 @@ export const createNode = (config: BaseNodeConfig) => {
       
       return (
         <div 
-          className={`${iconColor || 'text-current'} ${shape === 'circle' || shape === 'diamond' ? '' : 'flex-shrink-0'}`}
+          className={` ${iconColor || 'text-current'} ${shape === 'circle' || shape === 'diamond' ? '' : 'flex-shrink-0'}`}
           style={iconStyle}
         >
           {icon}
@@ -259,6 +266,7 @@ export const createNode = (config: BaseNodeConfig) => {
         fontSize: normalizeFontSize(nodeStyle.fontSize, '12px'),
         fontWeight: nodeStyle.fontWeight || '400',
         textAlign: (nodeStyle.textAlign || 'left') as any,
+        fontFamily: nodeStyle.fontFamily || undefined,
       }
 
       if (labelPosition === 'below') {
@@ -291,6 +299,7 @@ export const createNode = (config: BaseNodeConfig) => {
             ...labelStyle,
             fontSize: normalizeFontSize(nodeStyle.fontSize, '14px'), // text-sm
             fontWeight: nodeStyle.fontWeight || '500', // font-medium
+            fontFamily: nodeStyle.fontFamily || undefined,
             width: '100%', // Ensure full width for textAlign to work
           }}
         >
@@ -347,7 +356,7 @@ export const createNode = (config: BaseNodeConfig) => {
               maxWidth={maxWidth}
               maxHeight={maxHeight}
               color="#ff6600"
-              handleClassName="!bg-orange-500 !border-2 !border-white"
+              handleClassName="!w-5 !h-5 !bg-orange-500 !border-2 !border-white"
             />
           )}
           {customRender({
@@ -378,7 +387,7 @@ export const createNode = (config: BaseNodeConfig) => {
               maxWidth={maxWidth}
               maxHeight={maxHeight}
               color="#ff6600"
-              handleClassName="!bg-orange-500 !border-2 !border-white"
+              handleClassName="!w-5 !h-5 !bg-orange-500 !border-2 !border-white"
             />
           )}
           {renderHandles()}
@@ -406,7 +415,7 @@ export const createNode = (config: BaseNodeConfig) => {
             maxWidth={maxWidth}
             maxHeight={maxHeight}
             color="#000"
-            handleClassName="!bg-blue-500 !border-2 !border-blue-500 absolute"
+            handleClassName="!w-5 !h-5 !bg-blue-500 !border-2 !border-blue-500 absolute"
           />
         )}
         {renderHandles()}

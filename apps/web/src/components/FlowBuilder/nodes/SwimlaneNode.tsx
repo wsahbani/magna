@@ -46,7 +46,7 @@ const SwimlaneNode = memo(({ id, data, selected, width, height }: SwimlaneNodePr
               maxHeight={undefined}
               isVisible={selected}
               lineClassName="!border-orange-500 !pointer-events-auto"
-              handleClassName="!w-3 !h-3 !bg-orange-500 !border-2 !border-white !pointer-events-auto"
+              handleClassName="!w-5 !h-5 !bg-orange-500 !border-2 !border-white !pointer-events-auto"
             />
           </div>
         )}
@@ -233,7 +233,7 @@ const SwimlaneNode = memo(({ id, data, selected, width, height }: SwimlaneNodePr
             maxHeight={undefined}
             isVisible={selected}
             lineClassName="!border-orange-500 !pointer-events-auto"
-            handleClassName="!w-3 !h-3 !bg-orange-500 !border-2 !border-white !pointer-events-auto"
+            handleClassName="!w-5 !h-5 !bg-orange-500 !border-2 !border-white !pointer-events-auto"
           />
         </div>
       )}

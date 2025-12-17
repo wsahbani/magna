@@ -258,7 +258,7 @@ export function FlowBuilder({
             variant={backgroundVariant}
             gap={gridSettings.gridSize}
             size={gridSettings.backgroundPattern === 'dots' ? 1 : 0.5}
-            color={gridSettings.backgroundPattern === 'lines' ? '#ddd' : '#bbb'}
+            color={gridSettings.backgroundPattern === 'lines' ? '#ddd' : '#ddd'}
             className="bg-gray-50"
           />
         )}

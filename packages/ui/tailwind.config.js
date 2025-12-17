@@ -18,19 +18,27 @@ var config = {
         },
         extend: {
             colors: {
-                // Orange Group brand colors
+                // Orange Group Official Brand Colors
+                // Primary: #FF7900 | Black: #000000 | White: #FFFFFF
                 orange: {
-                    50: '#fff7ed',
-                    100: '#ffedd5',
-                    200: '#fed7aa',
-                    300: '#fdba74',
-                    400: '#fb923c',
-                    500: '#f97316', // Primary Orange
-                    600: '#ea580c',
-                    700: '#c2410c',
-                    800: '#9a3412',
-                    900: '#7c2d12',
-                    950: '#431407',
+                    50: '#FFF5EB', // Lightest tint
+                    100: '#FFE6CC', // Very light
+                    200: '#FFCC99', // Light
+                    300: '#FFB366', // Medium light
+                    400: '#FF9933', // Medium
+                    500: '#FF7900', // Official Orange Group Brand Color
+                    600: '#E66D00', // Hover state
+                    700: '#CC6100', // Pressed state
+                    800: '#994900', // Dark
+                    900: '#663000', // Darker
+                    950: '#331800', // Darkest
+                },
+                // Orange Group Semantic Colors
+                'brand': {
+                    orange: '#FF7900',
+                    black: '#000000',
+                    white: '#FFFFFF',
+                    gray: '#595959',
                 },
                 // Design system colors
                 border: "hsl(var(--border))",
@@ -73,8 +81,8 @@ var config = {
                 sm: "calc(var(--radius) - 4px)",
             },
             fontFamily: {
-                sans: ['Helvetica Neue', 'Helvetica', 'Arial', 'sans-serif'],
-                orange: ['Orange Helvetica', 'Helvetica Neue', 'Arial', 'sans-serif'],
+                sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+                orange: ['Inter', 'Helvetica Neue', 'Arial', 'sans-serif'],
             },
             keyframes: {
                 "accordion-down": {

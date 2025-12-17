@@ -80,7 +80,7 @@ export class ProcessImageExtractionService {
         imageBase64,
         mimeType,
         {
-          maxTokens: 2500, // Limité pour rester dans le budget (utilisateur peut se permettre ~2859 tokens)
+          maxTokens: 2000, // Limité pour respecter les crédits disponibles
           temperature: 0.7,
         },
       );

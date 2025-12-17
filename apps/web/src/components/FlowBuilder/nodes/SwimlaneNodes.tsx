@@ -75,7 +75,7 @@ export const PoolNode = memo(({ data, selected, width, height }: PoolNodeProps) 
           minWidth={600}
           minHeight={150}
           lineClassName="!border-orange-500"
-          handleClassName="!w-3 !h-3 !bg-orange-500 !border-2 !border-white"
+          handleClassName="!w-5 !h-5 !bg-orange-500 !border-2 !border-white"
         />
         
         <div 

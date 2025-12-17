@@ -129,6 +129,7 @@ import {
   DomainGroupNode,
   ActorDepartmentNode,
   ExternalEntityNode,
+  SimpleRectangleNode,
 } from './nodes/QualigramNodes'
 
 import { TextNode } from './nodes/TextNode'
@@ -291,6 +292,7 @@ export const nodeTypes: NodeTypes = {
   domainGroup: DomainGroupNode,
   actorDepartment: ActorDepartmentNode,
   externalEntity: ExternalEntityNode,
+  simpleRectangle: SimpleRectangleNode,
   
   // Text/Title node
   text: TextNode,

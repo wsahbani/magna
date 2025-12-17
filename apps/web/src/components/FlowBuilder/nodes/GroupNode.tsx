@@ -122,7 +122,7 @@ export const GroupNode = memo(({ data, selected }: NodeProps) => {
             maxWidth={2200}
             maxHeight={800}
             color="#ff6600"
-            handleClassName="!bg-orange-500 !border-2 !border-white !pointer-events-auto"
+            handleClassName="!w-5 !h-5 !bg-orange-500 !border-2 !border-white !pointer-events-auto"
             lineClassName="!border-orange-500 !pointer-events-auto"
           />
         </div>

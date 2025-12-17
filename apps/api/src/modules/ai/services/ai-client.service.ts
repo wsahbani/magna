@@ -12,20 +12,23 @@ import type { AIGenerateOptions, AIGenerateResponse } from '../interfaces/ai.int
 /**
  * Configuration du proxy LLM OpenRouter
  */
+
 const LLM_CONFIG = {
-  apiKey: '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',
-  baseURL: 'https://openrouter.ai/api/v1',
-  defaultModel: 'openai/gpt-4o-mini', // Utiliser gpt-4o-mini pour respecter le budget
+  apiKey: process.env.LLM_PROXY_API_KEY,
+  baseURL: process.env.LLM_PROXY_BASE_URL,
+  defaultModel: process.env.LLM_PROXY_DEFAULT_MODEL, // Utiliser gpt-4o-mini pour respecter le budget
 };
+
 
 @Injectable()
 export class AIClientService implements OnModuleInit {
   private readonly logger = new Logger(AIClientService.name);
   private openai: OpenAI | null = null;
   private readonly defaultModel: string;
-  private readonly defaultMaxTokens = 4000;
+  private readonly defaultMaxTokens = 2000; // Réduit pour respecter les limites de crédits
+  private readonly defaultVisionMaxTokens = 2000; // Limite spécifique pour les appels vision
   private readonly defaultTemperature = 0.7;
-
+  private readonly visionModel = process.env.LLM_PROXY_VISION_MODEL;
   constructor(private readonly configService: ConfigService) {
     // Utiliser gpt-4o-mini pour respecter le budget de $10/mois
     this.defaultModel = LLM_CONFIG.defaultModel;
@@ -104,6 +107,17 @@ export class AIClientService implements OnModuleInit {
       };
     } catch (error: any) {
       this.logger.error(`OpenAI API error: ${error.message}`, error.stack);
+      
+      // Gestion spécifique des erreurs de crédits OpenRouter
+      if (error.message?.includes('402') || error.message?.includes('credits')) {
+        const creditError = new Error(
+          `Crédits insuffisants pour cette requête. ${error.message}. ` +
+          `Réduisez maxTokens ou augmentez vos crédits sur https://openrouter.ai/settings/credits`
+        );
+        creditError.name = 'InsufficientCreditsError';
+        throw creditError;
+      }
+      
       throw new Error(`AI generation failed: ${error.message}`);
     }
   }
@@ -123,8 +137,8 @@ export class AIClientService implements OnModuleInit {
     }
 
     // Utiliser GPT-4o pour la vision (ou GPT-4o-2024-11-20 si disponible)
-    const visionModel = 'openai/gpt-4o';
-    const maxTokens = options.maxTokens || this.defaultMaxTokens;
+    const visionModel = this.visionModel;
+    const maxTokens = options.maxTokens || this.defaultVisionMaxTokens;
     const temperature = options.temperature ?? this.defaultTemperature;
 
     try {
@@ -182,6 +196,17 @@ export class AIClientService implements OnModuleInit {
       };
     } catch (error: any) {
       this.logger.error(`OpenAI Vision API error: ${error.message}`, error.stack);
+      
+      // Gestion spécifique des erreurs de crédits OpenRouter
+      if (error.message?.includes('402') || error.message?.includes('credits')) {
+        const creditError = new Error(
+          `Crédits insuffisants pour cette requête. ${error.message}. ` +
+          `Réduisez maxTokens ou augmentez vos crédits sur https://openrouter.ai/settings/credits`
+        );
+        creditError.name = 'InsufficientCreditsError';
+        throw creditError;
+      }
+      
       throw new Error(`AI vision generation failed: ${error.message}`);
     }
   }

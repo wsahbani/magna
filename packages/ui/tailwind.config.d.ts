@@ -25,6 +25,12 @@ declare const config: {
                     900: string;
                     950: string;
                 };
+                brand: {
+                    orange: string;
+                    black: string;
+                    white: string;
+                    gray: string;
+                };
                 border: string;
                 input: string;
                 ring: string;

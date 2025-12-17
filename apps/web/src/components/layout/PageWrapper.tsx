@@ -6,7 +6,7 @@
 import { ReactNode } from 'react';
 import { ChevronRight, Home } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
-import { Heading1, Body } from '@repo/ui';
+import { Heading1, Body, Heading2, Heading3 } from '@repo/ui';
 
 export interface BreadcrumbItem {
   label: string;
@@ -116,7 +116,7 @@ export const PageWrapper = ({
         {/* Header */}
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1">
-            <Heading1 className="text-gray-900">{title}</Heading1>
+            <Heading3 className="text-gray-900">{title}</Heading3>
             {description && (
               <Body className="text-gray-600 mt-1">{description}</Body>
             )}

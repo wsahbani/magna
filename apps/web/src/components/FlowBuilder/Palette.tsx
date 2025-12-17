@@ -396,7 +396,7 @@ export function Palette({
     Events: <Zap className="w-4 h-4" />,
     Tasks: <CheckSquare className="w-4 h-4" />,
     Gateways: <GitBranch className="w-4 h-4" />,
-    Processes: <Box className="w-4 h-4" />,
+    Processes: <Box className="w-10 h-10" />,
     Data: <Database className="w-4 h-4" />,
     Integration: <Globe className="w-4 h-4" />,
     Communication: <MessageSquare className="w-4 h-4" />,

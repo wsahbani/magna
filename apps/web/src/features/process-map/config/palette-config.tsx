@@ -113,6 +113,12 @@ export class ProcessMapPaletteConfig implements PaletteConfig {
       icon: <Users className="w-3 h-3 text-green-600" />,
       category: 'Structure',
     },
+    {
+      type: 'simpleRectangle',
+      label: 'Rectangle Simple',
+      icon: <Square className="w-3 h-3 text-gray-600" />,
+      category: 'Structure',
+    },
     // External Category
     {
       type: 'externalEntity',
@@ -130,7 +136,7 @@ export class ProcessMapPaletteConfig implements PaletteConfig {
   ];
 
   getAllowedNodeTypes(): string[] {
-    return ['mainProcess', 'supportProcess', 'managementProcess', 'domainGroup', 'actorDepartment', 'externalEntity', 'text'];
+    return ['mainProcess', 'supportProcess', 'managementProcess', 'domainGroup', 'actorDepartment', 'simpleRectangle', 'externalEntity', 'text'];
   }
 
   getNodeDefinitions(): PaletteNodeDefinition[] {
@@ -252,6 +258,13 @@ export class ProcessPaletteConfig implements PaletteConfig {
       icon: <Activity className="w-3 h-3 text-blue-600" />,
       category: 'Passerelles',
     },
+    // Formes Category
+    {
+      type: 'simpleRectangle',
+      label: 'Rectangle Simple',
+      icon: <Square className="w-3 h-3 text-gray-600" />,
+      category: 'Formes',
+    },
     // Text/Title Category
     {
       type: 'text',
@@ -279,6 +292,7 @@ export class ProcessPaletteConfig implements PaletteConfig {
       'parallelGateway',
       'inclusiveGateway',
       'eventBasedGateway',
+      'simpleRectangle',
       'text',
     ];
   }
@@ -288,7 +302,7 @@ export class ProcessPaletteConfig implements PaletteConfig {
   }
 
   getDefaultExpandedCategories(): string[] {
-    return ['Procédures', 'Événements', 'Tâches', 'Passerelles', 'Texte'];
+    return ['Procédures', 'Événements', 'Tâches', 'Passerelles', 'Formes', 'Texte'];
   }
 
   getTitle(): string {
@@ -524,6 +538,14 @@ export class ProcedurePaletteConfig implements PaletteConfig {
       category: 'Sous-Processus',
     },
     
+    // Formes Category
+    {
+      type: 'simpleRectangle',
+      label: 'Rectangle Simple',
+      icon: <Square className="w-3 h-3 text-gray-600" />,
+      category: 'Formes',
+    },
+    
     // Text/Title Category
     {
       type: 'text',
@@ -548,6 +570,8 @@ export class ProcedurePaletteConfig implements PaletteConfig {
       'gateway', 'exclusiveGateway', 'parallelGateway', 'inclusiveGateway', 'eventBasedGateway', 'complexGateway',
       // Subprocess
       'subprocess', 'adHocSubprocess', 'eventSubprocess',
+      // Formes
+      'simpleRectangle',
       // Text
       'text',
     ];
@@ -558,7 +582,7 @@ export class ProcedurePaletteConfig implements PaletteConfig {
   }
 
   getDefaultExpandedCategories(): string[] {
-    return ['Événements', 'Tâches', 'Passerelles', 'Sous-Processus', 'Texte'];
+    return ['Événements', 'Tâches', 'Passerelles', 'Sous-Processus', 'Formes', 'Texte'];
   }
 
   getTitle(): string {
