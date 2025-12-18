@@ -60,7 +60,7 @@ export interface GeneratedProcessStructure {
   }>;
   gateways?: Array<{
     id?: string;
-    type: 'exclusiveGateway' | 'parallelGateway' | 'inclusiveGateway' | 'eventBasedGateway';
+    type: 'gateway' | 'exclusiveGateway' | 'parallelGateway' | 'inclusiveGateway' | 'eventBasedGateway';
     label?: string;
     description?: string;
     position?: {

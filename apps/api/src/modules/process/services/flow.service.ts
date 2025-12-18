@@ -368,7 +368,7 @@ export class FlowService {
         data: {
           type: edge.type || 'SEQUENCE_FLOW',
           animated: edge.animated ?? false,
-          pathType: edge.pathType || 'SMOOTH_STEP',
+          pathType: edge.pathType || 'smoothstep',
           sourceHandle: edge.sourceHandle,
           targetHandle: edge.targetHandle,
           style: edge.style,
@@ -392,7 +392,7 @@ export class FlowService {
         data: {
           type: edge.type || 'SEQUENCE_FLOW',
           animated: edge.animated ?? false,
-          pathType: edge.pathType || 'SMOOTH_STEP',
+          pathType: edge.pathType || 'SMOOTHSTEP',
           sourceHandle: edge.sourceHandle,
           targetHandle: edge.targetHandle,
           style: edge.style,

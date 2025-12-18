@@ -98,6 +98,9 @@ export class ProcessImageExtractionService {
     const nodes: SaveNodeDto[] = [];
     const edges: any[] = [];
 
+    // Mapping des IDs temporaires de l'IA vers les IDs réels générés
+    const idMapping = new Map<string, string>();
+
     // Valeurs par défaut si l'IA ne fournit pas les positions/dimensions
     const DEFAULT_PROCEDURE_WIDTH = 160;
     const DEFAULT_PROCEDURE_HEIGHT = 70;
@@ -115,16 +118,21 @@ export class ProcessImageExtractionService {
     // Créer les événements de début et fin en premier
     const startEvents = structure.events?.filter((e) => e.type === 'startEvent') || [];
     const endEvents = structure.events?.filter((e) => e.type === 'endEvent') || [];
-    const intermediateEvents = structure.events?.filter((e) => e.type === 'intermediateEvent') || [];
+    // Événements intermédiaires incluent intermediateEvent, timerEvent, messageEvent
+    const intermediateEvents = structure.events?.filter((e) => 
+      e.type === 'intermediateEvent' || e.type === 'timerEvent' || e.type === 'messageEvent'
+    ) || [];
 
     // Start event
+    let startEventId: string;
     if (startEvents.length > 0) {
       const startEvent = startEvents[0];
       const x = startEvent.position?.x ?? currentX;
       const y = startEvent.position?.y ?? START_Y;
       const size = startEvent.dimensions?.width ?? DEFAULT_EVENT_SIZE;
+      startEventId = `${uniquePrefix}-startEvent`;
       nodes.push({
-        id: `${uniquePrefix}-startEvent`,
+        id: startEventId,
         type: 'startEvent',
         label: startEvent.label,
         description: startEvent.description,
@@ -136,11 +144,16 @@ export class ProcessImageExtractionService {
           description: startEvent.description,
         },
       });
+      // Mapper l'ID temporaire vers l'ID réel si fourni par l'IA
+      if (startEvent.id) {
+        idMapping.set(startEvent.id, startEventId);
+      }
       currentX = x + size + 50;
     } else {
       // Créer un startEvent par défaut
+      startEventId = `${uniquePrefix}-startEvent`;
       nodes.push({
-        id: `${uniquePrefix}-startEvent`,
+        id: startEventId,
         type: 'startEvent',
         label: 'Début',
         positionX: currentX,
@@ -149,6 +162,8 @@ export class ProcessImageExtractionService {
         height: DEFAULT_EVENT_SIZE,
         data: {},
       });
+      // Utiliser un ID temporaire par défaut pour le mapping
+      idMapping.set('start-1', startEventId);
       currentX += DEFAULT_EVENT_SIZE + 50;
     }
 
@@ -158,8 +173,9 @@ export class ProcessImageExtractionService {
       const y = procedure.position?.y ?? START_Y;
       const width = procedure.dimensions?.width ?? DEFAULT_PROCEDURE_WIDTH;
       const height = procedure.dimensions?.height ?? DEFAULT_PROCEDURE_HEIGHT;
+      const procedureId = `${uniquePrefix}-procedure-${index}`;
       nodes.push({
-        id: `${uniquePrefix}-procedure-${index}`,
+        id: procedureId,
         type: 'procedure',
         label: procedure.label,
         description: procedure.description,
@@ -171,6 +187,13 @@ export class ProcessImageExtractionService {
           description: procedure.description,
         },
       });
+      // Mapper l'ID temporaire vers l'ID réel si fourni par l'IA
+      if (procedure.id) {
+        idMapping.set(procedure.id, procedureId);
+      } else {
+        // Fallback: utiliser un ID basé sur l'index
+        idMapping.set(`proc-${index + 1}`, procedureId);
+      }
       currentX = Math.max(currentX, x + width + 50);
     });
 
@@ -180,9 +203,12 @@ export class ProcessImageExtractionService {
       const y = task.position?.y ?? START_Y;
       const width = task.dimensions?.width ?? DEFAULT_TASK_WIDTH;
       const height = task.dimensions?.height ?? DEFAULT_TASK_HEIGHT;
+      // Utiliser le type spécifique retourné par l'IA, ou 'task' par défaut
+      const taskType = task.type || 'task';
+      const taskId = `${uniquePrefix}-task-${index}`;
       nodes.push({
-        id: `${uniquePrefix}-task-${index}`,
-        type: 'task',
+        id: taskId,
+        type: taskType,
         label: task.label,
         description: task.description,
         positionX: x,
@@ -193,6 +219,13 @@ export class ProcessImageExtractionService {
           description: task.description,
         },
       });
+      // Mapper l'ID temporaire vers l'ID réel si fourni par l'IA
+      if (task.id) {
+        idMapping.set(task.id, taskId);
+      } else {
+        // Fallback: utiliser un ID basé sur l'index
+        idMapping.set(`task-${index + 1}`, taskId);
+      }
       currentX = Math.max(currentX, x + width + 50);
     });
 
@@ -201,9 +234,12 @@ export class ProcessImageExtractionService {
       const x = gateway.position?.x ?? currentX;
       const y = gateway.position?.y ?? START_Y;
       const size = gateway.dimensions?.width ?? DEFAULT_GATEWAY_SIZE;
+      // Utiliser le type spécifique retourné par l'IA, ou mapper 'gateway' générique à 'exclusiveGateway' par défaut
+      const gatewayType = gateway.type === 'gateway' ? 'exclusiveGateway' : gateway.type;
+      const gatewayId = `${uniquePrefix}-gateway-${index}`;
       nodes.push({
-        id: `${uniquePrefix}-gateway-${index}`,
-        type: gateway.type,
+        id: gatewayId,
+        type: gatewayType,
         label: gateway.label,
         description: gateway.description,
         positionX: x,
@@ -214,17 +250,27 @@ export class ProcessImageExtractionService {
           description: gateway.description,
         },
       });
+      // Mapper l'ID temporaire vers l'ID réel si fourni par l'IA
+      if (gateway.id) {
+        idMapping.set(gateway.id, gatewayId);
+      } else {
+        // Fallback: utiliser un ID basé sur l'index
+        idMapping.set(`gateway-${index + 1}`, gatewayId);
+      }
       currentX = Math.max(currentX, x + size + 50);
     });
 
-    // Créer les événements intermédiaires
+    // Créer les événements intermédiaires (intermediateEvent, timerEvent, messageEvent)
     intermediateEvents.forEach((event, index) => {
       const x = event.position?.x ?? currentX;
       const y = event.position?.y ?? START_Y;
       const size = event.dimensions?.width ?? DEFAULT_EVENT_SIZE;
+      // Utiliser le type spécifique retourné par l'IA
+      const eventType = event.type || 'intermediateEvent';
+      const eventId = `${uniquePrefix}-${eventType}-${index}`;
       nodes.push({
-        id: `${uniquePrefix}-intermediateEvent-${index}`,
-        type: 'intermediateEvent',
+        id: eventId,
+        type: eventType,
         label: event.label,
         description: event.description,
         positionX: x,
@@ -235,17 +281,26 @@ export class ProcessImageExtractionService {
           description: event.description,
         },
       });
+      // Mapper l'ID temporaire vers l'ID réel si fourni par l'IA
+      if (event.id) {
+        idMapping.set(event.id, eventId);
+      } else {
+        // Fallback: utiliser un ID basé sur l'index et le type
+        idMapping.set(`${eventType}-${index + 1}`, eventId);
+      }
       currentX = Math.max(currentX, x + size + 50);
     });
 
     // End event
+    let endEventId: string;
     if (endEvents.length > 0) {
       const endEvent = endEvents[0];
       const x = endEvent.position?.x ?? currentX;
       const y = endEvent.position?.y ?? START_Y;
       const size = endEvent.dimensions?.width ?? DEFAULT_EVENT_SIZE;
+      endEventId = `${uniquePrefix}-endEvent`;
       nodes.push({
-        id: `${uniquePrefix}-endEvent`,
+        id: endEventId,
         type: 'endEvent',
         label: endEvent.label,
         description: endEvent.description,
@@ -257,10 +312,15 @@ export class ProcessImageExtractionService {
           description: endEvent.description,
         },
       });
+      // Mapper l'ID temporaire vers l'ID réel si fourni par l'IA
+      if (endEvent.id) {
+        idMapping.set(endEvent.id, endEventId);
+      }
     } else {
       // Créer un endEvent par défaut
+      endEventId = `${uniquePrefix}-endEvent`;
       nodes.push({
-        id: `${uniquePrefix}-endEvent`,
+        id: endEventId,
         type: 'endEvent',
         label: 'Fin',
         positionX: currentX,
@@ -269,6 +329,48 @@ export class ProcessImageExtractionService {
         height: DEFAULT_EVENT_SIZE,
         data: {},
       });
+      // Utiliser un ID temporaire par défaut pour le mapping
+      idMapping.set('end-1', endEventId);
+    }
+
+    // Créer les edges en mappant les IDs temporaires vers les IDs réels
+    if (structure.edges && structure.edges.length > 0) {
+      structure.edges.forEach((edge, index) => {
+        const sourceId = idMapping.get(edge.source);
+        const targetId = idMapping.get(edge.target);
+
+        if (!sourceId || !targetId) {
+          this.logger.warn(
+            `Edge ignoré: source "${edge.source}" ou target "${edge.target}" non trouvé dans le mapping`,
+          );
+          return;
+        }
+
+        edges.push({
+          id: `${uniquePrefix}-edge-${index}`,
+          source: sourceId,
+          target: targetId,
+          label: edge.label,
+          type: edge.type || 'smoothstep',
+          data: edge.label ? { condition: edge.label } : undefined,
+        });
+      });
+      this.logger.log(`Created ${edges.length} edges from AI extraction`);
+    } else {
+      this.logger.warn('No edges provided by AI, creating sequential flow as fallback');
+      // Fallback: créer des edges séquentiels si l'IA n'a pas fourni d'edges
+      // Connecter startEvent → première procédure/tâche → ... → endEvent
+      if (nodes.length > 1) {
+        for (let i = 0; i < nodes.length - 1; i++) {
+          edges.push({
+            id: `${uniquePrefix}-edge-${i}`,
+            source: nodes[i].id,
+            target: nodes[i + 1].id,
+            type: 'smoothstep',
+          });
+        }
+        this.logger.log(`Created ${edges.length} sequential edges as fallback`);
+      }
     }
 
     // Si replaceExisting, supprimer les nodes existants d'abord
@@ -358,21 +460,26 @@ export class ProcessImageExtractionService {
 
       // Valider les tâches
       if (parsed.tasks) {
+        const validTaskTypes = ['task', 'userTask', 'serviceTask', 'manualTask', 'scriptTask'];
         for (const task of parsed.tasks) {
           if (!task.label) {
             throw new Error('Task missing label');
+          }
+          if (task.type && !validTaskTypes.includes(task.type)) {
+            throw new Error(`Invalid task type: ${task.type}. Valid types: ${validTaskTypes.join(', ')}`);
           }
         }
       }
 
       // Valider les événements
       if (parsed.events) {
+        const validEventTypes = ['startEvent', 'endEvent', 'intermediateEvent', 'timerEvent', 'messageEvent'];
         for (const event of parsed.events) {
           if (
             !event.type ||
-            !['startEvent', 'endEvent', 'intermediateEvent'].includes(event.type)
+            !validEventTypes.includes(event.type)
           ) {
-            throw new Error(`Invalid event type: ${event.type}`);
+            throw new Error(`Invalid event type: ${event.type}. Valid types: ${validEventTypes.join(', ')}`);
           }
           if (!event.label) {
             throw new Error('Event missing label');
@@ -382,12 +489,44 @@ export class ProcessImageExtractionService {
 
       // Valider les gateways
       if (parsed.gateways) {
+        const validGatewayTypes = ['gateway', 'exclusiveGateway', 'parallelGateway', 'inclusiveGateway', 'eventBasedGateway'];
         for (const gateway of parsed.gateways) {
           if (
             !gateway.type ||
-            !['exclusiveGateway', 'parallelGateway', 'inclusiveGateway'].includes(gateway.type)
+            !validGatewayTypes.includes(gateway.type)
           ) {
-            throw new Error(`Invalid gateway type: ${gateway.type}`);
+            throw new Error(`Invalid gateway type: ${gateway.type}. Valid types: ${validGatewayTypes.join(', ')}`);
+          }
+        }
+      }
+
+      // Valider les edges
+      if (parsed.edges) {
+        // Collecter tous les IDs temporaires des nœuds
+        const nodeIds = new Set<string>();
+        parsed.procedures?.forEach((p) => {
+          if (p.id) nodeIds.add(p.id);
+        });
+        parsed.tasks?.forEach((t) => {
+          if (t.id) nodeIds.add(t.id);
+        });
+        parsed.events?.forEach((e) => {
+          if (e.id) nodeIds.add(e.id);
+        });
+        parsed.gateways?.forEach((g) => {
+          if (g.id) nodeIds.add(g.id);
+        });
+
+        // Valider que chaque edge référence des IDs valides
+        for (const edge of parsed.edges) {
+          if (!edge.source || !edge.target) {
+            throw new Error('Edge missing source or target');
+          }
+          if (!nodeIds.has(edge.source)) {
+            throw new Error(`Edge source "${edge.source}" not found in nodes`);
+          }
+          if (!nodeIds.has(edge.target)) {
+            throw new Error(`Edge target "${edge.target}" not found in nodes`);
           }
         }
       }

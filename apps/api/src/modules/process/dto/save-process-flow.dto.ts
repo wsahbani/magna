@@ -1,6 +1,7 @@
-import { IsString, IsNotEmpty, IsArray, ValidateNested, IsOptional } from 'class-validator';
+import { IsString, IsNotEmpty, IsArray, ValidateNested, IsOptional, IsEnum } from 'class-validator';
 import { Type } from 'class-transformer';
 import { SaveNodeDto, SaveEdgeDto } from '../../process/dto/save-flow.dto';
+import { FlowDirection } from '@prisma/client';
 
 /**
  * DTO for saving Process FlowDiagram (level 2)
@@ -23,5 +24,9 @@ export class SaveProcessFlowDto {
   @IsOptional()
   @IsString()
   changesLog?: string; // Description of changes made
+
+  @IsOptional()
+  @IsEnum(FlowDirection)
+  flowDirection?: FlowDirection;
 }
 

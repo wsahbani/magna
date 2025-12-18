@@ -301,7 +301,7 @@ CREATE TABLE "edges" (
     "labelBgStyle" JSONB,
     "labelBgPadding" JSONB,
     "labelBgBorderRadius" INTEGER DEFAULT 2,
-    "pathType" "path_types" NOT NULL DEFAULT 'SMOOTH_STEP',
+    "pathType" "path_types" NOT NULL DEFAULT 'SMOOTHSTEP',
     "sourceHandle" TEXT,
     "targetHandle" TEXT,
     "condition" TEXT,

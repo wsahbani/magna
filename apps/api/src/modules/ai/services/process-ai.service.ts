@@ -475,9 +475,38 @@ export class ProcessAIService {
           source: sourceId,
           target: targetId,
           label: edge.label,
-          type: edge.type,
+          type: this.normalizeEdgeType(edge.type),
           data: edge.label ? { condition: edge.label } : undefined,
         });
+      });
+    }
+
+    // Repositionner les branches des gateways en parallèle pour une meilleure présentation
+    const gatewayBranches = this.analyzeGatewayBranches(repositionedNodes, edges);
+    if (gatewayBranches.size > 0) {
+      this.logger.log(
+        `Repositionnement parallèle: ${gatewayBranches.size} gateways avec branches multiples détectés`,
+      );
+      
+      gatewayBranches.forEach((branches, gatewayId) => {
+        const gateway = repositionedNodes.find((n) => n.id === gatewayId);
+        if (gateway) {
+          const parallelPositions = this.calculateParallelPositions(
+            gateway,
+            branches,
+            repositionedNodes,
+            flowDirection,
+          );
+          
+          // Appliquer les nouvelles positions aux nœuds des branches
+          parallelPositions.forEach((newPosition, nodeId) => {
+            const nodeIndex = repositionedNodes.findIndex((n) => n.id === nodeId);
+            if (nodeIndex !== -1) {
+              repositionedNodes[nodeIndex].positionX = newPosition.positionX;
+              repositionedNodes[nodeIndex].positionY = newPosition.positionY;
+            }
+          });
+        }
       });
     }
 
@@ -492,6 +521,136 @@ export class ProcessAIService {
     );
 
     return process;
+  }
+
+  /**
+   * Analyse les edges pour identifier les gateways et leurs branches sortantes
+   * Retourne une map des gateways vers leurs nœuds cibles
+   */
+  private analyzeGatewayBranches(
+    nodes: SaveNodeDto[],
+    edges: Array<{ source: string; target: string; label?: string }>,
+  ): Map<string, Array<{ nodeId: string; edgeLabel?: string }>> {
+    const gatewayBranches = new Map<string, Array<{ nodeId: string; edgeLabel?: string }>>();
+
+    // Identifier les gateways (nœuds avec type contenant "Gateway")
+    const gatewayNodes = nodes.filter((node) =>
+      node.type?.toLowerCase().includes('gateway'),
+    );
+
+    // Pour chaque gateway, trouver toutes les edges sortantes
+    gatewayNodes.forEach((gateway) => {
+      const outgoingEdges = edges.filter((edge) => edge.source === gateway.id);
+      
+      // Si le gateway a plusieurs branches sortantes (au moins 2), l'ajouter à la map
+      if (outgoingEdges.length >= 2) {
+        const branches = outgoingEdges.map((edge) => ({
+          nodeId: edge.target,
+          edgeLabel: edge.label,
+        }));
+        gatewayBranches.set(gateway.id, branches);
+      }
+    });
+
+    return gatewayBranches;
+  }
+
+  /**
+   * Calcule les positions parallèles pour les branches d'un gateway
+   * Retourne une map des IDs de nœuds vers leurs nouvelles positions
+   */
+  private calculateParallelPositions(
+    gateway: SaveNodeDto,
+    branches: Array<{ nodeId: string; edgeLabel?: string }>,
+    nodes: SaveNodeDto[],
+    flowDirection: 'horizontal' | 'vertical',
+  ): Map<string, { positionX: number; positionY: number }> {
+    const positions = new Map<string, { positionX: number; positionY: number }>();
+    
+    if (branches.length === 0) {
+      return positions;
+    }
+
+    const gatewayX = gateway.positionX;
+    const gatewayY = gateway.positionY;
+    const gatewayWidth = gateway.width || 55;
+    const gatewayHeight = gateway.height || 55;
+
+    // Espacement entre le gateway et les branches
+    const spacingAfterGateway = 100;
+    
+    // Espacement entre les branches parallèles
+    const branchSpacing = 180;
+
+    if (flowDirection === 'horizontal') {
+      // Flow horizontal : branches en parallèle verticalement
+      const startX = gatewayX + gatewayWidth + spacingAfterGateway;
+      
+      // Calculer le Y de départ pour centrer les branches autour du gateway
+      const totalHeight = (branches.length - 1) * branchSpacing;
+      const startY = gatewayY - totalHeight / 2;
+
+      branches.forEach((branch, index) => {
+        const branchNode = nodes.find((n) => n.id === branch.nodeId);
+        if (branchNode) {
+          const branchHeight = branchNode.height || 60;
+          const branchY = startY + index * branchSpacing;
+          
+          // Centrer verticalement la branche
+          const centeredY = branchY - branchHeight / 2 + gatewayHeight / 2;
+          
+          positions.set(branch.nodeId, {
+            positionX: startX,
+            positionY: centeredY,
+          });
+        }
+      });
+    } else {
+      // Flow vertical : branches en parallèle horizontalement
+      const startY = gatewayY + gatewayHeight + spacingAfterGateway;
+      
+      // Calculer le X de départ pour centrer les branches autour du gateway
+      const totalWidth = (branches.length - 1) * branchSpacing;
+      const startX = gatewayX - totalWidth / 2;
+
+      branches.forEach((branch, index) => {
+        const branchNode = nodes.find((n) => n.id === branch.nodeId);
+        if (branchNode) {
+          const branchWidth = branchNode.width || 140;
+          const branchX = startX + index * branchSpacing;
+          
+          // Centrer horizontalement la branche
+          const centeredX = branchX - branchWidth / 2 + gatewayWidth / 2;
+          
+          positions.set(branch.nodeId, {
+            positionX: centeredX,
+            positionY: startY,
+          });
+        }
+      });
+    }
+
+    return positions;
+  }
+
+  /**
+   * Normalise le type d'edge pour s'assurer qu'il est compatible avec ReactFlow
+   * Convertit les variantes comme "smooth_step" en "smoothstep"
+   */
+  private normalizeEdgeType(type?: string): string {
+    if (!type) return 'smoothstep';
+    
+    const normalized = type.toLowerCase().replace(/[_-]/g, '');
+    
+    // Types valides pour ReactFlow
+    const validTypes = ['smoothstep', 'straight', 'step', 'bezier'];
+    
+    if (validTypes.includes(normalized)) {
+      return normalized;
+    }
+    
+    // Par défaut, utiliser smoothstep
+    return 'smoothstep';
   }
 
   /**

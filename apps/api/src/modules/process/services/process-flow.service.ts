@@ -52,6 +52,7 @@ export class ProcessFlowService {
         diagramId: null,
         nodes: [],
         edges: [],
+        flowDirection: 'HORIZONTAL' as const,
       };
     }
     
@@ -60,6 +61,7 @@ export class ProcessFlowService {
       diagramId: flowDiagram.id,
       nodes: flowDiagram.nodes.map(this.mapFlowNodeToReactFlow),
       edges: flowDiagram.edges.map(this.mapFlowEdgeToReactFlow),
+      flowDirection: flowDiagram.flowDirection,
     };
   }
 
@@ -103,7 +105,14 @@ export class ProcessFlowService {
           level: 2,
           processId: saveFlowDto.processId, // Generic field for unique constraint
           processId_ref: saveFlowDto.processId, // Specific relation to Process
+          flowDirection: saveFlowDto.flowDirection || 'HORIZONTAL',
         },
+      });
+    } else if (saveFlowDto.flowDirection !== undefined) {
+      // Update flowDirection if provided
+      flowDiagram = await this.prisma.flowDiagram.update({
+        where: { id: flowDiagram.id },
+        data: { flowDirection: saveFlowDto.flowDirection },
       });
     }
 
@@ -374,7 +383,7 @@ export class ProcessFlowService {
         data: {
           type: edge.type || 'SEQUENCE_FLOW',
           animated: edge.animated ?? false,
-          pathType: edge.pathType || 'SMOOTH_STEP',
+          pathType: edge.pathType || 'smoothstep',
           sourceHandle: edge.sourceHandle,
           targetHandle: edge.targetHandle,
           style: edge.style,
@@ -398,7 +407,7 @@ export class ProcessFlowService {
         data: {
           type: edge.type || 'SEQUENCE_FLOW',
           animated: edge.animated ?? false,
-          pathType: edge.pathType || 'SMOOTH_STEP',
+          pathType: edge.pathType || 'SMOOTHSTEP',
           sourceHandle: edge.sourceHandle,
           targetHandle: edge.targetHandle,
           style: edge.style,

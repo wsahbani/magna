@@ -66,7 +66,7 @@ model Department {
 
   // Relations
   workspaceId String
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspace   Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   users       User[]
   processMaps ProcessMap[]
   processes   Process[]
@@ -167,34 +167,34 @@ model User {
   group   Group?  @relation(fields: [groupId], references: [id])
 
   // Relations
-  departmentId            String?
-  department              Department?           @relation(fields: [departmentId], references: [id])
-  workspaceMembers        WorkspaceMember[]
-  createdProcessMaps      ProcessMap[]          @relation("ProcessMapCreator")
-  createdProcesses        Process[]             @relation("ProcessCreator")
-  createdProcedures        Procedure[]           @relation("ProcedureCreator")
-  ownedProcesses          Process[]             @relation("ProcessOwners")
-  comments                Comment[]
-  commentResolutions      Comment[]             @relation("CommentResolver")
-  approvals               ApprovalRequest[]
-  validationRequestsRequested ProcessValidationRequest[] @relation("ValidationRequestedBy")
-  validationRequestsToValidate ProcessValidationRequest[] @relation("ValidationValidator")
-  processMapValidationRequestsRequested ProcessMapValidationRequest[] @relation("ProcessMapValidationRequestedBy")
+  departmentId                           String?
+  department                             Department?                   @relation(fields: [departmentId], references: [id])
+  workspaceMembers                       WorkspaceMember[]
+  createdProcessMaps                     ProcessMap[]                  @relation("ProcessMapCreator")
+  createdProcesses                       Process[]                     @relation("ProcessCreator")
+  createdProcedures                      Procedure[]                   @relation("ProcedureCreator")
+  ownedProcesses                         Process[]                     @relation("ProcessOwners")
+  comments                               Comment[]
+  commentResolutions                     Comment[]                     @relation("CommentResolver")
+  approvals                              ApprovalRequest[]
+  validationRequestsRequested            ProcessValidationRequest[]    @relation("ValidationRequestedBy")
+  validationRequestsToValidate           ProcessValidationRequest[]    @relation("ValidationValidator")
+  processMapValidationRequestsRequested  ProcessMapValidationRequest[] @relation("ProcessMapValidationRequestedBy")
   processMapValidationRequestsToValidate ProcessMapValidationRequest[] @relation("ProcessMapValidationValidator")
-  procedureValidationRequestsRequested ProcedureValidationRequest[] @relation("ProcedureValidationRequestedBy")
-  procedureValidationRequestsToValidate ProcedureValidationRequest[] @relation("ProcedureValidationValidator")
-  readings                ReadingConfirmation[]
-  assignments             ProcessAssignment[]
-  auditLogs               AuditLog[]
-  notifications           Notification[]
-  createdTemplates        ProcessTemplate[]
-  nodeTemplates           NodeTemplate[] // Created node templates
-  sipocDiagrams           SipocDiagram[]        @relation("UserSipoc")
-  sipocHistory            SipocHistory[]        @relation("SipocHistoryUser")
-  sipocPermissions        SipocPermission[]     @relation("SipocPermissionUser")
-  sipocPermissionsGranted SipocPermission[]     @relation("SipocPermissionGrantedBy")
-  sipocComments           SipocComment[]        @relation("SipocCommentUser")
-  fipCards                ProcessIdentityCard[] @relation("UserFip")
+  procedureValidationRequestsRequested   ProcedureValidationRequest[]  @relation("ProcedureValidationRequestedBy")
+  procedureValidationRequestsToValidate  ProcedureValidationRequest[]  @relation("ProcedureValidationValidator")
+  readings                               ReadingConfirmation[]
+  assignments                            ProcessAssignment[]
+  auditLogs                              AuditLog[]
+  notifications                          Notification[]
+  createdTemplates                       ProcessTemplate[]
+  nodeTemplates                          NodeTemplate[] // Created node templates
+  sipocDiagrams                          SipocDiagram[]                @relation("UserSipoc")
+  sipocHistory                           SipocHistory[]                @relation("SipocHistoryUser")
+  sipocPermissions                       SipocPermission[]             @relation("SipocPermissionUser")
+  sipocPermissionsGranted                SipocPermission[]             @relation("SipocPermissionGrantedBy")
+  sipocComments                          SipocComment[]                @relation("SipocCommentUser")
+  fipCards                               ProcessIdentityCard[]         @relation("UserFip")
 
   @@map("users")
 }
@@ -270,43 +270,43 @@ enum RoleType {
 
 // ProcessMap (Niveau 1) - Carte des processus
 model ProcessMap {
-  id          String   @id @default(cuid())
+  id          String        @id @default(cuid())
   title       String
   description String?
-  code        String   @unique
+  code        String        @unique
   status      ProcessStatus @default(DRAFT)
-  
+
   // Organisation
-  workspaceId String
-  workspace  Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId  String
+  workspace    Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   departmentId String?
-  department Department? @relation(fields: [departmentId], references: [id])
-  
+  department   Department? @relation(fields: [departmentId], references: [id])
+
   // Métadonnées
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
   publishedAt DateTime?
   archivedAt  DateTime?
-  
+
   // Relations
   createdById String
-  createdBy   User     @relation("ProcessMapCreator", fields: [createdById], references: [id])
-  
+  createdBy   User   @relation("ProcessMapCreator", fields: [createdById], references: [id])
+
   // Relations hiérarchiques
-  processes   Process[]      // Enfants (Process niveau 2)
-  
+  processes Process[] // Enfants (Process niveau 2)
+
   // Relations diagram
-  flowDiagram FlowDiagram?   // Diagram associé (level=1)
-  
+  flowDiagram FlowDiagram? // Diagram associé (level=1)
+
   // Relations collaboration
-  comments    Comment[]
-  documents   Document[]
-  means       Mean[]
-  tags        ProcessTag[]
-  journalEntries JournalEntry[]
-  notifications Notification[]
+  comments           Comment[]
+  documents          Document[]
+  means              Mean[]
+  tags               ProcessTag[]
+  journalEntries     JournalEntry[]
+  notifications      Notification[]
   validationRequests ProcessMapValidationRequest[]
-  
+
   @@index([workspaceId])
   @@index([status])
   @@index([code])
@@ -315,80 +315,80 @@ model ProcessMap {
 
 // Process (Niveau 2) - Processus métier
 model Process {
-  id          String   @id @default(cuid())
+  id          String        @id @default(cuid())
   title       String
   description String?
   code        String
-  type        ProcessType @default(FLOW) // FLOW ou SIPOC
+  type        ProcessType   @default(FLOW) // FLOW ou SIPOC
   status      ProcessStatus @default(DRAFT)
-  
+
   // Hiérarchie
   processMapId String
-  processMap  ProcessMap @relation(fields: [processMapId], references: [id], onDelete: Cascade)
-  
+  processMap   ProcessMap @relation(fields: [processMapId], references: [id], onDelete: Cascade)
+
   // Organisation
-  workspaceId String
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId  String
+  workspace    Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   departmentId String?
-  department  Department? @relation(fields: [departmentId], references: [id])
-  
+  department   Department? @relation(fields: [departmentId], references: [id])
+
   // Champs spécifiques Niveau 2
   objectif        String?
   perimetre       String?
   finalite        String?
-  priority        ProcessPriority? @default(MEDIUM)
+  priority        ProcessPriority?      @default(MEDIUM)
   confidentiality ConfidentialityLevel? @default(INTERNAL)
   reviewFrequency Int?
-  
+
   // Métadonnées
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  publishedAt     DateTime?
-  archivedAt      DateTime?
-  nextReviewDate  DateTime?
-  approvalDate    DateTime?
-  
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  publishedAt    DateTime?
+  archivedAt     DateTime?
+  nextReviewDate DateTime?
+  approvalDate   DateTime?
+
   // Relations
   createdById String
-  createdBy   User     @relation("ProcessCreator", fields: [createdById], references: [id])
-  owners      User[]   @relation("ProcessOwners")
-  
+  createdBy   User   @relation("ProcessCreator", fields: [createdById], references: [id])
+  owners      User[] @relation("ProcessOwners")
+
   // Relations hiérarchiques
-  procedures  Procedure[]    // Enfants (Procedure niveau 3)
-  
+  procedures Procedure[] // Enfants (Procedure niveau 3)
+
   // Relations spécifiques Niveau 2
-  actors          ProcessActor[]
-  processIOs      ProcessIO[]
+  actors            ProcessActor[]
+  processIOs        ProcessIO[]
   processIndicators Indicator[]
-  processRisks    Risk[]
-  linkedDocs      LinkedDocument[]
-  qualigramTags  ProcessQualigramTag[]
-  identityCard    ProcessIdentityCard?
-  
+  processRisks      Risk[]
+  linkedDocs        LinkedDocument[]
+  qualigramTags     ProcessQualigramTag[]
+  identityCard      ProcessIdentityCard?
+
   // Relations diagram
-  flowDiagram FlowDiagram?    // Diagram associé (level=2)
-  
+  flowDiagram FlowDiagram? // Diagram associé (level=2)
+
   // Relations spécifiques
-  sipocDiagram SipocDiagram?  // Si type=SIPOC
-  
+  sipocDiagram SipocDiagram? // Si type=SIPOC
+
   // Relations collaboration
-  comments        Comment[]
-  approvalRequests ApprovalRequest[]
+  comments           Comment[]
+  approvalRequests   ApprovalRequest[]
   validationRequests ProcessValidationRequest[]
-  readings        ReadingConfirmation[]
-  documents       Document[]
-  means           Mean[]
-  tags            ProcessTag[]
-  inputs          ProcessInput[]
-  outputs         ProcessOutput[]
-  journalEntries  JournalEntry[]
-  notifications   Notification[]
-  assignments     ProcessAssignment[]
-  
+  readings           ReadingConfirmation[]
+  documents          Document[]
+  means              Mean[]
+  tags               ProcessTag[]
+  inputs             ProcessInput[]
+  outputs            ProcessOutput[]
+  journalEntries     JournalEntry[]
+  notifications      Notification[]
+  assignments        ProcessAssignment[]
+
   // Relations legacy Node (PYX4)
-  subProcessNodes Node[] @relation("NodeSubProcess")
+  subProcessNodes        Node[] @relation("NodeSubProcess")
   linkedInstructionNodes Node[] @relation("NodeInstruction")
-  
+
   @@unique([processMapId, code])
   @@index([processMapId])
   @@index([workspaceId])
@@ -399,53 +399,53 @@ model Process {
 
 // Procedure (Niveau 3) - Procédure opérationnelle
 model Procedure {
-  id          String   @id @default(cuid())
+  id          String          @id @default(cuid())
   title       String
   description String?
   code        String
   status      ProcedureStatus @default(DRAFT)
-  
+
   // Hiérarchie
-  processId   String
-  process     Process  @relation(fields: [processId], references: [id], onDelete: Cascade)
-  
+  processId String
+  process   Process @relation(fields: [processId], references: [id], onDelete: Cascade)
+
   // Organisation
-  workspaceId String
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId  String
+  workspace    Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   departmentId String?
-  department  Department? @relation(fields: [departmentId], references: [id])
-  
+  department   Department? @relation(fields: [departmentId], references: [id])
+
   // Champs spécifiques Niveau 3
-  objective       String?
-  scope           String?
-  validatedBy     String?
-  validatedAt     DateTime?
-  effectiveDate   DateTime?
-  expirationDate  DateTime?
-  
+  objective      String?
+  scope          String?
+  validatedBy    String?
+  validatedAt    DateTime?
+  effectiveDate  DateTime?
+  expirationDate DateTime?
+
   // Métadonnées
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
   publishedAt DateTime?
   archivedAt  DateTime?
-  
+
   // Relations
   createdById String
-  createdBy   User     @relation("ProcedureCreator", fields: [createdById], references: [id])
-  
+  createdBy   User   @relation("ProcedureCreator", fields: [createdById], references: [id])
+
   // Relations diagram
-  flowDiagram FlowDiagram?  // Diagram associé (level=3)
-  
+  flowDiagram FlowDiagram? // Diagram associé (level=3)
+
   // Relations collaboration
-  comments    Comment[]
-  documents   Document[]
-  means       Mean[]
-  tags        ProcessTag[]
-  linkedDocs  LinkedDocument[]
-  journalEntries JournalEntry[]
-  notifications Notification[]
+  comments           Comment[]
+  documents          Document[]
+  means              Mean[]
+  tags               ProcessTag[]
+  linkedDocs         LinkedDocument[]
+  journalEntries     JournalEntry[]
+  notifications      Notification[]
   validationRequests ProcedureValidationRequest[]
-  
+
   @@unique([processId, code])
   @@index([processId])
   @@index([workspaceId])
@@ -548,9 +548,9 @@ enum QualigramNodeType {
 }
 
 enum FlowNodeType {
-  PROCESS      // Dans ProcessMap (level=1)
-  PROCEDURE    // Dans Process (level=2)
-  STEP         // Dans Procedure (level=3)
+  PROCESS // Dans ProcessMap (level=1)
+  PROCEDURE // Dans Process (level=2)
+  STEP // Dans Procedure (level=3)
   START
   END
   DECISION
@@ -694,28 +694,31 @@ model ProcessQualigramTag {
 // ====================================
 
 model FlowDiagram {
-  id        String   @id @default(cuid())
-  level     Int      // 1=ProcessMap, 2=Process, 3=Procedure
-  processId String   // ID de ProcessMap, Process, ou Procedure selon level
-  
+  id        String @id @default(cuid())
+  level     Int // 1=ProcessMap, 2=Process, 3=Procedure
+  processId String // ID de ProcessMap, Process, ou Procedure selon level
+
+  // Flow direction: horizontal (left-right) or vertical (top-bottom)
+  flowDirection FlowDirection @default(HORIZONTAL)
+
   // Relations optionnelles selon level
-  processMap ProcessMap? @relation(fields: [processMapId], references: [id], onDelete: Cascade)
-  processMapId String? @unique
-  
-  process    Process?    @relation(fields: [processId_ref], references: [id], onDelete: Cascade)
-  processId_ref String? @unique
-  
-  procedure  Procedure?   @relation(fields: [procedureId], references: [id], onDelete: Cascade)
-  procedureId String? @unique
-  
+  processMap   ProcessMap? @relation(fields: [processMapId], references: [id], onDelete: Cascade)
+  processMapId String?     @unique
+
+  process       Process? @relation(fields: [processId_ref], references: [id], onDelete: Cascade)
+  processId_ref String?  @unique
+
+  procedure   Procedure? @relation(fields: [procedureId], references: [id], onDelete: Cascade)
+  procedureId String?    @unique
+
   // ReactFlow data
-  nodes      FlowNode[]
-  edges      FlowEdge[]
-  snapshot   Json?       @db.Json
-  
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  
+  nodes    FlowNode[]
+  edges    FlowEdge[]
+  snapshot Json?      @db.Json
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@unique([level, processId])
   @@index([level])
   @@index([processMapId])
@@ -728,24 +731,24 @@ model FlowNode {
   id        String      @id @default(cuid())
   diagramId String
   diagram   FlowDiagram @relation(fields: [diagramId], references: [id], onDelete: Cascade)
-  
+
   // ReactFlow properties
-  rfId      String      @unique // ReactFlow ID (e.g., 'node-1')
-  type      FlowNodeType
-  label     String?
-  data      Json?       @db.Json
-  position  Json        @db.Json // { x: number, y: number }
-  
+  rfId     String       @unique // ReactFlow ID (e.g., 'node-1')
+  type     FlowNodeType
+  label    String?
+  data     Json?        @db.Json
+  position Json         @db.Json // { x: number, y: number }
+
   // Entity linkage
-  entityType String?    // PROCESS, PROCEDURE, STEP
+  entityType         String? // PROCESS, PROCEDURE, STEP
   referencedEntityId String? // ID de Process/Procedure créé
-  
+
   // Relations collaboration
   comments Comment[]
-  
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   @@index([diagramId])
   @@index([entityType])
   @@index([referencedEntityId])
@@ -753,20 +756,20 @@ model FlowNode {
 }
 
 model FlowEdge {
-  id         String      @id @default(cuid())
-  diagramId  String
-  diagram    FlowDiagram @relation(fields: [diagramId], references: [id], onDelete: Cascade)
-  
-  rfId       String      @unique // ReactFlow ID (e.g., 'edge-1')
-  sourceRfId String      // rfId du FlowNode source
-  targetRfId String      // rfId du FlowNode target
+  id        String      @id @default(cuid())
+  diagramId String
+  diagram   FlowDiagram @relation(fields: [diagramId], references: [id], onDelete: Cascade)
+
+  rfId       String  @unique // ReactFlow ID (e.g., 'edge-1')
+  sourceRfId String // rfId du FlowNode source
+  targetRfId String // rfId du FlowNode target
   label      String?
-  condition  String?     // For conditional edges
-  data       Json?       @db.Json
-  
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  
+  condition  String? // For conditional edges
+  data       Json?   @db.Json
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([diagramId])
   @@index([sourceRfId])
   @@index([targetRfId])
@@ -860,12 +863,12 @@ model Node {
   layerId      String? // Layer for z-ordering
 
   // Relations
-  role              Role?          @relation(fields: [roleId], references: [id])
-  subProcess        Process?       @relation("NodeSubProcess", fields: [subProcessId], references: [id])
-  linkedDocument    Document?      @relation("NodeDocument", fields: [linkedDocumentId], references: [id])
-  linkedInstruction Process?       @relation("NodeInstruction", fields: [linkedInstructionId], references: [id])
-  parentNode        Node?          @relation("NodeHierarchy", fields: [parentNodeId], references: [id])
-  childNodes        Node[]         @relation("NodeHierarchy")
+  role              Role?     @relation(fields: [roleId], references: [id])
+  subProcess        Process?  @relation("NodeSubProcess", fields: [subProcessId], references: [id])
+  linkedDocument    Document? @relation("NodeDocument", fields: [linkedDocumentId], references: [id])
+  linkedInstruction Process?  @relation("NodeInstruction", fields: [linkedInstructionId], references: [id])
+  parentNode        Node?     @relation("NodeHierarchy", fields: [parentNodeId], references: [id])
+  childNodes        Node[]    @relation("NodeHierarchy")
 
   outgoing Edge[] @relation("EdgeFrom")
   incoming Edge[] @relation("EdgeTo")
@@ -943,12 +946,22 @@ enum NodeType {
 // EDGES & LOGIC
 // ====================================
 
+enum PathType {
+  STRAIGHT // Straight line
+  SMOOTHSTEP // Smooth step (default)
+  STEP // Step
+  BEZIER // Bezier curve
+  SIMPLE_BEZIER // Simple bezier
+
+  @@map("path_types")
+}
+
 model Edge {
-  id        String  @id @default(cuid())
-  fromId    String
-  toId      String
-  type      String
-  label     String?
+  id     String  @id @default(cuid())
+  fromId String
+  toId   String
+  type   String
+  label  String?
 
   // ReactFlow Edge Configuration
   animated Boolean @default(false)
@@ -975,7 +988,7 @@ model Edge {
   labelBgBorderRadius Int?    @default(2)
 
   // Path Configuration
-  pathType     PathType @default(SMOOTH_STEP)
+  pathType     PathType @default(SMOOTHSTEP)
   sourceHandle String? // Source handle ID
   targetHandle String? // Target handle ID
 
@@ -996,8 +1009,8 @@ model Edge {
   tags     String[] // Edge tags
 
   // Relations
-  from    Node           @relation("EdgeFrom", fields: [fromId], references: [id], onDelete: Cascade)
-  to      Node           @relation("EdgeTo", fields: [toId], references: [id], onDelete: Cascade)
+  from Node @relation("EdgeFrom", fields: [fromId], references: [id], onDelete: Cascade)
+  to   Node @relation("EdgeTo", fields: [toId], references: [id], onDelete: Cascade)
 
   @@unique([fromId, toId])
   @@index([type])
@@ -1067,16 +1080,6 @@ enum NodeStatus {
   @@map("node_status")
 }
 
-enum PathType {
-  STRAIGHT // Straight line
-  SMOOTH_STEP // Smooth step (default)
-  STEP // Step
-  BEZIER // Bezier curve
-  SIMPLE_BEZIER // Simple bezier
-
-  @@map("path_types")
-}
-
 enum EdgeStatus {
   ACTIVE
   INACTIVE
@@ -1093,6 +1096,13 @@ enum LayoutDirection {
   BOTTOM_TO_TOP // BT
 
   @@map("layout_directions")
+}
+
+enum FlowDirection {
+  HORIZONTAL
+  VERTICAL
+
+  @@map("flow_directions")
 }
 
 enum MinimapPosition {
@@ -1273,17 +1283,17 @@ enum ControlType {
 // ====================================
 
 model Document {
-  id          String  @id @default(cuid())
-  name        String
-  fileUrl     String
-  mimeType    String?
+  id           String      @id @default(cuid())
+  name         String
+  fileUrl      String
+  mimeType     String?
   processMapId String?
-  processMap  ProcessMap? @relation(fields: [processMapId], references: [id], onDelete: SetNull)
-  processId   String?
-  process     Process? @relation(fields: [processId], references: [id], onDelete: SetNull)
-  procedureId String?
-  procedure   Procedure? @relation(fields: [procedureId], references: [id], onDelete: SetNull)
-  nodeRefs    Node[]  @relation("NodeDocument")
+  processMap   ProcessMap? @relation(fields: [processMapId], references: [id], onDelete: SetNull)
+  processId    String?
+  process      Process?    @relation(fields: [processId], references: [id], onDelete: SetNull)
+  procedureId  String?
+  procedure    Procedure?  @relation(fields: [procedureId], references: [id], onDelete: SetNull)
+  nodeRefs     Node[]      @relation("NodeDocument")
 
   @@index([processMapId])
   @@index([processId])
@@ -1292,14 +1302,14 @@ model Document {
 }
 
 model Mean {
-  id          String  @id @default(cuid())
-  name        String // e.g. "Ordinateur", "Excel"
+  id           String      @id @default(cuid())
+  name         String // e.g. "Ordinateur", "Excel"
   processMapId String?
-  processMap  ProcessMap? @relation(fields: [processMapId], references: [id], onDelete: SetNull)
-  processId   String?
-  process     Process? @relation(fields: [processId], references: [id], onDelete: SetNull)
-  procedureId String?
-  procedure   Procedure? @relation(fields: [procedureId], references: [id], onDelete: SetNull)
+  processMap   ProcessMap? @relation(fields: [processMapId], references: [id], onDelete: SetNull)
+  processId    String?
+  process      Process?    @relation(fields: [processId], references: [id], onDelete: SetNull)
+  procedureId  String?
+  procedure    Procedure?  @relation(fields: [procedureId], references: [id], onDelete: SetNull)
 
   @@index([processMapId])
   @@index([processId])
@@ -1320,18 +1330,18 @@ model Comment {
   updatedAt  DateTime  @updatedAt
 
   // Relations
-  userId        String
-  user          User         @relation(fields: [userId], references: [id])
-  processMapId  String?
-  processMap    ProcessMap?  @relation(fields: [processMapId], references: [id], onDelete: Cascade)
-  processId     String?
-  process       Process?     @relation(fields: [processId], references: [id], onDelete: Cascade)
-  procedureId   String?
-  procedure     Procedure?   @relation(fields: [procedureId], references: [id], onDelete: Cascade)
-  nodeId        String? // Conservé pour compatibilité avec Node existant
-  node          Node?        @relation(fields: [nodeId], references: [id], onDelete: Cascade)
-  flowNodeId    String?
-  flowNode      FlowNode?    @relation(fields: [flowNodeId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User        @relation(fields: [userId], references: [id])
+  processMapId String?
+  processMap   ProcessMap? @relation(fields: [processMapId], references: [id], onDelete: Cascade)
+  processId    String?
+  process      Process?    @relation(fields: [processId], references: [id], onDelete: Cascade)
+  procedureId  String?
+  procedure    Procedure?  @relation(fields: [procedureId], references: [id], onDelete: Cascade)
+  nodeId       String? // Conservé pour compatibilité avec Node existant
+  node         Node?       @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+  flowNodeId   String?
+  flowNode     FlowNode?   @relation(fields: [flowNodeId], references: [id], onDelete: Cascade)
 
   // Optional parent for threaded comments
   parentId String?
@@ -1373,15 +1383,15 @@ enum ApprovalStatus {
 }
 
 model ProcessValidationRequest {
-  id            String            @id @default(cuid())
+  id            String           @id @default(cuid())
   processId     String
   requestedById String // Utilisateur qui demande la validation
   validatorId   String // Utilisateur qui doit valider
-  status        ValidationStatus  @default(PENDING)
+  status        ValidationStatus @default(PENDING)
   comment       String?
   validatedAt   DateTime?
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
 
   process     Process @relation(fields: [processId], references: [id], onDelete: Cascade)
   requestedBy User    @relation("ValidationRequestedBy", fields: [requestedById], references: [id])
@@ -1402,19 +1412,19 @@ enum ValidationStatus {
 }
 
 model ProcessMapValidationRequest {
-  id            String            @id @default(cuid())
+  id            String           @id @default(cuid())
   processMapId  String
   requestedById String // Utilisateur qui demande la validation
   validatorId   String // Utilisateur qui doit valider
-  status        ValidationStatus  @default(PENDING)
+  status        ValidationStatus @default(PENDING)
   comment       String?
   validatedAt   DateTime?
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
 
-  processMap   ProcessMap @relation(fields: [processMapId], references: [id], onDelete: Cascade)
+  processMap  ProcessMap @relation(fields: [processMapId], references: [id], onDelete: Cascade)
   requestedBy User       @relation("ProcessMapValidationRequestedBy", fields: [requestedById], references: [id])
-  validator    User       @relation("ProcessMapValidationValidator", fields: [validatorId], references: [id])
+  validator   User       @relation("ProcessMapValidationValidator", fields: [validatorId], references: [id])
 
   @@unique([processMapId, validatorId])
   @@index([processMapId])
@@ -1424,19 +1434,19 @@ model ProcessMapValidationRequest {
 }
 
 model ProcedureValidationRequest {
-  id            String            @id @default(cuid())
+  id            String           @id @default(cuid())
   procedureId   String
   requestedById String // Utilisateur qui demande la validation
   validatorId   String // Utilisateur qui doit valider
-  status        ValidationStatus  @default(PENDING)
+  status        ValidationStatus @default(PENDING)
   comment       String?
   validatedAt   DateTime?
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
 
-  procedure    Procedure @relation(fields: [procedureId], references: [id], onDelete: Cascade)
-  requestedBy User       @relation("ProcedureValidationRequestedBy", fields: [requestedById], references: [id])
-  validator    User       @relation("ProcedureValidationValidator", fields: [validatorId], references: [id])
+  procedure   Procedure @relation(fields: [procedureId], references: [id], onDelete: Cascade)
+  requestedBy User      @relation("ProcedureValidationRequestedBy", fields: [requestedById], references: [id])
+  validator   User      @relation("ProcedureValidationValidator", fields: [validatorId], references: [id])
 
   @@unique([procedureId, validatorId])
   @@index([procedureId])
@@ -1477,17 +1487,17 @@ model ProcessAssignment {
 // ====================================
 
 model JournalEntry {
-  id          String   @id @default(cuid())
+  id           String      @id @default(cuid())
   processMapId String?
-  processMap  ProcessMap? @relation(fields: [processMapId], references: [id], onDelete: Cascade)
-  processId   String?
-  process     Process? @relation(fields: [processId], references: [id], onDelete: Cascade)
-  procedureId String?
-  procedure   Procedure? @relation(fields: [procedureId], references: [id], onDelete: Cascade)
-  action      String // e.g. "Importé depuis le PYX4 Store"
-  actor       String // Name
-  date        DateTime
-  comment     String?
+  processMap   ProcessMap? @relation(fields: [processMapId], references: [id], onDelete: Cascade)
+  processId    String?
+  process      Process?    @relation(fields: [processId], references: [id], onDelete: Cascade)
+  procedureId  String?
+  procedure    Procedure?  @relation(fields: [procedureId], references: [id], onDelete: Cascade)
+  action       String // e.g. "Importé depuis le PYX4 Store"
+  actor        String // Name
+  date         DateTime
+  comment      String?
 
   @@index([processMapId])
   @@index([processId])
@@ -1600,9 +1610,9 @@ model Notification {
   processMapId String?
   processMap   ProcessMap? @relation(fields: [processMapId], references: [id], onDelete: SetNull)
   processId    String?
-  process      Process? @relation(fields: [processId], references: [id], onDelete: SetNull)
+  process      Process?    @relation(fields: [processId], references: [id], onDelete: SetNull)
   procedureId  String?
-  procedure    Procedure? @relation(fields: [procedureId], references: [id], onDelete: SetNull)
+  procedure    Procedure?  @relation(fields: [procedureId], references: [id], onDelete: SetNull)
 
   @@index([userId, isRead])
   @@index([createdAt])
@@ -1628,7 +1638,7 @@ enum NotificationType {
   @@map("notification_types")
 }
 
-model SipocDiagram {  
+model SipocDiagram {
   sipoc_id      String   @id @default(uuid())
   documentId    String   @unique @default(uuid()) @db.Uuid
   title         String
@@ -1643,8 +1653,8 @@ model SipocDiagram {
   processId     String?  @unique // Relation 1-1 : optionnel mais unique (garantit 1-1)
 
   // Relations
-  process       Process? @relation(fields: [processId], references: [id], onDelete: Cascade)
-  user          User     @relation("UserSipoc", fields: [createdBy], references: [id])
+  process             Process?          @relation(fields: [processId], references: [id], onDelete: Cascade)
+  user                User              @relation("UserSipoc", fields: [createdBy], references: [id])
   elements            SipocElement[]
   connections         SipocConnection[]
   outgoingConnections SipocConnection[] @relation("FromSipoc")

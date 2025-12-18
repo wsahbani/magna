@@ -110,6 +110,15 @@ IMPORTANT pour les edges:
 - Dernière procédure/tâche → endEvent
 - Tous les nœuds doivent être connectés (pas de nœuds orphelins)
 
+IMPORTANT pour le positionnement des branches de gateways:
+- Lorsqu'un gateway a plusieurs branches sortantes (2 ou plus), les nœuds cibles doivent être positionnés EN PARALLÈLE pour une meilleure présentation visuelle:
+  * Flow HORIZONTAL: Les nœuds cibles doivent avoir la MÊME coordonnée X (position horizontale identique), mais des coordonnées Y différentes (espacées verticalement)
+    - Exemple: Gateway à x=400, y=200. Branches à x=550 (identique pour toutes), y=100, y=200, y=300 (espacées verticalement)
+  * Flow VERTICAL: Les nœuds cibles doivent avoir la MÊME coordonnée Y (position verticale identique), mais des coordonnées X différentes (espacées horizontalement)
+    - Exemple: Gateway à x=300, y=400. Branches à y=550 (identique pour toutes), x=200, x=300, x=400 (espacées horizontalement)
+- Espacement recommandé entre branches parallèles: 150-200px
+- Cette disposition parallèle améliore la lisibilité et respecte les conventions BPMN
+
 IMPORTANT pour les positions selon la direction du flow:
 ${isHorizontal ? `- Flow HORIZONTAL (par défaut): Les positions doivent être de gauche à droite
   * x augmente progressivement (ex: 100, 250, 400, 550, 700...)

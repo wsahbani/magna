@@ -2,7 +2,7 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../../database/prisma.service';
 import { SaveNodeDto, SaveEdgeDto, FlowAction } from '../../process/dto/save-flow.dto';
 import { SaveProcessMapFlowDto } from '../dto/save-process-map-flow.dto';
-import { FlowNodeType } from '@prisma/client';
+import { FlowNodeType, ProcessType } from '@prisma/client';
 import { ProcessService } from '../../process/services/process.service';
 import { DiagramService } from '../../procedure/services/diagram.service';
 
@@ -54,11 +54,48 @@ export class ProcessMapFlowService {
         diagramId: null,
         nodes: [],
         edges: [],
+        flowDirection: 'HORIZONTAL' as const,
       };
     }
     
+    // Get all referenced Process IDs to enrich nodes with Process information
+    const referencedProcessIds = flowDiagram.nodes
+      .filter((node) => node.referencedEntityId && node.entityType === 'PROCESS')
+      .map((node) => node.referencedEntityId!)
+      .filter((id, index, self) => self.indexOf(id) === index); // Remove duplicates
+    
+    // Fetch all referenced Processes in one query
+    const referencedProcesses = referencedProcessIds.length > 0
+      ? await this.prisma.process.findMany({
+          where: { id: { in: referencedProcessIds } },
+          select: { id: true, type: true },
+        })
+      : [];
+    
+    // Create a map for quick lookup
+    const processTypeMap = new Map(
+      referencedProcesses.map((p) => [p.id, p.type])
+    );
+    
     // Map all nodes first to get their rfIds for parent validation
-    const allReactFlowNodes = flowDiagram.nodes.map(this.mapFlowNodeToReactFlow);
+    const allReactFlowNodes = flowDiagram.nodes.map((node) => {
+      const reactFlowNode = this.mapFlowNodeToReactFlow(node);
+      
+      // Enrich with Process information if referencedEntityId exists
+      if (node.referencedEntityId && node.entityType === 'PROCESS') {
+        const processType = processTypeMap.get(node.referencedEntityId);
+        if (processType) {
+          reactFlowNode.data = {
+            ...reactFlowNode.data,
+            linkedProcessId: node.referencedEntityId,
+            linkedProcessType: 'process',
+            linkedProcessFlowType: processType === ProcessType.SIPOC ? 'SIPOC' : 'FLOW',
+          };
+        }
+      }
+      
+      return reactFlowNode;
+    });
     const nodeRfIdSet = new Set(allReactFlowNodes.map((n) => n.id));
     
     // Validate and clean up parent relationships
@@ -107,6 +144,7 @@ export class ProcessMapFlowService {
       diagramId: flowDiagram.id,
       nodes: validatedNodes,
       edges: flowDiagram.edges.map(this.mapFlowEdgeToReactFlow),
+      flowDirection: flowDiagram.flowDirection,
     };
   }
 
@@ -143,7 +181,14 @@ export class ProcessMapFlowService {
           level: 1,
           processId: saveFlowDto.processMapId,
           processMapId: saveFlowDto.processMapId,
+          flowDirection: saveFlowDto.flowDirection || 'HORIZONTAL',
         },
+      });
+    } else if (saveFlowDto.flowDirection !== undefined) {
+      // Update flowDirection if provided
+      flowDiagram = await this.prisma.flowDiagram.update({
+        where: { id: flowDiagram.id },
+        data: { flowDirection: saveFlowDto.flowDirection },
       });
     }
 
@@ -298,16 +343,22 @@ export class ProcessMapFlowService {
           // Générer un rfId unique avec timestamp, index et random pour éviter les collisions
           const rfId = node.id || `node-${baseTimestamp}-${index}-${Math.random().toString(36).substring(2, 9)}`;
           
-          // Auto-create Process if mainProcess, supportProcess, or managementProcess is dropped
+          // Auto-create Process if mainProcess, supportProcess, managementProcess, or sipoc is dropped
           let referencedEntityId: string | undefined;
           if (
             node.type === 'PROCESS_NODE' || 
             node.type === 'process' ||
             node.type === 'mainProcess' ||
             node.type === 'supportProcess' ||
-            node.type === 'managementProcess'
+            node.type === 'managementProcess' ||
+            node.type === 'sipoc'
           ) {
             try {
+              // Déterminer le type de Process
+              const processType = node.type === 'sipoc' 
+                ? ProcessType.SIPOC 
+                : ProcessType.FLOW;
+              
               // Générer un code unique avec timestamp, compteur et random
               const processCode = `PROC-${baseTimestamp}-${processCounter++}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
               const newProcess = await this.processService.create(
@@ -318,6 +369,7 @@ export class ProcessMapFlowService {
                   processMapId: saveFlowDto.processMapId!,
                   workspaceId: processMap.workspaceId,
                   departmentId: processMap.departmentId || undefined,
+                  type: processType, // FLOW ou SIPOC selon le type de nœud
                 },
                 userId,
               );
@@ -529,7 +581,7 @@ export class ProcessMapFlowService {
         data: {
           type: edge.type || 'SEQUENCE_FLOW',
           animated: edge.animated ?? false,
-          pathType: edge.pathType || 'SMOOTH_STEP',
+          pathType: edge.pathType || 'SMOOTHSTEP',
           sourceHandle: edge.sourceHandle,
           targetHandle: edge.targetHandle,
           style: edge.style,
@@ -553,7 +605,7 @@ export class ProcessMapFlowService {
         data: {
           type: edge.type || 'SEQUENCE_FLOW',
           animated: edge.animated ?? false,
-          pathType: edge.pathType || 'SMOOTH_STEP',
+          pathType: edge.pathType || 'SMOOTHSTEP',
           sourceHandle: edge.sourceHandle,
           targetHandle: edge.targetHandle,
           style: edge.style,
@@ -666,6 +718,7 @@ export class ProcessMapFlowService {
       MAINPROCESS: FlowNodeType.PROCESS,
       SUPPORTPROCESS: FlowNodeType.PROCESS,
       MANAGEMENTPROCESS: FlowNodeType.PROCESS,
+      SIPOC: FlowNodeType.PROCESS, // SIPOC nodes are also PROCESS type
       DOMAINGROUP: FlowNodeType.SUBFLOW, // Use SUBFLOW for domain groups (containers)
       ACTORDEPARTMENT: FlowNodeType.ACTION,
       EXTERNALENTITY: FlowNodeType.ACTION,
