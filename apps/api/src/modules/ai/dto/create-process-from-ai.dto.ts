@@ -1,6 +1,7 @@
-import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsEnum } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { GeneratedProcessStructure } from '../interfaces/process.interface';
+import { FlowDirection } from './generate-process.dto';
 
 export class CreateProcessFromAIDto {
   @ApiProperty({
@@ -40,5 +41,15 @@ export class CreateProcessFromAIDto {
   @IsString()
   @IsOptional()
   code?: string;
+
+  @ApiPropertyOptional({
+    description: 'Direction du flow : horizontal (de gauche à droite) ou vertical (de haut en bas).',
+    enum: FlowDirection,
+    default: FlowDirection.HORIZONTAL,
+    example: FlowDirection.HORIZONTAL,
+  })
+  @IsEnum(FlowDirection)
+  @IsOptional()
+  flowDirection?: FlowDirection;
 }
 

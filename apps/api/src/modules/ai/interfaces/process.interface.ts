@@ -11,12 +11,14 @@ export interface ProcessContext {
   departmentId?: string;
   departmentName?: string;
   existingProcessIds?: string[];
+  flowDirection?: 'horizontal' | 'vertical';
 }
 
 export interface GeneratedProcessStructure {
   title: string;
   description: string;
   procedures: Array<{
+    id?: string;
     label: string;
     description: string;
     position?: {
@@ -29,8 +31,10 @@ export interface GeneratedProcessStructure {
     };
   }>;
   tasks?: Array<{
+    id?: string;
+    type: 'task' | 'userTask' | 'serviceTask' | 'manualTask' | 'scriptTask';
     label: string;
-    description: string;
+    description?: string;
     position?: {
       x: number;
       y: number;
@@ -41,7 +45,8 @@ export interface GeneratedProcessStructure {
     };
   }>;
   events?: Array<{
-    type: 'startEvent' | 'endEvent' | 'intermediateEvent';
+    id?: string;
+    type: 'startEvent' | 'endEvent' | 'intermediateEvent' | 'timerEvent' | 'messageEvent';
     label: string;
     description?: string;
     position?: {
@@ -54,7 +59,8 @@ export interface GeneratedProcessStructure {
     };
   }>;
   gateways?: Array<{
-    type: 'exclusiveGateway' | 'parallelGateway' | 'inclusiveGateway';
+    id?: string;
+    type: 'exclusiveGateway' | 'parallelGateway' | 'inclusiveGateway' | 'eventBasedGateway';
     label?: string;
     description?: string;
     position?: {
@@ -65,6 +71,12 @@ export interface GeneratedProcessStructure {
       width: number;
       height: number;
     };
+  }>;
+  edges?: Array<{
+    source: string;
+    target: string;
+    label?: string;
+    type?: string;
   }>;
 }
 

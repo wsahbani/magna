@@ -12,7 +12,7 @@ import { PrismaService } from '../../../database/prisma.service';
 import { ProcessService } from '../../process/services/process.service';
 import { ProcessFlowService } from '../../process/services/process-flow.service';
 import { ProcessStatus, ProcessType } from '@prisma/client';
-import { SaveNodeDto } from '../../process/dto/save-flow.dto';
+import { SaveNodeDto, SaveEdgeDto } from '../../process/dto/save-flow.dto';
 
 @Injectable()
 export class ProcessAIService {
@@ -61,6 +61,7 @@ export class ProcessAIService {
       processMapName: processMap?.title,
       workspaceName: workspace?.name,
       departmentName: department?.name,
+      flowDirection: context.flowDirection || 'horizontal',
     });
 
     // Créer une clé de cache basée sur la description et le contexte
@@ -114,6 +115,7 @@ export class ProcessAIService {
     departmentId: string | undefined,
     code: string | undefined,
     userId: string,
+    flowDirection: 'horizontal' | 'vertical' = 'horizontal',
   ) {
     // Récupérer le ProcessMap pour obtenir workspaceId et departmentId si non fournis
     const processMap = await this.prisma.processMap.findUnique({
@@ -127,6 +129,13 @@ export class ProcessAIService {
 
     const finalWorkspaceId = workspaceId || processMap.workspaceId;
     const finalDepartmentId = departmentId || processMap.departmentId || undefined;
+
+    // Valider que workspaceId est défini (obligatoire)
+    if (!finalWorkspaceId) {
+      throw new Error(
+        `Workspace ID is required. ProcessMap "${processMapId}" does not have a workspaceId and none was provided.`,
+      );
+    }
 
     // Générer un code si non fourni
     const processCode =
@@ -151,9 +160,17 @@ export class ProcessAIService {
       userId,
     );
 
+    // Vérifier que le Process a été créé avec succès
+    if (!process || !process.id) {
+      throw new Error('Failed to create Process. Process creation returned null or undefined.');
+    }
+
     // Transformer la structure IA en nodes ReactFlow
     const nodes: SaveNodeDto[] = [];
-    const edges: any[] = [];
+    const edges: SaveEdgeDto[] = [];
+
+    // Mapping des IDs temporaires de l'IA vers les IDs réels générés
+    const idMapping: Map<string, string> = new Map();
 
     // Valeurs par défaut
     const DEFAULT_PROCEDURE_WIDTH = 160;
@@ -168,19 +185,26 @@ export class ProcessAIService {
 
     const uniquePrefix = `ai-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
-    // Créer les événements de début et fin
+    // Filtrer les événements par type
     const startEvents = structure.events?.filter((e) => e.type === 'startEvent') || [];
     const endEvents = structure.events?.filter((e) => e.type === 'endEvent') || [];
     const intermediateEvents = structure.events?.filter((e) => e.type === 'intermediateEvent') || [];
+    const timerEvents = structure.events?.filter((e) => e.type === 'timerEvent') || [];
+    const messageEvents = structure.events?.filter((e) => e.type === 'messageEvent') || [];
 
     // Start event
+    const startEventId = `${uniquePrefix}-startEvent`;
     if (startEvents.length > 0) {
       const startEvent = startEvents[0];
       const x = startEvent.position?.x ?? currentX;
       const y = startEvent.position?.y ?? START_Y;
       const size = startEvent.dimensions?.width ?? DEFAULT_EVENT_SIZE;
+      // Mapper l'ID temporaire de l'IA vers l'ID réel
+      if (startEvent.id) {
+        idMapping.set(startEvent.id, startEventId);
+      }
       nodes.push({
-        id: `${uniquePrefix}-startEvent`,
+        id: startEventId,
         type: 'startEvent',
         label: startEvent.label,
         description: startEvent.description,
@@ -192,10 +216,12 @@ export class ProcessAIService {
           description: startEvent.description,
         },
       });
-      currentX = x + size + 50;
+      currentX = x + size + this.getMinSpacing({ type: 'startEvent', width: size, height: size } as SaveNodeDto) - size;
     } else {
+      // Si pas d'ID temporaire, utiliser un ID par défaut
+      idMapping.set('start-1', startEventId);
       nodes.push({
-        id: `${uniquePrefix}-startEvent`,
+        id: startEventId,
         type: 'startEvent',
         label: 'Début',
         positionX: currentX,
@@ -204,7 +230,7 @@ export class ProcessAIService {
         height: DEFAULT_EVENT_SIZE,
         data: {},
       });
-      currentX += DEFAULT_EVENT_SIZE + 50;
+      currentX += DEFAULT_EVENT_SIZE + (this.getMinSpacing({ type: 'startEvent', width: DEFAULT_EVENT_SIZE, height: DEFAULT_EVENT_SIZE } as SaveNodeDto) - DEFAULT_EVENT_SIZE);
     }
 
     // Créer les procédures
@@ -213,8 +239,16 @@ export class ProcessAIService {
       const y = procedure.position?.y ?? START_Y;
       const width = procedure.dimensions?.width ?? DEFAULT_PROCEDURE_WIDTH;
       const height = procedure.dimensions?.height ?? DEFAULT_PROCEDURE_HEIGHT;
+      const procedureId = `${uniquePrefix}-procedure-${index}`;
+      // Mapper l'ID temporaire de l'IA vers l'ID réel
+      if (procedure.id) {
+        idMapping.set(procedure.id, procedureId);
+      } else {
+        // Si pas d'ID temporaire, créer un mapping par défaut
+        idMapping.set(`proc-${index + 1}`, procedureId);
+      }
       nodes.push({
-        id: `${uniquePrefix}-procedure-${index}`,
+        id: procedureId,
         type: 'procedure',
         label: procedure.label,
         description: procedure.description,
@@ -226,18 +260,27 @@ export class ProcessAIService {
           description: procedure.description,
         },
       });
-      currentX = Math.max(currentX, x + width + 50);
+      currentX = Math.max(currentX, x + width + (this.getMinSpacing({ type: 'procedure', width, height } as SaveNodeDto) - width));
     });
 
-    // Créer les tâches
+    // Créer les tâches (utiliser le type spécifié ou 'task' par défaut)
     structure.tasks?.forEach((task, index) => {
       const x = task.position?.x ?? currentX;
       const y = task.position?.y ?? START_Y;
       const width = task.dimensions?.width ?? DEFAULT_TASK_WIDTH;
       const height = task.dimensions?.height ?? DEFAULT_TASK_HEIGHT;
+      const taskType = task.type || 'task'; // Utiliser le type spécifié ou 'task' par défaut
+      const taskId = `${uniquePrefix}-${taskType}-${index}`;
+      // Mapper l'ID temporaire de l'IA vers l'ID réel
+      if (task.id) {
+        idMapping.set(task.id, taskId);
+      } else {
+        // Si pas d'ID temporaire, créer un mapping par défaut
+        idMapping.set(`task-${index + 1}`, taskId);
+      }
       nodes.push({
-        id: `${uniquePrefix}-task-${index}`,
-        type: 'task',
+        id: taskId,
+        type: taskType,
         label: task.label,
         description: task.description,
         positionX: x,
@@ -248,7 +291,8 @@ export class ProcessAIService {
           description: task.description,
         },
       });
-      currentX = Math.max(currentX, x + width + 50);
+      const taskSpacing = this.getMinSpacing({ type: taskType, width, height } as SaveNodeDto) - width;
+      currentX = Math.max(currentX, x + width + taskSpacing);
     });
 
     // Créer les gateways
@@ -256,8 +300,16 @@ export class ProcessAIService {
       const x = gateway.position?.x ?? currentX;
       const y = gateway.position?.y ?? START_Y;
       const size = gateway.dimensions?.width ?? DEFAULT_GATEWAY_SIZE;
+      const gatewayId = `${uniquePrefix}-gateway-${index}`;
+      // Mapper l'ID temporaire de l'IA vers l'ID réel
+      if (gateway.id) {
+        idMapping.set(gateway.id, gatewayId);
+      } else {
+        // Si pas d'ID temporaire, créer un mapping par défaut
+        idMapping.set(`gateway-${index + 1}`, gatewayId);
+      }
       nodes.push({
-        id: `${uniquePrefix}-gateway-${index}`,
+        id: gatewayId,
         type: gateway.type,
         label: gateway.label,
         description: gateway.description,
@@ -269,7 +321,8 @@ export class ProcessAIService {
           description: gateway.description,
         },
       });
-      currentX = Math.max(currentX, x + size + 50);
+      const gatewaySpacing = this.getMinSpacing({ type: gateway.type, width: size, height: size } as SaveNodeDto) - size;
+      currentX = Math.max(currentX, x + size + gatewaySpacing);
     });
 
     // Créer les événements intermédiaires
@@ -277,8 +330,15 @@ export class ProcessAIService {
       const x = event.position?.x ?? currentX;
       const y = event.position?.y ?? START_Y;
       const size = event.dimensions?.width ?? DEFAULT_EVENT_SIZE;
+      const eventId = `${uniquePrefix}-intermediateEvent-${index}`;
+      // Mapper l'ID temporaire de l'IA vers l'ID réel
+      if (event.id) {
+        idMapping.set(event.id, eventId);
+      } else {
+        idMapping.set(`event-${index + 1}`, eventId);
+      }
       nodes.push({
-        id: `${uniquePrefix}-intermediateEvent-${index}`,
+        id: eventId,
         type: 'intermediateEvent',
         label: event.label,
         description: event.description,
@@ -290,17 +350,81 @@ export class ProcessAIService {
           description: event.description,
         },
       });
-      currentX = Math.max(currentX, x + size + 50);
+      const eventSpacing = this.getMinSpacing({ type: 'intermediateEvent', width: size, height: size } as SaveNodeDto) - size;
+      currentX = Math.max(currentX, x + size + eventSpacing);
+    });
+
+    // Créer les événements timer
+    timerEvents.forEach((event, index) => {
+      const x = event.position?.x ?? currentX;
+      const y = event.position?.y ?? START_Y;
+      const size = event.dimensions?.width ?? DEFAULT_EVENT_SIZE;
+      const eventId = `${uniquePrefix}-timerEvent-${index}`;
+      // Mapper l'ID temporaire de l'IA vers l'ID réel
+      if (event.id) {
+        idMapping.set(event.id, eventId);
+      } else {
+        idMapping.set(`timer-${index + 1}`, eventId);
+      }
+      nodes.push({
+        id: eventId,
+        type: 'timerEvent',
+        label: event.label,
+        description: event.description,
+        positionX: x,
+        positionY: y,
+        width: size,
+        height: size,
+        data: {
+          description: event.description,
+        },
+      });
+      const timerEventSpacing = this.getMinSpacing({ type: 'timerEvent', width: size, height: size } as SaveNodeDto) - size;
+      currentX = Math.max(currentX, x + size + timerEventSpacing);
+    });
+
+    // Créer les événements message
+    messageEvents.forEach((event, index) => {
+      const x = event.position?.x ?? currentX;
+      const y = event.position?.y ?? START_Y;
+      const size = event.dimensions?.width ?? DEFAULT_EVENT_SIZE;
+      const eventId = `${uniquePrefix}-messageEvent-${index}`;
+      // Mapper l'ID temporaire de l'IA vers l'ID réel
+      if (event.id) {
+        idMapping.set(event.id, eventId);
+      } else {
+        idMapping.set(`message-${index + 1}`, eventId);
+      }
+      nodes.push({
+        id: eventId,
+        type: 'messageEvent',
+        label: event.label,
+        description: event.description,
+        positionX: x,
+        positionY: y,
+        width: size,
+        height: size,
+        data: {
+          description: event.description,
+        },
+      });
+      const messageEventSpacing = this.getMinSpacing({ type: 'messageEvent', width: size, height: size } as SaveNodeDto) - size;
+      currentX = Math.max(currentX, x + size + messageEventSpacing);
     });
 
     // End event
+    const endEventId = `${uniquePrefix}-endEvent`;
     if (endEvents.length > 0) {
       const endEvent = endEvents[0];
       const x = endEvent.position?.x ?? currentX;
       const y = endEvent.position?.y ?? START_Y;
       const size = endEvent.dimensions?.width ?? DEFAULT_EVENT_SIZE;
+      // Mapper l'ID temporaire de l'IA vers l'ID réel
+      if (endEvent.id) {
+        idMapping.set(endEvent.id, endEventId);
+      }
       nodes.push({
-        id: `${uniquePrefix}-endEvent`,
+        id: endEventId,
         type: 'endEvent',
         label: endEvent.label,
         description: endEvent.description,
@@ -313,8 +437,10 @@ export class ProcessAIService {
         },
       });
     } else {
+      // Si pas d'ID temporaire, utiliser un ID par défaut
+      idMapping.set('end-1', endEventId);
       nodes.push({
-        id: `${uniquePrefix}-endEvent`,
+        id: endEventId,
         type: 'endEvent',
         label: 'Fin',
         positionX: currentX,
@@ -325,11 +451,41 @@ export class ProcessAIService {
       });
     }
 
-    // Sauvegarder le flow avec tous les nodes
+    // Repositionner les nœuds pour éviter les chevauchements
+    const repositionedNodes = this.repositionNodes(nodes, flowDirection);
+    this.logger.log(
+      `Repositionnement effectué: ${nodes.length} nœuds repositionnés selon flowDirection=${flowDirection}`,
+    );
+
+    // Créer les edges en mappant les IDs temporaires vers les IDs réels
+    if (structure.edges && structure.edges.length > 0) {
+      structure.edges.forEach((edge) => {
+        const sourceId = idMapping.get(edge.source);
+        const targetId = idMapping.get(edge.target);
+
+        if (!sourceId || !targetId) {
+          this.logger.warn(
+            `Edge ignoré: source "${edge.source}" ou target "${edge.target}" non trouvé dans le mapping`,
+          );
+          return;
+        }
+
+        edges.push({
+          id: `${uniquePrefix}-edge-${edges.length}`,
+          source: sourceId,
+          target: targetId,
+          label: edge.label,
+          type: edge.type,
+          data: edge.label ? { condition: edge.label } : undefined,
+        });
+      });
+    }
+
+    // Sauvegarder le flow avec tous les nodes repositionnés
     await this.processFlowService.saveFlow(
       {
         processId: process.id,
-        nodes,
+        nodes: repositionedNodes,
         edges,
       },
       userId,
@@ -341,6 +497,135 @@ export class ProcessAIService {
   /**
    * Parse la réponse JSON de l'IA et valide la structure
    */
+  /**
+   * Détecte si deux nœuds se chevauchent
+   */
+  private detectOverlap(node1: SaveNodeDto, node2: SaveNodeDto): boolean {
+    const width1 = node1.width || 0;
+    const height1 = node1.height || 0;
+    const width2 = node2.width || 0;
+    const height2 = node2.height || 0;
+
+    return !(
+      node1.positionX + width1 < node2.positionX ||
+      node2.positionX + width2 < node1.positionX ||
+      node1.positionY + height1 < node2.positionY ||
+      node2.positionY + height2 < node1.positionY
+    );
+  }
+
+  /**
+   * Calcule l'espacement minimal requis selon le type de nœud
+   */
+  private getMinSpacing(node: SaveNodeDto): number {
+    const nodeType = node.type;
+    const width = node.width || 0;
+    const height = node.height || 0;
+
+    // Espacement basé sur le type de nœud
+    if (nodeType === 'procedure') {
+      return width + 100; // Procédures: largeur + 100px
+    } else if (['task', 'userTask', 'serviceTask', 'manualTask', 'scriptTask'].includes(nodeType)) {
+      return width + 80; // Tâches: largeur + 80px
+    } else if (['startEvent', 'endEvent', 'intermediateEvent', 'timerEvent', 'messageEvent'].includes(nodeType)) {
+      return Math.max(width, height) + 60; // Événements: taille + 60px
+    } else if (
+      ['exclusiveGateway', 'parallelGateway', 'inclusiveGateway', 'eventBasedGateway'].includes(nodeType)
+    ) {
+      return Math.max(width, height) + 70; // Gateways: taille + 70px
+    }
+
+    // Par défaut: largeur + 80px
+    return Math.max(width, height) + 80;
+  }
+
+  /**
+   * Repositionne les nœuds pour éviter les chevauchements selon la direction du flow
+   */
+  private repositionNodes(nodes: SaveNodeDto[], flowDirection: 'horizontal' | 'vertical'): SaveNodeDto[] {
+    if (nodes.length === 0) {
+      return nodes;
+    }
+
+    const isHorizontal = flowDirection === 'horizontal';
+    const sortedNodes = [...nodes].sort((a, b) => {
+      if (isHorizontal) {
+        return a.positionX - b.positionX;
+      } else {
+        return a.positionY - b.positionY;
+      }
+    });
+
+    const repositionedNodes: SaveNodeDto[] = [];
+
+    for (let i = 0; i < sortedNodes.length; i++) {
+      const currentNode = { ...sortedNodes[i] };
+
+      if (i === 0) {
+        // Premier nœud: garder sa position
+        repositionedNodes.push(currentNode);
+        continue;
+      }
+
+      const previousNode = repositionedNodes[repositionedNodes.length - 1];
+      const minSpacing = this.getMinSpacing(previousNode);
+
+      const prevWidth = previousNode.width || 0;
+      const prevHeight = previousNode.height || 0;
+      const currWidth = currentNode.width || 0;
+      const currHeight = currentNode.height || 0;
+
+      if (isHorizontal) {
+        // Flow horizontal: ajuster la position X
+        const requiredX = previousNode.positionX + prevWidth + minSpacing;
+        if (currentNode.positionX < requiredX) {
+          currentNode.positionX = requiredX;
+        }
+        // Garder Y constant ou légèrement variable (±10px)
+        if (Math.abs(currentNode.positionY - previousNode.positionY) > 10) {
+          currentNode.positionY = previousNode.positionY;
+        }
+      } else {
+        // Flow vertical: ajuster la position Y
+        const requiredY = previousNode.positionY + prevHeight + minSpacing;
+        if (currentNode.positionY < requiredY) {
+          currentNode.positionY = requiredY;
+        }
+        // Garder X constant ou légèrement variable (±10px)
+        if (Math.abs(currentNode.positionX - previousNode.positionX) > 10) {
+          currentNode.positionX = previousNode.positionX;
+        }
+      }
+
+      // Vérifier qu'il n'y a toujours pas de chevauchement avec les nœuds précédents
+      let hasOverlap = true;
+      let attempts = 0;
+      const maxAttempts = 10;
+
+      while (hasOverlap && attempts < maxAttempts) {
+        hasOverlap = false;
+        for (let j = 0; j < repositionedNodes.length; j++) {
+          if (this.detectOverlap(repositionedNodes[j], currentNode)) {
+            hasOverlap = true;
+            const nodeWidth = repositionedNodes[j].width || 0;
+            const nodeHeight = repositionedNodes[j].height || 0;
+            if (isHorizontal) {
+              currentNode.positionX = repositionedNodes[j].positionX + nodeWidth + minSpacing;
+            } else {
+              currentNode.positionY = repositionedNodes[j].positionY + nodeHeight + minSpacing;
+            }
+            break;
+          }
+        }
+        attempts++;
+      }
+
+      repositionedNodes.push(currentNode);
+    }
+
+    return repositionedNodes;
+  }
+
   private parseAIResponse(content: string): GeneratedProcessStructure {
     try {
       // Nettoyer le contenu (enlever markdown code blocks si présents)
@@ -378,21 +663,24 @@ export class ProcessAIService {
 
       // Valider les tâches
       if (parsed.tasks) {
+        const validTaskTypes = ['task', 'userTask', 'serviceTask', 'manualTask', 'scriptTask'];
         for (const task of parsed.tasks) {
           if (!task.label) {
             throw new Error('Task missing label');
+          }
+          // Valider le type si présent, sinon accepter (sera 'task' par défaut dans le service)
+          if (task.type && !validTaskTypes.includes(task.type)) {
+            throw new Error(`Invalid task type: ${task.type}. Valid types are: ${validTaskTypes.join(', ')}`);
           }
         }
       }
 
       // Valider les événements
       if (parsed.events) {
+        const validEventTypes = ['startEvent', 'endEvent', 'intermediateEvent', 'timerEvent', 'messageEvent'];
         for (const event of parsed.events) {
-          if (
-            !event.type ||
-            !['startEvent', 'endEvent', 'intermediateEvent'].includes(event.type)
-          ) {
-            throw new Error(`Invalid event type: ${event.type}`);
+          if (!event.type || !validEventTypes.includes(event.type)) {
+            throw new Error(`Invalid event type: ${event.type}. Valid types are: ${validEventTypes.join(', ')}`);
           }
           if (!event.label) {
             throw new Error('Event missing label');
@@ -402,12 +690,59 @@ export class ProcessAIService {
 
       // Valider les gateways
       if (parsed.gateways) {
+        const validGatewayTypes = ['exclusiveGateway', 'parallelGateway', 'inclusiveGateway', 'eventBasedGateway'];
         for (const gateway of parsed.gateways) {
-          if (
-            !gateway.type ||
-            !['exclusiveGateway', 'parallelGateway', 'inclusiveGateway'].includes(gateway.type)
-          ) {
-            throw new Error(`Invalid gateway type: ${gateway.type}`);
+          if (!gateway.type || !validGatewayTypes.includes(gateway.type)) {
+            throw new Error(`Invalid gateway type: ${gateway.type}. Valid types are: ${validGatewayTypes.join(', ')}`);
+          }
+        }
+      }
+
+      // Valider les edges
+      if (parsed.edges) {
+        // Collecter tous les IDs de nœuds disponibles
+        const nodeIds = new Set<string>();
+        
+        // IDs des procédures
+        if (parsed.procedures) {
+          parsed.procedures.forEach((proc) => {
+            if (proc.id) nodeIds.add(proc.id);
+          });
+        }
+        
+        // IDs des tâches
+        if (parsed.tasks) {
+          parsed.tasks.forEach((task) => {
+            if (task.id) nodeIds.add(task.id);
+          });
+        }
+        
+        // IDs des événements
+        if (parsed.events) {
+          parsed.events.forEach((event) => {
+            if (event.id) nodeIds.add(event.id);
+          });
+        }
+        
+        // IDs des gateways
+        if (parsed.gateways) {
+          parsed.gateways.forEach((gateway) => {
+            if (gateway.id) nodeIds.add(gateway.id);
+          });
+        }
+
+        // Valider chaque edge
+        for (const edge of parsed.edges) {
+          if (!edge.source || !edge.target) {
+            throw new Error('Edge missing source or target');
+          }
+          
+          // Vérifier que source et target existent dans les nœuds
+          if (!nodeIds.has(edge.source)) {
+            throw new Error(`Edge source "${edge.source}" does not reference any node`);
+          }
+          if (!nodeIds.has(edge.target)) {
+            throw new Error(`Edge target "${edge.target}" does not reference any node`);
           }
         }
       }

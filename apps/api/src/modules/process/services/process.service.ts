@@ -216,7 +216,71 @@ export class ProcessService {
         }
       }
 
-      return this.processRepository.findByIdWithDetails(process.id);
+      // Récupérer le Process avec tous les détails en utilisant le client de transaction
+      // Utiliser tx au lieu de this.processRepository pour voir les changements dans la transaction
+      return tx.process.findUnique({
+        where: { id: process.id },
+        include: {
+          processMap: {
+            select: {
+              id: true,
+              title: true,
+              code: true,
+            },
+          },
+          workspace: {
+            select: {
+              id: true,
+              name: true,
+              code: true,
+            },
+          },
+          department: {
+            select: {
+              id: true,
+              name: true,
+              code: true,
+            },
+          },
+          createdBy: {
+            select: {
+              id: true,
+              email: true,
+              firstName: true,
+              lastName: true,
+            },
+          },
+          procedures: {
+            select: {
+              id: true,
+              title: true,
+              code: true,
+              status: true,
+            },
+            orderBy: { createdAt: 'desc' },
+          },
+          flowDiagram: {
+            include: {
+              _count: {
+                select: {
+                  nodes: true,
+                  edges: true,
+                },
+              },
+            },
+          },
+          _count: {
+            select: {
+              procedures: true,
+              actors: true,
+              processIOs: true,
+              comments: true,
+              documents: true,
+              tags: true,
+            },
+          },
+        },
+      });
     });
   }
 

@@ -4,7 +4,7 @@
 
 import { useMutation } from '@tanstack/react-query';
 import { generateProcess } from '../../../lib/api/ai.api';
-import type { GenerateProcessRequest, GenerateProcessResponse } from '../../../lib/api/ai.api';
+import type { GenerateProcessRequest } from '../../../lib/api/ai.api';
 import { toast } from 'sonner';
 
 /**
@@ -18,4 +18,3 @@ export function useAIGenerateProcess() {
     },
   });
 }
-

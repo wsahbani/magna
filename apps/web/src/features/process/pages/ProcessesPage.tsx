@@ -2,20 +2,24 @@ import { useState } from 'react'
 import { useNavigate, useSearch } from '@tanstack/react-router'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, BodySmall, Button } from '@repo/ui'
 import { PageWrapper } from '../../../components/layout/PageWrapper'
-import { Workflow, Plus } from 'lucide-react'
+import { Workflow, Plus, Sparkles } from 'lucide-react'
 import { ViewModeToggle } from '../../process-map/components/ViewModeToggle'
 import { ProcessGridView } from '../components/ProcessGridView'
 import { ProcessTable } from '../components/ProcessTable'
 import { ProcessEmptyState } from '../components/ProcessEmptyState'
 import { ProcessForm } from '../components/ProcessForm'
+import { AIGenerateProcessModal } from '../components/AIGenerateProcessModal'
 import {
   useProcesses,
   useCreateProcess,
   useUpdateProcess,
   useDeleteProcess,
 } from '../hooks/useProcesses'
+import { createProcessFromAI } from '../../../lib/api/ai.api'
 import type { Process } from '../types/process.types'
+import type { GeneratedProcessStructure } from '../../../lib/api/ai.api'
 import { ProcessType } from '../types/enums'
+import { toast } from 'sonner'
 
 export default function ProcessesPage() {
   const navigate = useNavigate()
@@ -24,6 +28,7 @@ export default function ProcessesPage() {
   const searchParams = useSearch({ strict: false }) as any
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid')
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
+  const [isAIGenerateDialogOpen, setIsAIGenerateDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [selectedProcess, setSelectedProcess] = useState<Process | null>(null)
 
@@ -76,19 +81,66 @@ export default function ProcessesPage() {
     }
   }
 
+  const handleAIGenerateSuccess = async (response: {
+    structure: GeneratedProcessStructure
+    estimatedCost: number
+    cached: boolean
+    tokensUsed: { prompt: number; completion: number; total: number }
+    processMapId?: string
+    workspaceId?: string
+    flowDirection?: 'horizontal' | 'vertical'
+  }) => {
+    try {
+      // Récupérer le processMapId depuis la réponse
+      const finalProcessMapId = response.processMapId || searchParams?.processMapId
+      if (!finalProcessMapId) {
+        toast.error('ProcessMap ID manquant')
+        return
+      }
+
+      // Créer le Process à partir de la structure IA
+      const process = await createProcessFromAI({
+        structure: response.structure,
+        processMapId: finalProcessMapId,
+        workspaceId: response.workspaceId || searchParams?.workspaceId,
+        departmentId: searchParams?.departmentId,
+        code: undefined, // code généré automatiquement
+        flowDirection: response.flowDirection || 'horizontal',
+      })
+      toast.success('Processus créé avec succès avec IA')
+      setIsAIGenerateDialogOpen(false)
+      // Naviguer vers la page de détail
+      navigate({ to: '/processes-level2/$id', params: { id: process.id } })
+    } catch (error: any) {
+      toast.error(
+        error?.response?.data?.message || 'Erreur lors de la création du processus',
+      )
+    }
+  }
+
   return (
     <PageWrapper
       title="Processus"
       description="Gérez vos processus métier (Niveau 2 - Process)"
       breadcrumbs={[{ label: 'Processus', icon: <Workflow className="w-4 h-4" /> }]}
       actions={
-        <Button
-          onClick={() => setIsCreateDialogOpen(true)}
-          className="bg-orange-600 hover:bg-orange-700"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Nouveau Processus
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            onClick={() => setIsAIGenerateDialogOpen(true)}
+            variant="outline"
+            className="border-orange-600 text-orange-600 hover:bg-orange-50"
+          >
+            <Sparkles className="w-4 h-4 mr-2" />
+            Générer avec IA
+          </Button>
+          <Button
+            onClick={() => setIsCreateDialogOpen(true)}
+            className="bg-orange-600 hover:bg-orange-700"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Nouveau Processus
+          </Button>
+        </div>
       }
     >
       {/* View Mode Toggle */}
@@ -183,6 +235,16 @@ export default function ProcessesPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* AI Generate Dialog */}
+      <AIGenerateProcessModal
+        open={isAIGenerateDialogOpen}
+        onOpenChange={setIsAIGenerateDialogOpen}
+        processMapId={searchParams?.processMapId}
+        workspaceId={searchParams?.workspaceId}
+        departmentId={searchParams?.departmentId}
+        onSuccess={handleAIGenerateSuccess}
+      />
     </PageWrapper>
   )
 }

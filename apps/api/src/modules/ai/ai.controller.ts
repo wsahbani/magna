@@ -219,6 +219,7 @@ export class AIController {
       processMapId: dto.processMapId,
       workspaceId: dto.workspaceId || '',
       departmentId: dto.departmentId,
+      flowDirection: dto.flowDirection || 'horizontal',
     });
 
     return {
@@ -254,6 +255,7 @@ export class AIController {
       dto.departmentId,
       dto.code,
       userId,
+      dto.flowDirection || 'horizontal',
     );
   }
 

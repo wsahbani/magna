@@ -124,36 +124,48 @@ export interface GenerateProcessRequest {
   processMapId: string;
   workspaceId?: string;
   departmentId?: string;
+  flowDirection?: 'horizontal' | 'vertical';
 }
 
 export interface GeneratedProcessStructure {
   title: string;
   description: string;
   procedures: Array<{
+    id?: string;
     label: string;
     description: string;
     position?: { x: number; y: number };
     dimensions?: { width: number; height: number };
   }>;
   tasks?: Array<{
+    id?: string;
+    type: 'task' | 'userTask' | 'serviceTask' | 'manualTask' | 'scriptTask';
     label: string;
-    description: string;
+    description?: string;
     position?: { x: number; y: number };
     dimensions?: { width: number; height: number };
   }>;
   events?: Array<{
-    type: 'startEvent' | 'endEvent' | 'intermediateEvent';
+    id?: string;
+    type: 'startEvent' | 'endEvent' | 'intermediateEvent' | 'timerEvent' | 'messageEvent';
     label: string;
     description?: string;
     position?: { x: number; y: number };
     dimensions?: { width: number; height: number };
   }>;
   gateways?: Array<{
-    type: 'exclusiveGateway' | 'parallelGateway' | 'inclusiveGateway';
+    id?: string;
+    type: 'exclusiveGateway' | 'parallelGateway' | 'inclusiveGateway' | 'eventBasedGateway';
     label?: string;
     description?: string;
     position?: { x: number; y: number };
     dimensions?: { width: number; height: number };
+  }>;
+  edges?: Array<{
+    source: string;
+    target: string;
+    label?: string;
+    type?: string;
   }>;
 }
 
@@ -174,6 +186,7 @@ export interface CreateProcessFromAIRequest {
   workspaceId?: string;
   departmentId?: string;
   code?: string;
+  flowDirection?: 'horizontal' | 'vertical';
 }
 
 export interface ExtractProcessFromImageRequest {
