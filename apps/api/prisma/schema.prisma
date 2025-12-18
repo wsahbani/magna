@@ -177,6 +177,12 @@ model User {
   comments                Comment[]
   commentResolutions      Comment[]             @relation("CommentResolver")
   approvals               ApprovalRequest[]
+  validationRequestsRequested ProcessValidationRequest[] @relation("ValidationRequestedBy")
+  validationRequestsToValidate ProcessValidationRequest[] @relation("ValidationValidator")
+  processMapValidationRequestsRequested ProcessMapValidationRequest[] @relation("ProcessMapValidationRequestedBy")
+  processMapValidationRequestsToValidate ProcessMapValidationRequest[] @relation("ProcessMapValidationValidator")
+  procedureValidationRequestsRequested ProcedureValidationRequest[] @relation("ProcedureValidationRequestedBy")
+  procedureValidationRequestsToValidate ProcedureValidationRequest[] @relation("ProcedureValidationValidator")
   readings                ReadingConfirmation[]
   assignments             ProcessAssignment[]
   auditLogs               AuditLog[]
@@ -299,6 +305,7 @@ model ProcessMap {
   tags        ProcessTag[]
   journalEntries JournalEntry[]
   notifications Notification[]
+  validationRequests ProcessMapValidationRequest[]
   
   @@index([workspaceId])
   @@index([status])
@@ -367,6 +374,7 @@ model Process {
   // Relations collaboration
   comments        Comment[]
   approvalRequests ApprovalRequest[]
+  validationRequests ProcessValidationRequest[]
   readings        ReadingConfirmation[]
   documents       Document[]
   means           Mean[]
@@ -436,6 +444,7 @@ model Procedure {
   linkedDocs  LinkedDocument[]
   journalEntries JournalEntry[]
   notifications Notification[]
+  validationRequests ProcedureValidationRequest[]
   
   @@unique([processId, code])
   @@index([processId])
@@ -469,6 +478,8 @@ enum ProcessType {
 
 enum ProcedureStatus {
   DRAFT
+  IN_REVIEW
+  VALIDATED
   ACTIVE
   RETIRED
 }
@@ -1359,6 +1370,79 @@ enum ApprovalStatus {
   PENDING
   APPROVED
   REJECTED
+}
+
+model ProcessValidationRequest {
+  id            String            @id @default(cuid())
+  processId     String
+  requestedById String // Utilisateur qui demande la validation
+  validatorId   String // Utilisateur qui doit valider
+  status        ValidationStatus  @default(PENDING)
+  comment       String?
+  validatedAt   DateTime?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  process     Process @relation(fields: [processId], references: [id], onDelete: Cascade)
+  requestedBy User    @relation("ValidationRequestedBy", fields: [requestedById], references: [id])
+  validator   User    @relation("ValidationValidator", fields: [validatorId], references: [id])
+
+  @@unique([processId, validatorId])
+  @@index([processId])
+  @@index([validatorId])
+  @@index([status])
+  @@map("process_validation_requests")
+}
+
+enum ValidationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+model ProcessMapValidationRequest {
+  id            String            @id @default(cuid())
+  processMapId  String
+  requestedById String // Utilisateur qui demande la validation
+  validatorId   String // Utilisateur qui doit valider
+  status        ValidationStatus  @default(PENDING)
+  comment       String?
+  validatedAt   DateTime?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  processMap   ProcessMap @relation(fields: [processMapId], references: [id], onDelete: Cascade)
+  requestedBy User       @relation("ProcessMapValidationRequestedBy", fields: [requestedById], references: [id])
+  validator    User       @relation("ProcessMapValidationValidator", fields: [validatorId], references: [id])
+
+  @@unique([processMapId, validatorId])
+  @@index([processMapId])
+  @@index([validatorId])
+  @@index([status])
+  @@map("process_map_validation_requests")
+}
+
+model ProcedureValidationRequest {
+  id            String            @id @default(cuid())
+  procedureId   String
+  requestedById String // Utilisateur qui demande la validation
+  validatorId   String // Utilisateur qui doit valider
+  status        ValidationStatus  @default(PENDING)
+  comment       String?
+  validatedAt   DateTime?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  procedure    Procedure @relation(fields: [procedureId], references: [id], onDelete: Cascade)
+  requestedBy User       @relation("ProcedureValidationRequestedBy", fields: [requestedById], references: [id])
+  validator    User       @relation("ProcedureValidationValidator", fields: [validatorId], references: [id])
+
+  @@unique([procedureId, validatorId])
+  @@index([procedureId])
+  @@index([validatorId])
+  @@index([status])
+  @@map("procedure_validation_requests")
 }
 
 model ReadingConfirmation {

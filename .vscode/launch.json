@@ -17,7 +17,7 @@
                 "OIDC_DISCOVERY_URI": "https://auth.qualigram.com/.well-known/openid-configuration",
                 "OIDC_CALLBACK_URL": "http://localhost:3001/api/auth/oidc/callback",
                 "DATABASE_URL": "postgresql://postgres:postgres@localhost:5432/magna_turbo",
-                "LLM_PROXY_API_KEY": "sk-4QxJ1uq2l7kHQx1U7DAxRw",
+                "LLM_PROXY_API_KEY": "sk-r-I_MP9DJ1mNLdb-ZokTkA",
                 "LLM_PROXY_BASE_URL": "https://llmproxy.ai.orange",
                 "LLM_PROXY_DEFAULT_MODEL": "openai/gpt-5"
             }

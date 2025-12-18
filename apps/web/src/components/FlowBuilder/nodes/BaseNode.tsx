@@ -1,5 +1,6 @@
 import { memo, ReactNode } from 'react'
 import { Handle, Position, NodeProps, NodeResizer } from '@xyflow/react'
+import { NodeToolbar } from './NodeToolbar'
 
 /**
  * Base configuration for all node types
@@ -345,7 +346,35 @@ export const createNode = (config: BaseNodeConfig) => {
       )
     }
 
+    // Render NodeToolbar if props are available (for Process Flow level 2)
+    const renderNodeToolbar = () => {
+      // Check if toolbar props are available (indicates we're in Process Flow level 2)
+      const hasToolbarProps = 
+        data?.onAttach !== undefined || 
+        data?.onDetach !== undefined || 
+        data?.onNodeUpdate !== undefined
+      
+      // Don't render toolbar on containers
+      if (!hasToolbarProps || data?.isContainer) return null
+
+      return (
+        <NodeToolbar
+          nodeId={id}
+          selected={selected}
+          parentId={data?.parentId}
+          availableContainers={data?.availableContainers}
+          onAttach={data?.onAttach}
+          onDetach={data?.onDetach}
+          isContainer={data?.isContainer}
+          onNodeUpdate={data?.onNodeUpdate}
+          currentStyle={data?.currentStyle}
+          currentHandlePositions={data?.currentHandlePositions}
+        />
+      )
+    }
+
     // Use custom render function if provided
+    // Note: customRender nodes (like ProcessNode) handle their own toolbar
     if (customRender) {
       return (
         <>
@@ -380,6 +409,7 @@ export const createNode = (config: BaseNodeConfig) => {
     if (shape === 'circle' || shape === 'diamond') {
       return (
         <div className="relative">
+          {renderNodeToolbar()}
           {resizable && selected && (
             <NodeResizer
               minWidth={minWidth}
@@ -408,6 +438,7 @@ export const createNode = (config: BaseNodeConfig) => {
         className={`relative ${getShapeStyles()} ${className} ${resizable ? 'flex flex-col' : ''}`}
         style={getInlineStyles()}
       >
+        {renderNodeToolbar()}
         {resizable && selected && (
           <NodeResizer
             minWidth={minWidth}

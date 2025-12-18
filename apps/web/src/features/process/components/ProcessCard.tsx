@@ -1,7 +1,11 @@
-import { Trash2, Edit2, Eye, Workflow, Target, Shield } from 'lucide-react'
+import { useState } from 'react'
+import { Trash2, Edit2, Eye, Workflow, Target, Shield, CheckCircle2 } from 'lucide-react'
 import { Button, BodySmall } from '@repo/ui'
 import type { Process } from '../types/process.types'
 import { ProcessStatus, ProcessType, ProcessPriority } from '../types/enums'
+import { useAuth } from '../../auth/context/AuthContext'
+import { ProcessValidationDialog } from './ProcessValidationDialog'
+import { ValidationStatusBadge } from './ValidationStatusBadge'
 
 interface ProcessCardProps {
   process: Process
@@ -32,12 +36,20 @@ const PRIORITY_CONFIG: Record<ProcessPriority, { label: string; color: string }>
 }
 
 export function ProcessCard({ process, onView, onEdit, onDelete }: ProcessCardProps) {
+  const [validationDialogOpen, setValidationDialogOpen] = useState(false)
+  const { user } = useAuth()
   const status = STATUS_CONFIG[process.status] || STATUS_CONFIG[ProcessStatus.DRAFT]
   const type = TYPE_CONFIG[process.type] || TYPE_CONFIG[ProcessType.FLOW]
   const priority = process.priority ? PRIORITY_CONFIG[process.priority] : null
   const TypeIcon = type.icon
 
+  // Check if user can request validation (is creator and process is DRAFT)
+  const canRequestValidation =
+    user?.id === process.createdById &&
+    process.status === ProcessStatus.DRAFT
+
   return (
+    <>
     <div className="bg-white rounded-lg shadow-md border border-gray-200 hover:shadow-lg transition-shadow overflow-hidden h-full flex flex-col">
       <div className="p-6 flex-1 flex flex-col">
         {/* Header */}
@@ -80,10 +92,27 @@ export function ProcessCard({ process, onView, onEdit, onDelete }: ProcessCardPr
             <Workflow className="h-4 w-4 text-orange-600 flex-shrink-0" />
             <span>{process._count?.procedures || 0} procédure{process._count?.procedures !== 1 ? 's' : ''}</span>
           </div>
+          {/* Validation Status */}
+          {(process.status === ProcessStatus.DRAFT || process.status === ProcessStatus.IN_REVIEW) && (
+            <div className="flex items-center gap-2">
+              <ValidationStatusBadge processId={process.id} compact={true} />
+            </div>
+          )}
         </div>
 
         {/* Actions */}
         <div className="flex justify-end gap-2 pt-4 border-t mt-auto">
+          {canRequestValidation && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setValidationDialogOpen(true)}
+              className="text-orange-600 border-orange-300 hover:bg-orange-50"
+            >
+              <CheckCircle2 className="h-4 w-4 mr-1" />
+              Valider
+            </Button>
+          )}
           {onView && (
             <Button
               variant="ghost"
@@ -119,6 +148,16 @@ export function ProcessCard({ process, onView, onEdit, onDelete }: ProcessCardPr
         </div>
       </div>
     </div>
+
+    {/* Validation Dialog */}
+    {validationDialogOpen && (
+      <ProcessValidationDialog
+        process={process}
+        open={validationDialogOpen}
+        onOpenChange={setValidationDialogOpen}
+      />
+    )}
+    </>
   )
 }
 

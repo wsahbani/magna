@@ -486,8 +486,8 @@ export const MainProcessNode = createNode(
       const hasLink = !!data?.linkedProcessId
       
       const inlineStyle: any = {
-        width: width ? `${width}px` : undefined,
-        height: height ? `${height}px` : undefined,
+        width: width ? `${width}px` : '100%',
+        height: height ? `${height}px` : '100%',
       }
       if (data?.style?.backgroundColor) inlineStyle.backgroundColor = data.style.backgroundColor
       if (data?.style?.color) inlineStyle.color = data.style.color
@@ -503,7 +503,7 @@ export const MainProcessNode = createNode(
       if (data?.style?.borderStyle) inlineStyle.borderStyle = data.style.borderStyle
       
       return (
-        <div className="relative">
+        <div className="relative w-full h-full" style={{ width: inlineStyle.width, height: inlineStyle.height }}>
           <NodeToolbar
             nodeId={id}
             selected={selected}
@@ -515,6 +515,7 @@ export const MainProcessNode = createNode(
             onNodeUpdate={data?.onNodeUpdate}
             currentStyle={data?.currentStyle}
             currentHandlePositions={data?.currentHandlePositions}
+            onCreateProcess={data?.onCreateProcess}
           />
           <div
             className={`relative rounded-lg px-5 py-4 min-w-[140px] min-h-[80px] flex items-center justify-center w-full h-full ${selectedClass} transition-all`}
@@ -577,8 +578,8 @@ export const SupportProcessNode = createNode(
       const hasLink = !!data?.linkedProcessId
       
       const inlineStyle: any = {
-        width: width ? `${width}px` : undefined,
-        height: height ? `${height}px` : undefined,
+        width: width ? `${width}px` : '100%',
+        height: height ? `${height}px` : '100%',
       }
       if (data?.style?.backgroundColor) inlineStyle.backgroundColor = data.style.backgroundColor
       if (data?.style?.color) inlineStyle.color = data.style.color
@@ -594,7 +595,7 @@ export const SupportProcessNode = createNode(
       if (data?.style?.borderStyle) inlineStyle.borderStyle = data.style.borderStyle
       
       return (
-        <div className="relative">
+        <div className="relative w-full h-full" style={{ width: inlineStyle.width, height: inlineStyle.height }}>
           <NodeToolbar
             nodeId={id}
             selected={selected}
@@ -606,6 +607,7 @@ export const SupportProcessNode = createNode(
             onNodeUpdate={data?.onNodeUpdate}
             currentStyle={data?.currentStyle}
             currentHandlePositions={data?.currentHandlePositions}
+            onCreateProcess={data?.onCreateProcess}
           />
           <div
             className={`relative rounded-lg px-5 py-4 min-w-[140px] min-h-[80px] flex items-center justify-center ${selectedClass} transition-all w-full h-full`}
@@ -670,8 +672,8 @@ export const ManagementProcessNode = createNode(
       const hasLink = !!data?.linkedProcessId
       
       const inlineStyle: any = {
-        width: width ? `${width}px` : undefined,
-        height: height ? `${height}px` : undefined,
+        width: width ? `${width}px` : '100%',
+        height: height ? `${height}px` : '100%',
       }
       if (data?.style?.backgroundColor) inlineStyle.backgroundColor = data.style.backgroundColor
       if (data?.style?.color) inlineStyle.color = data.style.color
@@ -687,7 +689,7 @@ export const ManagementProcessNode = createNode(
       if (data?.style?.borderStyle) inlineStyle.borderStyle = data.style.borderStyle
       
       return (
-        <div className="relative">
+        <div className="relative w-full h-full" style={{ width: inlineStyle.width, height: inlineStyle.height }}>
           <NodeToolbar
             nodeId={id}
             selected={selected}
@@ -699,6 +701,7 @@ export const ManagementProcessNode = createNode(
             onNodeUpdate={data?.onNodeUpdate}
             currentStyle={data?.currentStyle}
             currentHandlePositions={data?.currentHandlePositions}
+            onCreateProcess={data?.onCreateProcess}
           />
           <div
             className={`relative min-w-[120px] min-h-[120px] flex flex-col items-center justify-center w-full h-full ${selectedClass} transition-all`}
@@ -817,8 +820,8 @@ const DomainGroupNodeWithPlus = memo(({
   const bgColor = isHighlighted ? 'bg-orange-100' : 'bg-gray-50'
   
   const inlineStyle: any = {
-    width: width ? `${width}px` : undefined,
-    height: height ? `${height}px` : undefined,
+    width: width ? `${width}px` : '100%',
+    height: height ? `${height}px` : '100%',
   }
   if (data?.style?.backgroundColor) inlineStyle.backgroundColor = data.style.backgroundColor
   if (data?.style?.color) inlineStyle.color = data.style.color
@@ -906,8 +909,8 @@ export const ActorDepartmentNode = createNode(
       const selectedClass = selected ? 'ring-4 ring-orange-400 ring-opacity-50 shadow-lg' : 'shadow'
       
       const inlineStyle: any = {
-        width: width ? `${width}px` : undefined,
-        height: height ? `${height}px` : undefined,
+        width: width ? `${width}px` : '100%',
+        height: height ? `${height}px` : '100%',
       }
       if (data?.style?.backgroundColor) inlineStyle.backgroundColor = data.style.backgroundColor
       if (data?.style?.color) inlineStyle.color = data.style.color
@@ -923,7 +926,7 @@ export const ActorDepartmentNode = createNode(
       if (data?.style?.borderStyle) inlineStyle.borderStyle = data.style.borderStyle
       
       return (
-        <div className="relative">
+        <div className="relative w-full h-full" style={{ width: inlineStyle.width, height: inlineStyle.height }}>
           <NodeToolbar
             nodeId={id}
             selected={selected}
@@ -935,6 +938,7 @@ export const ActorDepartmentNode = createNode(
             onNodeUpdate={data?.onNodeUpdate}
             currentStyle={data?.currentStyle}
             currentHandlePositions={data?.currentHandlePositions}
+            onCreateProcess={data?.onCreateProcess}
           />
           <div
             className={`relative rounded-full px-6 py-3 min-w-[120px] min-h-[50px] flex items-center justify-start gap-3 w-full h-full ${selectedClass} transition-all`}
@@ -987,8 +991,8 @@ export const ExternalEntityNode = createNode(
       const selectedClass = selected ? 'ring-4 ring-orange-400 ring-opacity-50 shadow-lg' : 'shadow'
       
       const inlineStyle: any = {
-        width: width ? `${width}px` : undefined,
-        height: height ? `${height}px` : undefined,
+        width: width ? `${width}px` : '100%',
+        height: height ? `${height}px` : '100%',
       }
       if (data?.style?.backgroundColor) inlineStyle.backgroundColor = data.style.backgroundColor
       if (data?.style?.color) inlineStyle.color = data.style.color
@@ -1004,7 +1008,7 @@ export const ExternalEntityNode = createNode(
       if (data?.style?.borderStyle) inlineStyle.borderStyle = data.style.borderStyle
       
       return (
-        <div className="relative">
+        <div className="relative w-full h-full" style={{ width: inlineStyle.width, height: inlineStyle.height }}>
           <NodeToolbar
             nodeId={id}
             selected={selected}
@@ -1016,6 +1020,7 @@ export const ExternalEntityNode = createNode(
             onNodeUpdate={data?.onNodeUpdate}
             currentStyle={data?.currentStyle}
             currentHandlePositions={data?.currentHandlePositions}
+            onCreateProcess={data?.onCreateProcess}
           />
           <div
             className={`relative min-w-[140px] min-h-[80px] flex items-center justify-center w-full h-full ${selectedClass} transition-all`}
@@ -1081,8 +1086,8 @@ export const SimpleRectangleNode = createNode(
       const hasLink = !!data?.linkedProcessId
       
       const inlineStyle: any = {
-        width: width ? `${width}px` : undefined,
-        height: height ? `${height}px` : undefined,
+        width: width ? `${width}px` : '100%',
+        height: height ? `${height}px` : '100%',
       }
       if (data?.style?.backgroundColor) inlineStyle.backgroundColor = data.style.backgroundColor
       if (data?.style?.color) inlineStyle.color = data.style.color
@@ -1098,7 +1103,7 @@ export const SimpleRectangleNode = createNode(
       if (data?.style?.borderStyle) inlineStyle.borderStyle = data.style.borderStyle
       
       return (
-        <div className="relative">
+        <div className="relative w-full h-full" style={{ width: inlineStyle.width, height: inlineStyle.height }}>
           <NodeToolbar
             nodeId={id}
             selected={selected}
@@ -1110,6 +1115,7 @@ export const SimpleRectangleNode = createNode(
             onNodeUpdate={data?.onNodeUpdate}
             currentStyle={data?.currentStyle}
             currentHandlePositions={data?.currentHandlePositions}
+            onCreateProcess={data?.onCreateProcess}
           />
           <div
             className={`relative rounded-lg px-5 py-4 min-w-[120px] min-h-[60px] flex items-center justify-center w-full h-full ${selectedClass} transition-all`}

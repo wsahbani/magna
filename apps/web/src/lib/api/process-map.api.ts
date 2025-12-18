@@ -72,5 +72,53 @@ export const processMapApi = {
       edges,
     })
   },
+
+  // ====================================
+  // VALIDATION ENDPOINTS
+  // ====================================
+
+  /**
+   * Request validation for a ProcessMap
+   */
+  requestValidation: async (
+    processMapId: string,
+    data: { validatorIds: string[]; comment?: string },
+  ): Promise<any[]> => {
+    return post<any[]>(`/process-maps/${processMapId}/validation/request`, data)
+  },
+
+  /**
+   * Get all validation requests for a ProcessMap
+   */
+  getValidationRequests: async (processMapId: string): Promise<any[]> => {
+    return get<any[]>(`/process-maps/${processMapId}/validation`)
+  },
+
+  /**
+   * Approve a validation request
+   */
+  approveValidation: async (
+    requestId: string,
+    data: { comment?: string },
+  ): Promise<any> => {
+    return post<any>(`/process-maps/validation/${requestId}/approve`, data)
+  },
+
+  /**
+   * Reject a validation request
+   */
+  rejectValidation: async (
+    requestId: string,
+    data: { comment: string },
+  ): Promise<any> => {
+    return post<any>(`/process-maps/validation/${requestId}/reject`, data)
+  },
+
+  /**
+   * Get pending validation requests for current user
+   */
+  getPendingValidations: async (): Promise<any[]> => {
+    return get<any[]>(`/process-maps/validation/pending`)
+  },
 }
 

@@ -1,6 +1,10 @@
-import { Trash2, Edit2, Eye, FileText, CheckCircle, Clock } from 'lucide-react'
+import { useState } from 'react'
+import { Trash2, Edit2, Eye, FileText, CheckCircle, Clock, CheckCircle2 } from 'lucide-react'
 import { Button, BodySmall } from '@repo/ui'
 import type { Procedure } from '../types/procedure.types'
+import { ProcedureValidationStatusBadge } from './ProcedureValidationStatusBadge'
+import { ProcedureValidationDialog } from './ProcedureValidationDialog'
+import { useAuth } from '../../auth/context/AuthContext'
 
 interface ProcedureCardProps {
   procedure: Procedure
@@ -19,7 +23,14 @@ const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
 }
 
 export function ProcedureCard({ procedure, onView, onEdit, onDelete }: ProcedureCardProps) {
+  const [validationDialogOpen, setValidationDialogOpen] = useState(false)
+  const { user } = useAuth()
   const status = STATUS_CONFIG[procedure.status] || STATUS_CONFIG.DRAFT
+  
+  // Check if user can request validation (is creator and procedure is DRAFT)
+  const canRequestValidation =
+    user?.id === procedure.createdById &&
+    procedure.status === 'DRAFT'
 
   return (
     <div className="bg-white rounded-lg shadow-md border border-gray-200 hover:shadow-lg transition-shadow overflow-hidden h-full flex flex-col">
@@ -32,11 +43,16 @@ export function ProcedureCard({ procedure, onView, onEdit, onDelete }: Procedure
             </h3>
             <BodySmall className="text-gray-500">{procedure.code || 'N/A'}</BodySmall>
           </div>
-          <span
-            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${status.color} flex-shrink-0 ml-2`}
-          >
-            {status.label}
-          </span>
+          <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+            <span
+              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${status.color}`}
+            >
+              {status.label}
+            </span>
+            {(procedure.status === 'DRAFT' || procedure.status === 'IN_REVIEW') && (
+              <ProcedureValidationStatusBadge procedureId={procedure.id} compact={true} />
+            )}
+          </div>
         </div>
 
         {/* Description */}
@@ -71,6 +87,17 @@ export function ProcedureCard({ procedure, onView, onEdit, onDelete }: Procedure
 
         {/* Actions */}
         <div className="flex justify-end gap-2 pt-4 border-t mt-auto">
+          {canRequestValidation && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setValidationDialogOpen(true)}
+              className="border-orange-300 text-orange-600 hover:bg-orange-50"
+            >
+              <CheckCircle2 className="h-4 w-4 mr-1" />
+              Valider
+            </Button>
+          )}
           {onView && (
             <Button
               variant="ghost"
@@ -105,6 +132,15 @@ export function ProcedureCard({ procedure, onView, onEdit, onDelete }: Procedure
           )}
         </div>
       </div>
+
+      {/* Validation Dialog */}
+      {validationDialogOpen && (
+        <ProcedureValidationDialog
+          procedure={procedure}
+          open={validationDialogOpen}
+          onOpenChange={setValidationDialogOpen}
+        />
+      )}
     </div>
   )
 }

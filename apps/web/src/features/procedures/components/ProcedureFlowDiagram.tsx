@@ -27,7 +27,13 @@ import { useProcedureFlowStore } from '../hooks/useProcedureFlowStore';
 import { useProcedureFlowStore as useStore } from '../store/procedureFlowStore';
 import { PaletteConfigFactory } from '../../process-map/config/palette-config';
 import { useSwimlanes } from '../hooks/useSwimlanes';
-import { findLaneAtPosition, calculateRelativePositionInLane } from '../utils/lanePosition';
+import { 
+  findLaneAtPosition, 
+  calculateRelativePositionInLane,
+  calculateLanePosition,
+  isNodeInLaneBounds,
+  constrainNodeToLane,
+} from '../utils/lanePosition';
 import { ImageExtractionModal } from './ImageExtractionModal';
 import { useQueryClient } from '@tanstack/react-query';
 import { procedureFlowKeys } from '../hooks/useProcedureFlow';
@@ -59,8 +65,9 @@ export function ProcedureFlowDiagram({
   const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null);
   const queryClient = useQueryClient();
   const [isImageExtractionModalOpen, setIsImageExtractionModalOpen] = useState(false);
-  const [gridSettings, setGridSettings] = useState({ snapToGrid: false, gridSize: 15, showGrid: true, backgroundPattern: 'dots' as const });
+  const [gridSettings, setGridSettings] = useState<{ snapToGrid: boolean; gridSize: number; showGrid: boolean; backgroundPattern: 'dots' | 'lines' | 'cross' | 'none' }>({ snapToGrid: false, gridSize: 15, showGrid: true, backgroundPattern: 'dots' });
   const [showHelperLines, setShowHelperLines] = useState(true);
+  const [hoveredLaneId, setHoveredLaneId] = useState<string | null>(null);
 
   // Get palette configuration for Procedure (level 3) - memoized
   const paletteConfig = useMemo(
@@ -248,6 +255,136 @@ export function ProcedureFlowDiagram({
     [deleteEdges, readOnly],
   );
 
+  // Helper function to check if a node is a container
+  const isContainerNode = useCallback((nodeType: string | undefined): boolean => {
+    // Pools and swimlanes are container nodes at level 3
+    return nodeType === 'pool' || nodeType === 'swimlane';
+  }, []);
+
+  // Handle node style update
+  const handleNodeStyleUpdate = useCallback((nodeId: string, data: Partial<Node['data']>) => {
+    const node = nodes.find((n) => n.id === nodeId);
+    if (!node) return;
+
+    // Merge style properly if it exists in data (same as PropertiesPanel)
+    const updatedData = { ...node.data, ...data };
+    if (data.style && node.data?.style) {
+      updatedData.style = { ...node.data.style, ...data.style };
+    } else if (data.style) {
+      updatedData.style = data.style;
+    }
+    
+    updateNode(nodeId, {
+      data: updatedData,
+    } as any);
+  }, [nodes, updateNode]);
+
+  // Handle attaching a node to a container (pool/swimlane)
+  const handleAttachNode = useCallback((nodeId: string, containerId: string) => {
+    if (readOnly) return;
+    
+    const node = nodes.find((n) => n.id === nodeId);
+    const container = nodes.find((n) => n.id === containerId);
+    if (!node || !container) return;
+
+    // Calculate absolute position of the node
+    let absolutePosition = node.position;
+    if (node.parentId) {
+      const currentParent = nodes.find((n) => n.id === node.parentId);
+      if (currentParent) {
+        absolutePosition = {
+          x: node.position.x + currentParent.position.x,
+          y: node.position.y + currentParent.position.y,
+        };
+      }
+    }
+
+    // Calculate relative position within container
+    const relativePosition = {
+      x: absolutePosition.x - container.position.x,
+      y: absolutePosition.y - container.position.y,
+    };
+
+    // Find which lane the node should be attached to (if any)
+    const poolData = container.data as any;
+    const lanes = poolData?.lanes || [];
+    
+    // Try to find the lane at the absolute position
+    let targetLaneId: string | undefined;
+    let targetLaneBounds: { x: number; y: number; width: number; height: number } | null = null;
+    
+    if (lanes.length > 0) {
+      const laneResult = findLaneAtPosition(
+        container,
+        absolutePosition.x,
+        absolutePosition.y,
+      );
+      
+      if (laneResult) {
+        targetLaneId = laneResult.laneId;
+        targetLaneBounds = laneResult.laneBounds;
+      } else {
+        // Default to first lane if position doesn't match any lane
+        targetLaneId = lanes[0]?.id;
+        if (targetLaneId) {
+          targetLaneBounds = calculateLanePosition(container, targetLaneId);
+        }
+      }
+    }
+
+    // Calculate relative position within the lane (not just the pool)
+    let finalRelativePosition = relativePosition;
+    if (targetLaneId && targetLaneBounds) {
+      const laneRelativePos = calculateRelativePositionInLane(
+        absolutePosition.x,
+        absolutePosition.y,
+        targetLaneBounds,
+      );
+      finalRelativePosition = laneRelativePos;
+    }
+
+    updateNode(nodeId, {
+      parentId: containerId,
+      position: finalRelativePosition,
+      extent: 'parent' as const,
+      data: {
+        ...node.data,
+        parentNodeId: containerId,
+        poolId: containerId,
+        laneId: targetLaneId,
+      },
+    } as any);
+  }, [nodes, updateNode, readOnly]);
+
+  // Handle detaching a node from its container
+  const handleDetachNode = useCallback((nodeId: string) => {
+    if (readOnly) return;
+    
+    const node = nodes.find((n) => n.id === nodeId);
+    if (!node || !node.parentId) return;
+
+    const parent = nodes.find((n) => n.id === node.parentId);
+    if (!parent) return;
+
+    // Convert relative position to absolute
+    const absolutePosition = {
+      x: node.position.x + parent.position.x,
+      y: node.position.y + parent.position.y,
+    };
+
+    updateNode(nodeId, {
+      parentId: undefined,
+      position: absolutePosition,
+      extent: undefined,
+      data: {
+        ...node.data,
+        parentNodeId: undefined,
+        poolId: undefined,
+        laneId: undefined,
+      },
+    } as any);
+  }, [nodes, updateNode, readOnly]);
+
   // Handle change handle positions
   const handleChangeHandlePosition = useCallback(
     (sourcePos: 'top' | 'right' | 'bottom' | 'left', targetPos: 'top' | 'right' | 'bottom' | 'left') => {
@@ -297,6 +434,25 @@ export function ProcedureFlowDiagram({
     onEdgeSelect?.(null);
   }, [clearSelection, onNodeSelect, onEdgeSelect]);
 
+  // Handle node mouse enter - highlight lane on hover
+  const onNodeMouseEnter = useCallback(
+    (_event: React.MouseEvent, node: Node) => {
+      if (readOnly) return;
+      
+      // If node is in a lane, highlight that lane
+      const laneId = node.data?.laneId as string | undefined;
+      if (laneId) {
+        setHoveredLaneId(laneId);
+      }
+    },
+    [readOnly],
+  );
+
+  // Handle node mouse leave - remove lane highlight
+  const onNodeMouseLeave = useCallback(() => {
+    setHoveredLaneId(null);
+  }, []);
+
   const handleSave = useCallback(async () => {
     if (readOnly) return;
     try {
@@ -305,6 +461,42 @@ export function ProcedureFlowDiagram({
       // Error handling is done in the mutation
     }
   }, [saveFlow, readOnly]);
+
+  // Handle node drag - validate that node stays within its lane bounds
+  const onNodeDrag = useCallback(
+    (_event: React.MouseEvent, node: Node) => {
+      if (readOnly) return;
+      
+      // Skip pools (swimlanes)
+      if (node.type === 'pool' || node.type === 'swimlane') {
+        return;
+      }
+
+      // If node is attached to a lane, validate it stays within bounds
+      const laneId = node.data?.laneId;
+      const parentId = (node as any).parentId || (node as any).parentNode;
+      
+      if (laneId && parentId) {
+        const pool = nodes.find((n) => n.id === parentId);
+        if (pool && (pool.type === 'pool' || pool.type === 'swimlane') && typeof laneId === 'string') {
+          // Check if node is still in lane bounds
+          const isInBounds = isNodeInLaneBounds(node, pool, laneId);
+          
+          if (!isInBounds) {
+            // Constrain node position to lane bounds
+            const constrainedPos = constrainNodeToLane(node, pool, laneId);
+            if (constrainedPos) {
+              // Update node position to stay within lane
+              updateNode(node.id, {
+                position: constrainedPos,
+              } as any);
+            }
+          }
+        }
+      }
+    },
+    [nodes, updateNode, readOnly],
+  );
 
   // Handle node drag stop - attach/detach from lanes
   // Lanes are now stored in pool.data.lanes, so we calculate positions from pool
@@ -334,16 +526,24 @@ export function ProcedureFlowDiagram({
         : node.position;
 
       // Find if node is now inside a lane (lanes are in pool.data.lanes)
-      // Use utility function for accurate lane detection
+      // Simplified: use node center point for lane detection (more intuitive)
       let newParentPool: Node | null = null;
       let newLaneId: string | null = null;
       let newLaneBounds: { x: number; y: number; width: number; height: number } | null = null;
 
+      const nodeWidth = (node.width as number) || 100;
+      const nodeHeight = (node.height as number) || 50;
+      
+      // Use center point of node for simpler detection
+      const nodeCenterX = nodeAbsolutePosition.x + nodeWidth / 2;
+      const nodeCenterY = nodeAbsolutePosition.y + nodeHeight / 2;
+
+      // Check each pool and find lane at center point
       for (const pool of poolNodes) {
         const laneResult = findLaneAtPosition(
           pool,
-          nodeAbsolutePosition.x,
-          nodeAbsolutePosition.y,
+          nodeCenterX,
+          nodeCenterY,
         );
 
         if (laneResult) {
@@ -416,6 +616,46 @@ export function ProcedureFlowDiagram({
     [poolNodes, updateNode, readOnly],
   );
 
+  // Enrich nodes with callbacks, readOnly, and isContainer
+  const enrichedNodes = useMemo(() => {
+    const containerNodes = nodes.filter((n) => isContainerNode(n.type));
+    
+    return nodes.map((node) => {
+      const isContainer = isContainerNode(node.type);
+      const currentStyle = (node.data?.style as Record<string, any>) || {}
+      
+      if (isContainer) {
+        // Keep container nodes as-is, but ensure isContainer flag is set
+        // Pass hoveredLaneId to pools for hover effect
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            isContainer: true,
+            readOnly,
+            hoveredLaneId: hoveredLaneId, // Pass hover state to pool
+          },
+        };
+      }
+      
+      // Add isContainer: false and attach/detach handlers to all other nodes
+      return {
+        ...node,
+        data: {
+          ...node.data,
+          isContainer: false,
+          onAttach: handleAttachNode,
+          onDetach: handleDetachNode,
+          availableContainers: containerNodes.filter((c) => c.id !== node.id),
+          parentId: node.parentId,
+          onNodeUpdate: handleNodeStyleUpdate,
+          currentStyle,
+          currentHandlePositions: node.data?.handlePositions as { source?: string; target?: string } | undefined,
+        },
+      };
+    });
+  }, [nodes, handleAttachNode, handleDetachNode, handleNodeStyleUpdate, readOnly, isContainerNode, hoveredLaneId]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -442,7 +682,7 @@ export function ProcedureFlowDiagram({
       {/* Center - Flow Canvas */}
       <div className="flex-1 relative" ref={reactFlowWrapper}>
         <ReactFlow
-          nodes={nodes}
+          nodes={enrichedNodes}
           edges={edges}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
@@ -453,7 +693,10 @@ export function ProcedureFlowDiagram({
           onNodeClick={onNodeClick}
           onEdgeClick={onEdgeClick}
           onPaneClick={onPaneClick}
+          onNodeDrag={onNodeDrag}
           onNodeDragStop={onNodeDragStop}
+          onNodeMouseEnter={onNodeMouseEnter}
+          onNodeMouseLeave={onNodeMouseLeave}
           onNodesDelete={onNodesDelete}
           onEdgesDelete={onEdgesDelete}
           nodeTypes={nodeTypes}
@@ -568,7 +811,7 @@ export function ProcedureFlowDiagram({
                   }
                 }}
                 onChangeHandlePosition={handleChangeHandlePosition}
-                onGridSettingsChange={setGridSettings}
+                onGridSettingsChange={(settings) => setGridSettings(settings)}
                 onHelperLinesToggle={setShowHelperLines}
                 hasSelectedNode={!!selectedNode || !!selectedEdge}
                 selectedNodeCount={(selectedNode ? 1 : 0) + (selectedEdge ? 1 : 0)}

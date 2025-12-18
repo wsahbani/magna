@@ -113,6 +113,56 @@ export async function saveProcessFlow(
 }
 
 /**
+ * Request validation for a process
+ */
+export async function requestProcessValidation(
+  processId: string,
+  validatorIds: string[],
+): Promise<any> {
+  return post(`/processes/${processId}/validation/request`, {
+    validatorIds,
+  });
+}
+
+/**
+ * Get validation requests for a process
+ */
+export async function getProcessValidationRequests(processId: string): Promise<any> {
+  return get(`/processes/${processId}/validation`);
+}
+
+/**
+ * Approve a validation request
+ */
+export async function approveValidation(
+  requestId: string,
+  comment?: string,
+): Promise<any> {
+  return post(`/processes/validation/${requestId}/approve`, {
+    comment,
+  });
+}
+
+/**
+ * Reject a validation request
+ */
+export async function rejectValidation(
+  requestId: string,
+  comment: string,
+): Promise<any> {
+  return post(`/processes/validation/${requestId}/reject`, {
+    comment,
+  });
+}
+
+/**
+ * Get pending validation requests for current user
+ */
+export async function getPendingValidations(): Promise<any> {
+  return get('/processes/validation/pending');
+}
+
+/**
  * Process API Client Object
  * For backward compatibility with existing code
  */

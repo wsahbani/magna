@@ -11,6 +11,7 @@ import {
 } from '../entities/procedure.entity';
 import { DiagramService } from './diagram.service';
 import { PrismaService } from '../../../database/prisma.service';
+import { ProcedureStatus } from '@prisma/client';
 
 @Injectable()
 export class ProcedureService {
@@ -97,12 +98,39 @@ export class ProcedureService {
     return procedure;
   }
 
-  async findAll(processId?: string): Promise<ProcedureEntity[]> {
+  /**
+   * Find all Procedures with optional filters
+   * Applies visibility rules:
+   * - Regular users: see their own Procedures OR validated Procedures
+   * - Superadmins (isAdmin=true): see all Procedures
+   */
+  async findAll(
+    processId?: string,
+    userId?: string,
+    isAdmin = false,
+  ): Promise<ProcedureEntity[]> {
+    const where: any = {};
+    
+    // Apply visibility rules
+    if (!isAdmin && userId) {
+      // Regular user: see own Procedures OR validated Procedures
+      where.OR = [
+        { createdById: userId },
+        { status: ProcedureStatus.VALIDATED },
+      ];
+    }
+    // Superadmin sees all (no additional filter)
+    
+    // Existing filters
     if (processId) {
-      return this.procedureRepository.findByProcessId(processId);
+      where.processId = processId;
+    }
+
+    if (processId) {
+      return this.procedureRepository.findByProcessId(processId, where);
     }
     // Return all procedures if no processId filter
-    return this.procedureRepository.findAll();
+    return this.procedureRepository.findAll(where);
   }
 
   async findOne(id: string): Promise<ProcedureWithRelations> {

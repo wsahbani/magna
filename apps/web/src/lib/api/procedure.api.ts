@@ -297,6 +297,74 @@ class ProcedureApiService {
       throw new Error(handleApiError(error))
     }
   }
+
+  // ====================================
+  // VALIDATION ENDPOINTS
+  // ====================================
+
+  /**
+   * Request validation for a Procedure
+   */
+  async requestValidation(
+    procedureId: string,
+    data: { validatorIds: string[]; comment?: string },
+  ): Promise<any[]> {
+    try {
+      return await post<any[]>(`${this.baseUrl}/${procedureId}/validation/request`, data)
+    } catch (error) {
+      throw new Error(handleApiError(error))
+    }
+  }
+
+  /**
+   * Get all validation requests for a Procedure
+   */
+  async getValidationRequests(procedureId: string): Promise<any[]> {
+    try {
+      return await get<any[]>(`${this.baseUrl}/${procedureId}/validation`)
+    } catch (error) {
+      throw new Error(handleApiError(error))
+    }
+  }
+
+  /**
+   * Approve a validation request
+   */
+  async approveValidation(
+    requestId: string,
+    data: { comment?: string },
+  ): Promise<any> {
+    try {
+      return await post<any>(`${this.baseUrl}/validation/${requestId}/approve`, data)
+    } catch (error) {
+      throw new Error(handleApiError(error))
+    }
+  }
+
+  /**
+   * Reject a validation request
+   */
+  async rejectValidation(
+    requestId: string,
+    data: { comment: string },
+  ): Promise<any> {
+    try {
+      return await post<any>(`${this.baseUrl}/validation/${requestId}/reject`, data)
+    } catch (error) {
+      throw new Error(handleApiError(error))
+    }
+  }
+
+  /**
+   * Get pending validation requests for current user
+   */
+  async getPendingValidations(): Promise<any[]> {
+    try {
+      return await get<any[]>(`${this.baseUrl}/validation/pending`)
+    } catch (error) {
+      throw new Error(handleApiError(error))
+    }
+  }
 }
 
 export const procedureApi = new ProcedureApiService()

@@ -17,8 +17,8 @@ export const TaskNode = createNode(
     maxWidth: 1400,
     maxHeight: 300,
     handles: [
-      HANDLE_CONFIGS.targetLeft,
-      HANDLE_CONFIGS.sourceRight,
+      HANDLE_CONFIGS.targetTop,
+      HANDLE_CONFIGS.sourceBottom,
     ],
     showLabel: true,
     labelPosition: 'inside',

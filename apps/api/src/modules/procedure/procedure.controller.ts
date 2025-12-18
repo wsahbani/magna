@@ -11,6 +11,7 @@ import {
   HttpStatus,
   UseGuards,
   Request,
+  BadRequestException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -21,16 +22,19 @@ import {
 } from '@nestjs/swagger';
 import { ProcedureService } from './services/procedure.service';
 import { ProcedureFlowService } from './services/procedure-flow.service';
+import { ProcedureValidationService } from './services/procedure-validation.service';
 import { CreateProcedureDto } from './dto/create-procedure.dto';
 import { UpdateProcedureDto } from './dto/update-procedure.dto';
 import { SaveProcedureFlowDto } from './dto/save-procedure-flow.dto';
 import { CreateDiagramNodeDto } from './dto/create-diagram-node.dto';
 import { CreateDiagramEdgeDto } from './dto/create-diagram-edge.dto';
 import { CreateDiagramLaneDto } from './dto/create-diagram-lane.dto';
+import { CreateValidationRequestDto } from '../process/dto/create-validation-request.dto';
+import { ApproveValidationDto } from '../process/dto/approve-validation.dto';
+import { RejectValidationDto } from '../process/dto/reject-validation.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtPayload } from '../auth/interfaces/auth.interface';
-import { ProcedureValidationService } from './services/procedure-validation.service';
 
 @ApiTags('procedures')
 @ApiBearerAuth()
@@ -50,8 +54,13 @@ export class ProcedureController {
   }
 
   @Get()
-  findAll(@Query('processId') processId?: string) {
-    return this.procedureService.findAll(processId);
+  findAll(
+    @Query('processId') processId?: string,
+    @Request() req?: any,
+  ) {
+    const userId = req?.user?.userId || req?.user?.sub;
+    const isAdmin = req?.user?.isAdmin || false;
+    return this.procedureService.findAll(processId, userId, isAdmin);
   }
 
   // ====================================
@@ -201,6 +210,13 @@ export class ProcedureController {
 
   // Validation & Publishing
   @Get(':id/validate')
+  @ApiOperation({ summary: 'Validate procedure diagram structure' })
+  @ApiParam({ name: 'id', description: 'Procedure ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Validation result',
+  })
+  @ApiResponse({ status: 404, description: 'Procedure not found' })
   async getValidation(@Param('id') id: string) {
     return this.validationService.validateProcedure(id);
   }
@@ -239,6 +255,114 @@ export class ProcedureController {
   ) {
     const userId = user ? (user as any)?.userId : undefined;
     return this.procedureService.createVersion(id, changeLog, userId);
+  }
+
+  // ====================================
+  // VALIDATION ENDPOINTS
+  // ====================================
+
+  @Post(':id/validation/request')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Request validation for a Procedure' })
+  @ApiParam({ name: 'id', description: 'Procedure ID' })
+  @ApiResponse({
+    status: 201,
+    description: 'Validation requests created successfully',
+  })
+  @ApiResponse({ status: 404, description: 'Procedure not found' })
+  @ApiResponse({ status: 400, description: 'Bad request' })
+  requestValidation(
+    @Param('id') procedureId: string,
+    @Body() createValidationDto: CreateValidationRequestDto,
+    @Request() req: any,
+  ) {
+    const userId = req.user?.userId || req.user?.sub;
+    if (!userId) {
+      throw new BadRequestException('User authentication required');
+    }
+    return this.validationService.requestValidation(
+      procedureId,
+      createValidationDto.validatorIds,
+      userId,
+    );
+  }
+
+  @Get(':id/validation')
+  @ApiOperation({ summary: 'Get all validation requests for a Procedure' })
+  @ApiParam({ name: 'id', description: 'Procedure ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of validation requests',
+  })
+  @ApiResponse({ status: 404, description: 'Procedure not found' })
+  getValidationRequests(@Param('id') procedureId: string) {
+    return this.validationService.getValidationRequests(procedureId);
+  }
+
+  @Post('validation/:requestId/approve')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Approve a validation request' })
+  @ApiParam({ name: 'requestId', description: 'Validation Request ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Validation request approved successfully',
+  })
+  @ApiResponse({ status: 404, description: 'Validation request not found' })
+  @ApiResponse({ status: 400, description: 'Bad request' })
+  approveValidation(
+    @Param('requestId') requestId: string,
+    @Body() approveDto: ApproveValidationDto,
+    @Request() req: any,
+  ) {
+    const validatorId = req.user?.userId || req.user?.sub;
+    if (!validatorId) {
+      throw new BadRequestException('User authentication required');
+    }
+    return this.validationService.approveValidation(
+      requestId,
+      validatorId,
+      approveDto,
+    );
+  }
+
+  @Post('validation/:requestId/reject')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Reject a validation request' })
+  @ApiParam({ name: 'requestId', description: 'Validation Request ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Validation request rejected successfully',
+  })
+  @ApiResponse({ status: 404, description: 'Validation request not found' })
+  @ApiResponse({ status: 400, description: 'Bad request' })
+  rejectValidation(
+    @Param('requestId') requestId: string,
+    @Body() rejectDto: RejectValidationDto,
+    @Request() req: any,
+  ) {
+    const validatorId = req.user?.userId || req.user?.sub;
+    if (!validatorId) {
+      throw new BadRequestException('User authentication required');
+    }
+    return this.validationService.rejectValidation(
+      requestId,
+      validatorId,
+      rejectDto,
+    );
+  }
+
+  @Get('validation/pending')
+  @ApiOperation({ summary: 'Get all pending validation requests for the current user' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of pending validation requests',
+  })
+  getPendingValidations(@Request() req: any) {
+    const userId = req.user?.userId || req.user?.sub;
+    if (!userId) {
+      throw new BadRequestException('User authentication required');
+    }
+    return this.validationService.getPendingValidationsForUser(userId);
   }
 }
 

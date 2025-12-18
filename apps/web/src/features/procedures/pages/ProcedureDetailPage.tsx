@@ -3,23 +3,34 @@
  * Page for viewing a Procedure with its FlowDiagram in read-only mode
  */
 
+import { useState } from 'react'
 import { useParams } from '@tanstack/react-router'
 import { PageWrapper } from '../../../components/layout/PageWrapper'
 import { ProcedureFlowDiagram } from '../components/ProcedureFlowDiagram'
 import { procedureApi } from '../../../lib/api/procedure.api'
 import { useQuery } from '@tanstack/react-query'
-import { FileText, Edit, ArrowLeft } from 'lucide-react'
+import { FileText, Edit, ArrowLeft, CheckCircle2 } from 'lucide-react'
 import { Button, Body, BodySmall } from '@repo/ui'
 import { useNavigate } from '@tanstack/react-router'
+import { useAuth } from '../../auth/context/AuthContext'
+import { ProcedureValidationDialog } from '../components/ProcedureValidationDialog'
+import { ProcedureValidationStatusBadge } from '../components/ProcedureValidationStatusBadge'
+import { useProcedureValidationRequests } from '../hooks/useProcedureValidation'
 
 export default function ProcedureDetailPage() {
   const { id } = useParams({ strict: false })
   const navigate = useNavigate()
+  const { user } = useAuth()
+  const [validationDialogOpen, setValidationDialogOpen] = useState(false)
   const { data: procedure, isLoading } = useQuery({
     queryKey: ['procedure', id],
     queryFn: () => procedureApi.getProcedureById(id!),
     enabled: !!id,
   })
+  
+  // Fetch validation requests for this procedure
+  const { data: validationRequests, isLoading: isLoadingValidationRequests } =
+    useProcedureValidationRequests(id || '')
 
   if (isLoading) {
     return (
@@ -69,6 +80,14 @@ export default function ProcedureDetailPage() {
             Retour
           </Button>
           <Button
+            variant="outline"
+            onClick={() => setValidationDialogOpen(true)}
+            className="border-orange-300 text-orange-600 hover:bg-orange-50"
+          >
+            <CheckCircle2 className="h-4 w-4 mr-2" />
+            Demander validation
+          </Button>
+          <Button
             onClick={() => navigate({ to: '/procedures-level3/$id/flow', params: { id: procedure.id } })}
             className="bg-orange-600 hover:bg-orange-700"
           >
@@ -87,7 +106,12 @@ export default function ProcedureDetailPage() {
           </div>
           <div>
             <BodySmall className="text-gray-500 mb-1">Statut</BodySmall>
-            <Body className="font-semibold">{procedure.status}</Body>
+            <Body className="font-semibold flex items-center gap-2">
+              {procedure.status}
+              {(procedure.status === 'DRAFT' || procedure.status === 'IN_REVIEW') && (
+                <ProcedureValidationStatusBadge procedureId={procedure.id} compact={false} />
+              )}
+            </Body>
           </div>
           {procedure.process && (
             <div>
@@ -152,10 +176,65 @@ export default function ProcedureDetailPage() {
         )}
       </div>
 
+      {/* Validation Requests Section */}
+      {(procedure.status === 'DRAFT' || procedure.status === 'IN_REVIEW') &&
+        validationRequests &&
+        validationRequests.length > 0 && (
+          <div className="bg-white rounded-lg shadow p-6 mb-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-orange-600" />
+              Statut de validation
+            </h3>
+            <div className="space-y-4">
+              {validationRequests.map((request: any) => (
+                <div
+                  key={request.id}
+                  className="flex items-start justify-between p-4 border border-gray-200 rounded-lg shadow-sm"
+                >
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <BodySmall className="font-semibold text-gray-800">
+                        {request.validator.firstName} {request.validator.lastName}
+                      </BodySmall>
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          request.status === 'PENDING'
+                            ? 'bg-yellow-100 text-yellow-800'
+                            : request.status === 'APPROVED'
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-red-100 text-red-800'
+                        }`}
+                      >
+                        {request.status === 'PENDING'
+                          ? 'En attente'
+                          : request.status === 'APPROVED'
+                            ? 'Approuvé'
+                            : 'Rejeté'}
+                      </span>
+                    </div>
+                    {request.comment && (
+                      <BodySmall className="text-gray-600 italic">"{request.comment}"</BodySmall>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
       {/* FlowDiagram Viewer (ReadOnly) */}
       <div className="bg-white rounded-lg shadow" style={{ height: 'calc(100vh - 20rem)' }}>
         <ProcedureFlowDiagram procedureId={procedure.id} readOnly={true} />
       </div>
+
+      {/* Validation Dialog */}
+      {procedure && validationDialogOpen && (
+        <ProcedureValidationDialog
+          procedure={procedure}
+          open={validationDialogOpen}
+          onOpenChange={setValidationDialogOpen}
+        />
+      )}
     </PageWrapper>
   )
 }

@@ -152,3 +152,93 @@ export function findLaneAtPosition(
   return null;
 }
 
+/**
+ * Check if a node is within the bounds of its assigned lane
+ * Returns true if the node is fully or mostly (>=50%) within the lane bounds
+ */
+export function isNodeInLaneBounds(
+  node: Node,
+  pool: Node,
+  laneId: string,
+  orientation?: SwimlaneOrientation,
+): boolean {
+  const laneBounds = calculateLanePosition(pool, laneId, orientation);
+  if (!laneBounds) return false;
+
+  // Calculate absolute position of the node
+  const nodeAbsoluteX = (pool.position?.x as number || 0) + node.position.x;
+  const nodeAbsoluteY = (pool.position?.y as number || 0) + node.position.y;
+  
+  const nodeWidth = (node.width as number) || 100;
+  const nodeHeight = (node.height as number) || 50;
+
+  // Calculate node bounds
+  const nodeBounds = {
+    x: nodeAbsoluteX,
+    y: nodeAbsoluteY,
+    width: nodeWidth,
+    height: nodeHeight,
+  };
+
+  // Check intersection (at least 50% overlap)
+  const overlapX = Math.max(
+    0,
+    Math.min(nodeBounds.x + nodeBounds.width, laneBounds.x + laneBounds.width) -
+      Math.max(nodeBounds.x, laneBounds.x)
+  );
+  const overlapY = Math.max(
+    0,
+    Math.min(nodeBounds.y + nodeBounds.height, laneBounds.y + laneBounds.height) -
+      Math.max(nodeBounds.y, laneBounds.y)
+  );
+  const overlapArea = overlapX * overlapY;
+  const nodeArea = nodeBounds.width * nodeBounds.height;
+
+  return overlapArea >= nodeArea * 0.5; // At least 50% overlap
+}
+
+/**
+ * Constrain a node's position to stay within its lane bounds
+ * If the node is outside the lane, reposition it to the nearest valid position
+ */
+export function constrainNodeToLane(
+  node: Node,
+  pool: Node,
+  laneId: string,
+  orientation?: SwimlaneOrientation,
+): { x: number; y: number } | null {
+  const laneBounds = calculateLanePosition(pool, laneId, orientation);
+  if (!laneBounds) return null;
+
+  // Calculate absolute position of the node
+  const nodeAbsoluteX = (pool.position?.x as number || 0) + node.position.x;
+  const nodeAbsoluteY = (pool.position?.y as number || 0) + node.position.y;
+  
+  const nodeWidth = (node.width as number) || 100;
+  const nodeHeight = (node.height as number) || 50;
+
+  // Constrain position to lane bounds
+  let constrainedX = nodeAbsoluteX;
+  let constrainedY = nodeAbsoluteY;
+
+  // Constrain X
+  if (nodeAbsoluteX < laneBounds.x) {
+    constrainedX = laneBounds.x;
+  } else if (nodeAbsoluteX + nodeWidth > laneBounds.x + laneBounds.width) {
+    constrainedX = laneBounds.x + laneBounds.width - nodeWidth;
+  }
+
+  // Constrain Y
+  if (nodeAbsoluteY < laneBounds.y) {
+    constrainedY = laneBounds.y;
+  } else if (nodeAbsoluteY + nodeHeight > laneBounds.y + laneBounds.height) {
+    constrainedY = laneBounds.y + laneBounds.height - nodeHeight;
+  }
+
+  // Convert back to relative position
+  return {
+    x: constrainedX - (pool.position?.x as number || 0),
+    y: constrainedY - (pool.position?.y as number || 0),
+  };
+}
+

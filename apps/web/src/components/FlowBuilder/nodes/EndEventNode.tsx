@@ -11,7 +11,7 @@ export const EndEventNode = createNode(
     ...COLOR_SCHEMES.red,
     borderWidth: 4,
     icon: <Square className="w-4 h-4 fill-current" />,
-    handles: [HANDLE_CONFIGS.targetLeft],
+    handles: [HANDLE_CONFIGS.targetTop],
     showLabel: true,
     labelPosition: 'below',
   })

@@ -166,10 +166,36 @@ export class ProcessMapService {
 
   /**
    * Find all ProcessMaps with pagination
+   * Applies visibility rules:
+   * - Regular users: see their own ProcessMaps OR validated/published ProcessMaps
+   * - Superadmins (isAdmin=true): see all ProcessMaps
    */
-  async findAll(workspaceId?: string, page = 1, limit = 20) {
+  async findAll(
+    workspaceId?: string,
+    page = 1,
+    limit = 20,
+    userId?: string,
+    isAdmin = false,
+  ) {
     const skip = (page - 1) * limit;
-    const where = workspaceId ? { workspaceId } : {};
+
+    const where: any = {};
+    
+    // Apply visibility rules
+    if (!isAdmin && userId) {
+      // Regular user: see own ProcessMaps OR validated/published ProcessMaps
+      where.OR = [
+        { createdById: userId },
+        { status: ProcessStatus.VALIDATED },
+        { status: ProcessStatus.PUBLISHED },
+      ];
+    }
+    // Superadmin sees all (no additional filter)
+    
+    // Existing filters
+    if (workspaceId) {
+      where.workspaceId = workspaceId;
+    }
 
     const [data, total] = await Promise.all([
       workspaceId

@@ -546,6 +546,14 @@ export class ProcedurePaletteConfig implements PaletteConfig {
       category: 'Formes',
     },
     
+    // Acteurs Category
+    {
+      type: 'actorDepartment',
+      label: 'Acteur / Rôle',
+      icon: <Users className="w-3 h-3 text-green-600" />,
+      category: 'Acteurs',
+    },
+    
     // Text/Title Category
     {
       type: 'text',
@@ -572,6 +580,8 @@ export class ProcedurePaletteConfig implements PaletteConfig {
       'subprocess', 'adHocSubprocess', 'eventSubprocess',
       // Formes
       'simpleRectangle',
+      // Acteurs
+      'actorDepartment',
       // Text
       'text',
     ];
@@ -582,7 +592,7 @@ export class ProcedurePaletteConfig implements PaletteConfig {
   }
 
   getDefaultExpandedCategories(): string[] {
-    return ['Événements', 'Tâches', 'Passerelles', 'Sous-Processus', 'Formes', 'Texte'];
+    return ['Événements', 'Tâches', 'Passerelles', 'Sous-Processus', 'Formes', 'Acteurs', 'Texte'];
   }
 
   getTitle(): string {

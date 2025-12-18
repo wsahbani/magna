@@ -3,19 +3,29 @@
  * Page for viewing a Process with its FlowDiagram in read-only mode
  */
 
+import { useState } from 'react'
 import { useParams } from '@tanstack/react-router'
 import { PageWrapper } from '../../../components/layout/PageWrapper'
 import { ProcessFlowDiagram } from '../components/ProcessFlowDiagram'
 import { useProcess } from '../hooks/useProcesses'
-import { Workflow, Edit, ArrowLeft } from 'lucide-react'
-import { Button, Body, BodySmall } from '@repo/ui'
+import { Workflow, Edit, ArrowLeft, CheckCircle2, Clock, Users, XCircle } from 'lucide-react'
+import { Button, Body, BodySmall, Caption } from '@repo/ui'
 import { useNavigate } from '@tanstack/react-router'
-import { ProcessType } from '../types/enums'
+import { ProcessType, ProcessStatus } from '../types/enums'
+import { useAuth } from '../../auth/context/AuthContext'
+import { ProcessValidationDialog } from '../components/ProcessValidationDialog'
+import { useProcessValidationRequests } from '../hooks/useProcessValidation'
+import { ValidationStatusBadge } from '../components/ValidationStatusBadge'
 
 export default function ProcessDetailPage() {
   const { id } = useParams({ from: '/processes-level2/$id' })
   const navigate = useNavigate()
   const { data: process, isLoading } = useProcess(id)
+  const { user } = useAuth()
+  const [validationDialogOpen, setValidationDialogOpen] = useState(false)
+  const { data: validationRequests = [] } = useProcessValidationRequests(
+    process?.id,
+  )
 
   if (isLoading) {
     return (
@@ -63,6 +73,14 @@ export default function ProcessDetailPage() {
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
             Retour
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setValidationDialogOpen(true)}
+            className="border-orange-300 text-orange-600 hover:bg-orange-50"
+          >
+            <CheckCircle2 className="h-4 w-4 mr-2" />
+            Demander validation
           </Button>
           <Button
             onClick={() => {
@@ -130,6 +148,52 @@ export default function ProcessDetailPage() {
             <BodySmall className="text-gray-500 mb-1">Procédures</BodySmall>
             <Body className="font-semibold">{process._count?.procedures || 0}</Body>
           </div>
+          {/* Validation Status */}
+          {(process.status === ProcessStatus.DRAFT || process.status === ProcessStatus.IN_REVIEW) &&
+            validationRequests.length > 0 && (
+              <div className="md:col-span-2 lg:col-span-3">
+                <BodySmall className="text-gray-500 mb-2">Statut de validation</BodySmall>
+                <div className="flex items-center gap-3">
+                  <ValidationStatusBadge processId={process.id} compact={false} />
+                  {validationRequests.length > 0 && (
+                    <div className="flex items-center gap-4 text-sm">
+                      <div className="flex items-center gap-1.5">
+                        <Users className="w-4 h-4 text-gray-400" />
+                        <Caption className="text-gray-600">
+                          {validationRequests.length} validateur{validationRequests.length > 1 ? 's' : ''}
+                        </Caption>
+                      </div>
+                      {validationRequests.filter((req) => req.status === 'APPROVED').length > 0 && (
+                        <div className="flex items-center gap-1.5">
+                          <CheckCircle2 className="w-4 h-4 text-green-600" />
+                          <Caption className="text-green-700">
+                            {validationRequests.filter((req) => req.status === 'APPROVED').length} approuvé
+                            {validationRequests.filter((req) => req.status === 'APPROVED').length > 1 ? 's' : ''}
+                          </Caption>
+                        </div>
+                      )}
+                      {validationRequests.filter((req) => req.status === 'PENDING').length > 0 && (
+                        <div className="flex items-center gap-1.5">
+                          <Clock className="w-4 h-4 text-orange-600" />
+                          <Caption className="text-orange-700">
+                            {validationRequests.filter((req) => req.status === 'PENDING').length} en attente
+                          </Caption>
+                        </div>
+                      )}
+                      {validationRequests.filter((req) => req.status === 'REJECTED').length > 0 && (
+                        <div className="flex items-center gap-1.5">
+                          <XCircle className="w-4 h-4 text-red-600" />
+                          <Caption className="text-red-700">
+                            {validationRequests.filter((req) => req.status === 'REJECTED').length} rejeté
+                            {validationRequests.filter((req) => req.status === 'REJECTED').length > 1 ? 's' : ''}
+                          </Caption>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
         </div>
         {process.description && (
           <div className="mt-4">
@@ -180,6 +244,15 @@ export default function ProcessDetailPage() {
           </div>
         </div>
       ) : null}
+
+      {/* Validation Dialog */}
+      {process && validationDialogOpen && (
+        <ProcessValidationDialog
+          process={process}
+          open={validationDialogOpen}
+          onOpenChange={setValidationDialogOpen}
+        />
+      )}
     </PageWrapper>
   )
 }

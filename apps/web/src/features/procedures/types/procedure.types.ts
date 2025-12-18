@@ -11,6 +11,7 @@ export interface Procedure {
   validatedAt?: string
   effectiveDate?: string
   expirationDate?: string
+  createdById?: string
   createdAt: string
   updatedAt: string
   process?: {

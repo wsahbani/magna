@@ -11,7 +11,7 @@ export const StartEventNode = createNode(
     ...COLOR_SCHEMES.green,
     borderWidth: 4,
     icon: <Play className="w-5 h-5 fill-current" />,
-    handles: [HANDLE_CONFIGS.sourceRight],
+    handles: [HANDLE_CONFIGS.sourceBottom],
     showLabel: true,
     labelPosition: 'below',
   })

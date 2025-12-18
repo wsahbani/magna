@@ -51,9 +51,10 @@ export class ProcedureRepository {
     }) as Promise<ProcedureWithRelations | null>;
   }
 
-  async findByProcessId(processId: string): Promise<ProcedureEntity[]> {
+  async findByProcessId(processId: string, where?: any): Promise<ProcedureEntity[]> {
+    const whereClause = where ? { ...where, processId } : { processId };
     return this.prisma.procedure.findMany({
-      where: { processId },
+      where: whereClause,
       orderBy: { createdAt: 'desc' },
       include: {
         process: {
@@ -75,8 +76,9 @@ export class ProcedureRepository {
     });
   }
 
-  async findAll(): Promise<ProcedureEntity[]> {
+  async findAll(where?: any): Promise<ProcedureEntity[]> {
     return this.prisma.procedure.findMany({
+      where,
       orderBy: { createdAt: 'desc' },
       include: {
         process: {

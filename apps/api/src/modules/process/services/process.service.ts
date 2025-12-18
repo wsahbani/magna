@@ -222,11 +222,34 @@ export class ProcessService {
 
   /**
    * Find all Processes with pagination
+   * Applies visibility rules:
+   * - Regular users: see their own processes OR validated/published processes
+   * - Superadmins (isAdmin=true): see all processes
    */
-  async findAll(processMapId?: string, workspaceId?: string, page = 1, limit = 20) {
+  async findAll(
+    processMapId?: string,
+    workspaceId?: string,
+    page = 1,
+    limit = 20,
+    userId?: string,
+    isAdmin = false,
+  ) {
     const skip = (page - 1) * limit;
 
     const where: any = {};
+    
+    // Apply visibility rules
+    if (!isAdmin && userId) {
+      // Regular user: see own processes OR validated/published processes
+      where.OR = [
+        { createdById: userId },
+        { status: ProcessStatus.VALIDATED },
+        { status: ProcessStatus.PUBLISHED },
+      ];
+    }
+    // Superadmin sees all (no additional filter)
+    
+    // Existing filters
     if (processMapId) {
       where.processMapId = processMapId;
     }

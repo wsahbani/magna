@@ -97,14 +97,17 @@ const SwimlaneNode = memo(({ id, data, selected, width, height }: SwimlaneNodePr
             {lanes.map((lane, index) => {
               const colorClass = laneColors[index % laneColors.length];
               const isCollapsed = lane.collapsed || false;
+              const isHovered = data.hoveredLaneId === lane.id;
 
               return (
                 <div
                   key={lane.id}
-                  className={`relative ${colorClass} border-b border-gray-300 last:border-b-0 group`}
+                  className={`relative border-b border-gray-300 last:border-b-0 group transition-colors duration-200 ${
+                    isHovered ? 'bg-orange-100' : colorClass
+                  }`}
                   style={{
                     height: isCollapsed ? 40 : lane.size,
-                    backgroundColor: lane.color,
+                    backgroundColor: isHovered ? undefined : lane.color,
                   }}
                 >
                   {/* Lane label */}
@@ -284,14 +287,17 @@ const SwimlaneNode = memo(({ id, data, selected, width, height }: SwimlaneNodePr
           {lanes.map((lane, index) => {
             const colorClass = laneColors[index % laneColors.length];
             const isCollapsed = lane.collapsed || false;
+            const isHovered = data.hoveredLaneId === lane.id;
 
             return (
               <div
                 key={lane.id}
-                className={`relative ${colorClass} border-r border-gray-300 last:border-r-0 group`}
+                className={`relative border-r border-gray-300 last:border-r-0 group transition-colors duration-200 ${
+                  isHovered ? 'bg-orange-100' : colorClass
+                }`}
                 style={{
                   width: isCollapsed ? 40 : lane.size,
-                  backgroundColor: lane.color,
+                  backgroundColor: isHovered ? undefined : lane.color,
                 }}
               >
                 {/* Lane label */}

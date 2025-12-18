@@ -531,8 +531,8 @@ async function main() {
   await prisma.flowDiagram.create({
     data: {
       level: 3,
-      processId: procedure1.id,
-      procedureId: procedure1.id,
+      processId: procedure1.id, // Generic field for level identification
+      procedureId: procedure1.id, // Specific relation field for Procedure
     },
   });
 
@@ -555,8 +555,8 @@ async function main() {
   await prisma.flowDiagram.create({
     data: {
       level: 3,
-      processId: procedure2.id,
-      procedureId: procedure2.id,
+      processId: procedure2.id, // Generic field for level identification
+      procedureId: procedure2.id, // Specific relation field for Procedure
     },
   });
 
@@ -580,8 +580,8 @@ async function main() {
   await prisma.flowDiagram.create({
     data: {
       level: 3,
-      processId: procedure3.id,
-      procedureId: procedure3.id,
+      processId: procedure3.id, // Generic field for level identification
+      procedureId: procedure3.id, // Specific relation field for Procedure
     },
   });
 
@@ -605,8 +605,8 @@ async function main() {
   await prisma.flowDiagram.create({
     data: {
       level: 3,
-      processId: procedure4.id,
-      procedureId: procedure4.id,
+      processId: procedure4.id, // Generic field for level identification
+      procedureId: procedure4.id, // Specific relation field for Procedure
     },
   });
 

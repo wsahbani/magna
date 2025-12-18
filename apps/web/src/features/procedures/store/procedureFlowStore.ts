@@ -408,6 +408,8 @@ export const useProcedureFlowStore = create<ProcedureFlowStore>()(
 
       /**
        * Add a lane to a pool
+       * Redistributes lanes equally: each lane takes (poolSize / numberOfLanes)
+       * Pool size remains constant (BPMN-compliant)
        */
       addLaneToPool: (poolId: string, laneData?: { label?: string; size?: number; color?: string }) => {
         set(
@@ -417,18 +419,30 @@ export const useProcedureFlowStore = create<ProcedureFlowStore>()(
 
             const orientation = (pool.data.orientation || 'vertical') as SwimlaneOrientation;
             const isVertical = orientation === 'vertical';
-            const defaultSize = laneData?.size || 200;
+            
+            // Get current pool size (width for vertical, height for horizontal)
+            const poolSize = isVertical 
+              ? ((pool.width as number) || 200)
+              : ((pool.height as number) || 600);
+            
             const laneCount = (pool.data.lanes as LaneData[])?.length || 0;
 
             const newLane: LaneData = {
               id: `lane-${Date.now()}`,
               label: laneData?.label || `Lane ${laneCount + 1}`,
-              size: defaultSize,
+              size: poolSize / (laneCount + 1), // Will be recalculated below
               color: laneData?.color,
             };
 
             const updatedLanes = [...((pool.data.lanes as LaneData[]) || []), newLane];
-            const totalSize = updatedLanes.reduce((sum, l) => sum + l.size, 0);
+            const numberOfLanes = updatedLanes.length;
+            
+            // Redistribute equally: each lane takes equal portion of pool size
+            const equalSize = poolSize / numberOfLanes;
+            const redistributedLanes = updatedLanes.map((lane) => ({
+              ...lane,
+              size: equalSize,
+            }));
 
             return {
               nodes: state.nodes.map((node) =>
@@ -437,13 +451,14 @@ export const useProcedureFlowStore = create<ProcedureFlowStore>()(
                       ...node,
                       data: {
                         ...node.data,
-                        lanes: updatedLanes,
+                        lanes: redistributedLanes,
                       },
+                      // Pool size remains constant (BPMN-compliant)
                       style: {
                         ...node.style,
                         ...(isVertical
-                          ? { width: totalSize, height: node.height || 600 }
-                          : { width: node.width || 1000, height: totalSize }),
+                          ? { width: poolSize, height: node.height || 600 }
+                          : { width: node.width || 1000, height: poolSize }),
                       },
                     }
                   : node,
@@ -458,6 +473,8 @@ export const useProcedureFlowStore = create<ProcedureFlowStore>()(
 
       /**
        * Remove a lane from a pool
+       * Redistributes remaining lanes equally: each lane takes (poolSize / numberOfLanes)
+       * Pool size remains constant (BPMN-compliant)
        */
       removeLaneFromPool: (poolId: string, laneId: string) => {
         set(
@@ -471,27 +488,80 @@ export const useProcedureFlowStore = create<ProcedureFlowStore>()(
             const orientation = (pool.data.orientation || 'vertical') as SwimlaneOrientation;
             const isVertical = orientation === 'vertical';
 
+            // Get current pool size (width for vertical, height for horizontal)
+            const poolSize = isVertical 
+              ? ((pool.width as number) || 200)
+              : ((pool.height as number) || 600);
+
             const updatedLanes = lanes.filter((l) => l.id !== laneId);
-            const totalSize = updatedLanes.reduce((sum, l) => sum + l.size, 0);
+            const numberOfLanes = updatedLanes.length;
+            
+            // Redistribute equally: each remaining lane takes equal portion of pool size
+            const equalSize = poolSize / numberOfLanes;
+            const redistributedLanes = updatedLanes.map((lane) => ({
+              ...lane,
+              size: equalSize,
+            }));
+
+            // Find all child nodes in the deleted lane
+            const childNodesInDeletedLane = state.nodes.filter(
+              (n) => 
+                ((n as any).parentId === poolId || (n as any).parentNode === poolId) &&
+                n.data?.laneId === laneId
+            );
+
+            // Get the first remaining lane as fallback destination
+            const fallbackLaneId = updatedLanes.length > 0 ? updatedLanes[0].id : undefined;
 
             return {
-              nodes: state.nodes.map((node) =>
-                node.id === poolId
-                  ? {
+              nodes: state.nodes.map((node) => {
+                // Update pool with redistributed lanes
+                if (node.id === poolId) {
+                  return {
+                    ...node,
+                    data: {
+                      ...node.data,
+                      lanes: redistributedLanes,
+                    },
+                    // Pool size remains constant (BPMN-compliant)
+                    style: {
+                      ...node.style,
+                      ...(isVertical
+                        ? { width: poolSize, height: node.height || 600 }
+                        : { width: node.width || 1000, height: poolSize }),
+                    },
+                  };
+                }
+
+                // Move child nodes from deleted lane to fallback lane or detach
+                if (childNodesInDeletedLane.some((cn) => cn.id === node.id)) {
+                  if (fallbackLaneId) {
+                    // Move to first remaining lane
+                    return {
                       ...node,
                       data: {
                         ...node.data,
-                        lanes: updatedLanes,
+                        laneId: fallbackLaneId,
                       },
-                      style: {
-                        ...node.style,
-                        ...(isVertical
-                          ? { width: totalSize, height: node.height || 600 }
-                          : { width: node.width || 1000, height: totalSize }),
+                    };
+                  } else {
+                    // Detach if no lanes remain (shouldn't happen due to check above)
+                    return {
+                      ...node,
+                      ...({ parentId: undefined, extent: undefined } as any),
+                      ...({ parentNode: undefined } as any),
+                      data: {
+                        ...node.data,
+                        parentNodeId: undefined,
+                        poolId: undefined,
+                        laneId: undefined,
                       },
-                    }
-                  : node,
-              ),
+                    };
+                  }
+                }
+
+                return node;
+              }),
               isDirty: true,
             };
           },
@@ -611,7 +681,22 @@ export const useProcedureFlowStore = create<ProcedureFlowStore>()(
             const isVertical = newOrientation === 'vertical';
 
             const lanes = (pool.data.lanes as LaneData[]) || [];
-            const totalSize = lanes.reduce((sum, l) => sum + l.size, 0);
+            const numberOfLanes = lanes.length;
+            
+            // Get the pool size for the new orientation
+            // When switching: use the dimension that corresponds to the new orientation
+            const poolSize = isVertical 
+              ? ((pool.width as number) || 200)
+              : ((pool.height as number) || 600);
+            
+            // Redistribute lanes equally for the new orientation
+            const equalSize = numberOfLanes > 0 ? poolSize / numberOfLanes : poolSize;
+            const redistributedLanes = lanes.map((lane) => ({
+              ...lane,
+              size: equalSize,
+            }));
+            
+            const totalSize = poolSize; // Pool size remains constant
 
             // Find all child nodes of this pool
             const childNodes = state.nodes.filter(
@@ -624,6 +709,7 @@ export const useProcedureFlowStore = create<ProcedureFlowStore>()(
               data: {
                 ...pool.data,
                 orientation: newOrientation,
+                lanes: redistributedLanes, // Use redistributed lanes
               },
               style: {
                 ...pool.style,

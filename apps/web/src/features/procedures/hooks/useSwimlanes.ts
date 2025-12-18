@@ -76,6 +76,13 @@ export function useSwimlanes({
       const poolId = `pool-${Date.now()}`;
       const laneId = `lane-${Date.now()}`;
 
+      // Initial pool dimensions
+      const initialPoolWidth = 200; // Vertical: lanes side by side
+      const initialPoolHeight = 600; // Horizontal: lanes stacked
+      
+      // First lane takes 100% of pool size
+      const firstLaneSize = initialPoolWidth; // For vertical orientation
+
       const newPool: Node = {
         id: poolId,
         type: 'pool',
@@ -87,7 +94,7 @@ export function useSwimlanes({
             {
               id: laneId,
               label: 'Lane 1',
-              size: 200,
+              size: firstLaneSize, // 100% of pool width (200px)
             },
           ],
           color: '#f3f4f6',
@@ -111,8 +118,8 @@ export function useSwimlanes({
             updateLaneLabel?.(id, laneId, label);
           },
         },
-        width: 200, // Initial width (vertical: sum of lane sizes)
-        height: 600, // Initial height
+        width: initialPoolWidth, // Initial width (vertical: lanes side by side)
+        height: initialPoolHeight, // Initial height
         style: {
           backgroundColor: '#f3f4f6',
         },
@@ -147,15 +154,27 @@ export function useSwimlanes({
         const isVertical = orientation === 'vertical';
         const laneCount = poolData.lanes?.length || 0;
 
+        // Get current pool size (width for vertical, height for horizontal)
+        const poolSize = isVertical 
+          ? ((pool.width as number) || 200)
+          : ((pool.height as number) || 600);
+
         const newLane: LaneData = {
           id: `lane-${Date.now()}`,
           label: options?.label || `Lane ${laneCount + 1}`,
-          size: options?.size || 200,
+          size: poolSize / (laneCount + 1), // Will be recalculated below
           color: options?.color,
         };
 
-            const updatedLanes = [...(poolData.lanes || []), newLane];
-            const totalSize = updatedLanes.reduce((sum: number, l: LaneData) => sum + l.size, 0);
+        const updatedLanes = [...(poolData.lanes || []), newLane];
+        const numberOfLanes = updatedLanes.length;
+        
+        // Redistribute equally: each lane takes equal portion of pool size
+        const equalSize = poolSize / numberOfLanes;
+        const redistributedLanes = updatedLanes.map((lane) => ({
+          ...lane,
+          size: equalSize,
+        }));
 
         setNodes((nds) =>
           nds.map((node) =>
@@ -164,13 +183,14 @@ export function useSwimlanes({
                   ...node,
                   data: {
                     ...node.data,
-                    lanes: updatedLanes,
+                    lanes: redistributedLanes,
                   },
+                  // Pool size remains constant (BPMN-compliant)
                   style: {
                     ...node.style,
                     ...(isVertical
-                      ? { width: totalSize, height: node.height || 600 }
-                      : { width: node.width || 1000, height: totalSize }),
+                      ? { width: poolSize, height: node.height || 600 }
+                      : { width: node.width || 1000, height: poolSize }),
                   },
                 }
               : node,
@@ -202,8 +222,20 @@ export function useSwimlanes({
         const orientation = poolData.orientation || 'vertical';
         const isVertical = orientation === 'vertical';
 
-            const updatedLanes = lanes.filter((l: LaneData) => l.id !== laneId);
-            const totalSize = updatedLanes.reduce((sum: number, l: LaneData) => sum + l.size, 0);
+        // Get current pool size (width for vertical, height for horizontal)
+        const poolSize = isVertical 
+          ? ((pool.width as number) || 200)
+          : ((pool.height as number) || 600);
+
+        const updatedLanes = lanes.filter((l: LaneData) => l.id !== laneId);
+        const numberOfLanes = updatedLanes.length;
+        
+        // Redistribute equally: each remaining lane takes equal portion of pool size
+        const equalSize = poolSize / numberOfLanes;
+        const redistributedLanes = updatedLanes.map((lane) => ({
+          ...lane,
+          size: equalSize,
+        }));
 
         setNodes((nds) =>
           nds.map((node) =>
@@ -212,13 +244,14 @@ export function useSwimlanes({
                   ...node,
                   data: {
                     ...node.data,
-                    lanes: updatedLanes,
+                    lanes: redistributedLanes,
                   },
+                  // Pool size remains constant (BPMN-compliant)
                   style: {
                     ...node.style,
                     ...(isVertical
-                      ? { width: totalSize, height: node.height || 600 }
-                      : { width: node.width || 1000, height: totalSize }),
+                      ? { width: poolSize, height: node.height || 600 }
+                      : { width: node.width || 1000, height: poolSize }),
                   },
                 }
               : node,

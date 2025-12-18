@@ -10,8 +10,11 @@
  */
 export enum ProcessStatus {
   DRAFT = 'DRAFT',
+  IN_REVIEW = 'IN_REVIEW',
+  VALIDATED = 'VALIDATED',
   PUBLISHED = 'PUBLISHED',
   ARCHIVED = 'ARCHIVED',
+  OBSOLETE = 'OBSOLETE',
 }
 
 /**
