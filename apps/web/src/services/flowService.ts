@@ -271,13 +271,13 @@ export class FlowService {
    */
   private static mapEdgePathType(type?: string): string {
     const typeMap: Record<string, string> = {
-      'default': 'SMOOTH_STEP',
+      'default': 'smoothstep',
       'straight': 'STRAIGHT',
       'step': 'STEP',
-      'smoothstep': 'SMOOTH_STEP',
+      'smoothstep': 'smoothstep',
       'bezier': 'BEZIER',
     }
-    return typeMap[type || 'default'] || 'SMOOTH_STEP'
+    return typeMap[type || 'default'] || 'smoothstep'
   }
 
   /**

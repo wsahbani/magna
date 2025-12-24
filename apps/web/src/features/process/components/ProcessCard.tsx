@@ -51,11 +51,11 @@ export function ProcessCard({ process, onView, onEdit, onDelete }: ProcessCardPr
   return (
     <>
     <div className="bg-white rounded-lg shadow-md border border-gray-200 hover:shadow-lg transition-shadow overflow-hidden h-full flex flex-col">
-      <div className="p-6 flex-1 flex flex-col">
+      <div className="p-4 flex-1 flex flex-col">
         {/* Header */}
-        <div className="flex items-start justify-between mb-4">
+        <div className="flex items-start justify-between mb-3">
           <div className="flex-1 min-w-0">
-            <h3 className="text-lg font-semibold text-gray-900 mb-1 truncate">{process.title}</h3>
+            <h3 className="text-base font-semibold text-gray-900 mb-1 truncate">{process.title}</h3>
             <BodySmall className="text-gray-500">{process.code}</BodySmall>
           </div>
           <span
@@ -67,41 +67,41 @@ export function ProcessCard({ process, onView, onEdit, onDelete }: ProcessCardPr
 
         {/* Description */}
         {process.description && (
-          <p className="text-sm text-gray-600 mb-4 line-clamp-2 flex-1">{process.description}</p>
+          <p className="text-xs text-gray-600 mb-3 line-clamp-2 flex-1">{process.description}</p>
         )}
 
         {/* Metadata */}
-        <div className="space-y-2 mb-4">
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            <TypeIcon className="h-4 w-4 text-orange-600 flex-shrink-0" />
-            <span>{type.label}</span>
+        <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 mb-3">
+          <div className="flex items-center gap-1.5 text-xs text-gray-600">
+            <TypeIcon className="h-3.5 w-3.5 text-orange-600 flex-shrink-0" />
+            <span className="truncate">{type.label}</span>
           </div>
           {priority && (
-            <div className="flex items-center gap-2 text-sm">
-              <Target className="h-4 w-4 text-orange-600 flex-shrink-0" />
-              <span className={priority.color}>Priorité: {priority.label}</span>
+            <div className="flex items-center gap-1.5 text-xs">
+              <Target className="h-3.5 w-3.5 text-orange-600 flex-shrink-0" />
+              <span className={`${priority.color} truncate`}>Priorité: {priority.label}</span>
             </div>
           )}
           {process.confidentiality && (
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <Shield className="h-4 w-4 text-orange-600 flex-shrink-0" />
-              <span>{process.confidentiality}</span>
+            <div className="flex items-center gap-1.5 text-xs text-gray-600">
+              <Shield className="h-3.5 w-3.5 text-orange-600 flex-shrink-0" />
+              <span className="truncate">{process.confidentiality}</span>
             </div>
           )}
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            <Workflow className="h-4 w-4 text-orange-600 flex-shrink-0" />
-            <span>{process._count?.procedures || 0} procédure{process._count?.procedures !== 1 ? 's' : ''}</span>
+          <div className="flex items-center gap-1.5 text-xs text-gray-600">
+            <Workflow className="h-3.5 w-3.5 text-orange-600 flex-shrink-0" />
+            <span className="truncate">{process._count?.procedures || 0} procédure{process._count?.procedures !== 1 ? 's' : ''}</span>
           </div>
           {/* Validation Status */}
           {(process.status === ProcessStatus.DRAFT || process.status === ProcessStatus.IN_REVIEW) && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 col-span-2">
               <ValidationStatusBadge processId={process.id} compact={true} />
             </div>
           )}
         </div>
 
         {/* Actions */}
-        <div className="flex justify-end gap-2 pt-4 border-t mt-auto">
+        <div className="flex justify-end gap-1.5 pt-3 border-t mt-auto">
           {canRequestValidation && (
             <Button
               variant="outline"

@@ -86,7 +86,7 @@ Full-screen process editor page with:
 ### Edge Model Features (To Be Implemented):
 ⏳ **Styling**: `strokeColor`, `strokeWidth`, `strokeDasharray`
 ⏳ **Markers**: `markerStart`, `markerEnd`, `markerSize`
-⏳ **Path Types**: `pathType` enum (SMOOTH_STEP, BEZIER, etc.)
+⏳ **Path Types**: `pathType` enum (SMOOTHSTEP, BEZIER, etc.)
 ⏳ **Animation**: `animated` flag
 ⏳ **Conditions**: `condition`, `isAnd`, `probability`
 ⏳ **Business Logic**: `estimatedTime`, `priority`

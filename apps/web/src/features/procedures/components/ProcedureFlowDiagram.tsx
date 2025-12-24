@@ -18,6 +18,7 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { Loader2 } from 'lucide-react';
+import { useNavigate } from '@tanstack/react-router';
 import { Palette } from '../../../components/FlowBuilder/Palette';
 import { PropertiesPanel } from '../../../components/FlowBuilder/PropertiesPanel';
 import { Toolbar } from '../../../components/FlowBuilder/Toolbar';
@@ -40,6 +41,7 @@ import { procedureFlowKeys } from '../hooks/useProcedureFlow';
 import type { FlowNode, Position, createNodeWithParent, removeNodeParent } from '../types/flow-node.types';
 import { isPoolNode } from '../types/flow-node.types';
 import { getBackgroundVariant } from '../../../components/FlowBuilder/utils/gridUtils';
+import { exportFlowToImage } from '../../../components/FlowBuilder/utils/exportFlowImage';
 
 // Constants
 const BACKGROUND_GAP = 20;
@@ -62,6 +64,7 @@ export function ProcedureFlowDiagram({
   onEdgeSelect,
 }: ProcedureFlowDiagramProps) {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
   const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null);
   const queryClient = useQueryClient();
   const [isImageExtractionModalOpen, setIsImageExtractionModalOpen] = useState(false);
@@ -96,6 +99,8 @@ export function ProcedureFlowDiagram({
     onConnect,
     saveFlow,
     setNodes,
+    flowDirection,
+    setFlowDirection,
     addLaneToPool,
     removeLaneFromPool,
     updateLaneSize,
@@ -405,6 +410,31 @@ export function ProcedureFlowDiagram({
 
   const onNodeClick = useCallback(
     (_event: React.MouseEvent, node: Node) => {
+      // FIRST: Check for linked process navigation (works in readOnly mode)
+      const linkedProcessId = node.data?.linkedProcessId;
+      const linkedProcessType = node.data?.linkedProcessType;
+      const linkedProcessFlowType = node.data?.linkedProcessFlowType;
+      
+      // Navigate if linked and in read-only mode, or if Ctrl/Cmd is pressed
+      if (linkedProcessId && (readOnly || _event.ctrlKey || _event.metaKey)) {
+        if (linkedProcessType === 'processMap') {
+          navigate({ to: '/process-maps/$id' as any, params: { id: linkedProcessId } as any });
+        } else if (linkedProcessType === 'process') {
+          // Navigate based on flow type
+          if (linkedProcessFlowType === 'SIPOC') {
+            window.location.href = `/processes/sipoc/${linkedProcessId}`;
+          } else {
+            navigate({ to: '/processes-level2/$id' as any, params: { id: linkedProcessId } as any });
+          }
+        } else if (linkedProcessType === 'procedure') {
+          navigate({ to: '/procedures-level3/$id' as any, params: { id: linkedProcessId } as any });
+        }
+        return;
+      }
+      
+      // If readOnly and no linked process, don't allow editing
+      if (readOnly) return;
+      
       setSelectedNodes([node.id]);
       setSelectedEdges([]);
       onNodeSelect?.(node);
@@ -416,7 +446,7 @@ export function ProcedureFlowDiagram({
         changePoolOrientation(node.id, newOrientation);
       }
     },
-    [setSelectedNodes, setSelectedEdges, onNodeSelect, changePoolOrientation],
+    [setSelectedNodes, setSelectedEdges, onNodeSelect, navigate, readOnly, changePoolOrientation],
   );
 
   const onEdgeClick = useCallback(
@@ -461,6 +491,16 @@ export function ProcedureFlowDiagram({
       // Error handling is done in the mutation
     }
   }, [saveFlow, readOnly]);
+
+  // Handle export image
+  const handleExportImage = useCallback(
+    async (format: 'png' | 'svg') => {
+      await exportFlowToImage(reactFlowWrapper.current, format, {
+        filename: `procedure-flow-${procedureId}`,
+      });
+    },
+    [reactFlowWrapper, procedureId]
+  );
 
   // Handle node drag - validate that node stays within its lane bounds
   const onNodeDrag = useCallback(
@@ -651,10 +691,11 @@ export function ProcedureFlowDiagram({
           onNodeUpdate: handleNodeStyleUpdate,
           currentStyle,
           currentHandlePositions: node.data?.handlePositions as { source?: string; target?: string } | undefined,
+          flowDirection, // Pass flowDirection to node data
         },
       };
     });
-  }, [nodes, handleAttachNode, handleDetachNode, handleNodeStyleUpdate, readOnly, isContainerNode, hoveredLaneId]);
+  }, [nodes, handleAttachNode, handleDetachNode, handleNodeStyleUpdate, readOnly, isContainerNode, hoveredLaneId, flowDirection]);
 
   if (isLoading) {
     return (
@@ -704,6 +745,11 @@ export function ProcedureFlowDiagram({
           nodesConnectable={!readOnly}
           elementsSelectable={!readOnly}
           deleteKeyCode={readOnly ? null : 'Delete'}
+          defaultEdgeOptions={{
+            type: 'smoothstep',
+            style: { stroke: 'hsl(210, 40%, 98%)', strokeWidth: 2 },
+            markerEnd: { type: 'arrowclosed', color: 'hsl(210, 40%, 98%)' },
+          }}
           snapToGrid={gridSettings.snapToGrid}
           snapGrid={[gridSettings.gridSize, gridSettings.gridSize]}
           fitView
@@ -835,6 +881,11 @@ export function ProcedureFlowDiagram({
                   }
                 }}
                 hasPool={pools.length > 0}
+                flowDirection={flowDirection}
+                onFlowDirectionChange={(direction) => {
+                  setFlowDirection(direction);
+                }}
+                onExportImage={handleExportImage}
               />
             </Panel>
           )}

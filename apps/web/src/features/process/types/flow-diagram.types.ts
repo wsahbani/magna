@@ -9,6 +9,7 @@ export interface FlowDiagram {
   diagramId: string | null
   nodes: FlowNode[]
   edges: FlowEdge[]
+  flowDirection?: 'HORIZONTAL' | 'VERTICAL'
 }
 
 export interface FlowNode {
@@ -98,5 +99,6 @@ export interface SaveProcessFlowDto {
   nodes: SaveNodeDto[]
   edges: SaveEdgeDto[]
   changesLog?: string
+  flowDirection?: 'HORIZONTAL' | 'VERTICAL'
 }
 

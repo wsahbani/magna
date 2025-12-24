@@ -36,10 +36,12 @@ export function useSaveProcessFlow() {
       processId,
       nodes,
       edges,
+      flowDirection,
     }: {
       processId: string
       nodes: Node[]
       edges: Edge[]
+      flowDirection?: 'horizontal' | 'vertical'
     }) => {
       // Transform ReactFlow nodes/edges to SaveNodeDto/SaveEdgeDto format
       const saveNodes = nodes.map((node) => {
@@ -77,7 +79,7 @@ export function useSaveProcessFlow() {
         data: edge.data,
       }))
 
-      return saveProcessFlow(processId, saveNodes, saveEdges)
+      return saveProcessFlow(processId, saveNodes, saveEdges, flowDirection)
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({

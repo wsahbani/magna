@@ -54,6 +54,10 @@ export interface UseProcessFlowStoreReturn {
 
   // Utils
   setProcessId: (id: string | null) => void;
+  
+  // Flow direction
+  flowDirection: 'horizontal' | 'vertical';
+  setFlowDirection: (direction: 'horizontal' | 'vertical') => void;
 }
 
 /**
@@ -98,6 +102,8 @@ export function useProcessFlowStore(
   const setProcessId = useStore((state) => state.setProcessId);
   const onNodesChange = useStore((state) => state.onNodesChange);
   const onEdgesChange = useStore((state) => state.onEdgesChange);
+  const flowDirection = useStore((state) => state.flowDirection);
+  const setFlowDirection = useStore((state) => state.setFlowDirection);
 
   // React Query hooks
   const { data: flowData, isLoading } = useProcessFlow(processId);
@@ -119,7 +125,17 @@ export function useProcessFlowStore(
       const apiNodesIds = apiNodes.map((n) => n.id).sort().join(',');
 
       if (currentNodesIds !== apiNodesIds || nodes.length !== apiNodes.length || edges.length !== apiEdges.length) {
-        loadFlowToStore(apiNodes, apiEdges);
+        // Convert flowDirection from API format (HORIZONTAL/VERTICAL) to store format (horizontal/vertical)
+        const apiFlowDirection = flowData.flowDirection === 'VERTICAL' ? 'vertical' : 'horizontal';
+        loadFlowToStore(apiNodes, apiEdges, apiFlowDirection);
+      }
+      
+      // Update flowDirection separately if it changed
+      if (flowData.flowDirection) {
+        const apiFlowDirection = flowData.flowDirection === 'VERTICAL' ? 'vertical' : 'horizontal';
+        if (flowDirection !== apiFlowDirection) {
+          setFlowDirection(apiFlowDirection);
+        }
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -156,6 +172,7 @@ export function useProcessFlowStore(
         processId,
         nodes: currentState.nodes,
         edges: currentState.edges,
+        flowDirection: currentState.flowDirection,
       });
 
       // Mark as saved after successful API call
@@ -209,6 +226,10 @@ export function useProcessFlowStore(
 
     // Utils
     setProcessId,
+    
+    // Flow direction
+    flowDirection,
+    setFlowDirection,
   };
 }
 

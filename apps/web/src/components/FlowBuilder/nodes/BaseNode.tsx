@@ -190,6 +190,8 @@ export const createNode = (config: BaseNodeConfig) => {
     const renderHandles = () => {
       // Get custom handle positions from node data (if set by user)
       const customPositions = data?.handlePositions as { source?: string; target?: string } | undefined
+      // Get flowDirection from node data (if available)
+      const flowDirection = (data?.flowDirection as 'horizontal' | 'vertical') || 'horizontal'
       
       // Create a map to override default positions
       const positionMap: Record<string, Position> = {
@@ -203,12 +205,29 @@ export const createNode = (config: BaseNodeConfig) => {
         // Determine actual position to use
         let actualPosition = handle.position
         
-        // Override with custom position if available
+        // Override with custom position if available (highest priority)
         if (customPositions) {
           if (handle.type === 'source' && customPositions.source) {
             actualPosition = positionMap[customPositions.source] || handle.position
           } else if (handle.type === 'target' && customPositions.target) {
             actualPosition = positionMap[customPositions.target] || handle.position
+          }
+        } else {
+          // If no custom positions, use flowDirection-based defaults
+          if (flowDirection === 'vertical') {
+            // Vertical flow: source bottom, target top
+            if (handle.type === 'source') {
+              actualPosition = Position.Bottom
+            } else if (handle.type === 'target') {
+              actualPosition = Position.Top
+            }
+          } else {
+            // Horizontal flow: source right, target left (default)
+            if (handle.type === 'source') {
+              actualPosition = Position.Right
+            } else if (handle.type === 'target') {
+              actualPosition = Position.Left
+            }
           }
         }
         

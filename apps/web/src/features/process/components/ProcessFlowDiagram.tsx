@@ -19,6 +19,7 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { Loader2 } from 'lucide-react';
+import { useNavigate } from '@tanstack/react-router';
 import { Palette } from '../../../components/FlowBuilder/Palette';
 import { PropertiesPanel } from '../../../components/FlowBuilder/PropertiesPanel';
 import { Toolbar } from '../../../components/FlowBuilder/Toolbar';
@@ -28,6 +29,7 @@ import { PaletteConfigFactory } from '../../process-map/config/palette-config';
 import { ImageExtractionModal } from './ImageExtractionModal';
 import { useQueryClient } from '@tanstack/react-query';
 import { processFlowKeys } from '../hooks/useProcessFlow';
+import { exportFlowToImage } from '../../../components/FlowBuilder/utils/exportFlowImage';
 
 interface ProcessFlowDiagramProps {
   processId: string;
@@ -43,6 +45,7 @@ export function ProcessFlowDiagram({
   onEdgeSelect,
 }: ProcessFlowDiagramProps) {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
   const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null);
   const queryClient = useQueryClient();
   const [isImageExtractionModalOpen, setIsImageExtractionModalOpen] = useState(false);
@@ -71,6 +74,8 @@ export function ProcessFlowDiagram({
     onEdgesChange,
     onConnect,
     saveFlow,
+    flowDirection,
+    setFlowDirection,
   } = useProcessFlowStore(processId);
 
   // Drag and drop from palette
@@ -415,9 +420,32 @@ export function ProcessFlowDiagram({
     [nodes, updateNode, reactFlowInstance, readOnly, highlightedContainerId, setHighlightedContainerId, isContainerNode],
   );
 
-  // Handle node/edge selection
+  // Handle node/edge selection with navigation for linked nodes
   const onNodeClick = useCallback(
     (_event: React.MouseEvent, node: Node) => {
+      // FIRST: Check for linked process navigation (works in readOnly mode)
+      const linkedProcessId = node.data?.linkedProcessId;
+      const linkedProcessType = node.data?.linkedProcessType;
+      const linkedProcessFlowType = node.data?.linkedProcessFlowType;
+      
+      // Navigate if linked and in read-only mode, or if Ctrl/Cmd is pressed
+      if (linkedProcessId && (readOnly || _event.ctrlKey || _event.metaKey)) {
+        if (linkedProcessType === 'processMap') {
+          navigate({ to: '/process-maps/$id' as any, params: { id: linkedProcessId } as any });
+        } else if (linkedProcessType === 'process') {
+          // Navigate based on flow type
+          if (linkedProcessFlowType === 'SIPOC') {
+            window.location.href = `/processes/sipoc/${linkedProcessId}`;
+          } else {
+            navigate({ to: '/processes-level2/$id' as any, params: { id: linkedProcessId } as any });
+          }
+        } else if (linkedProcessType === 'procedure') {
+          navigate({ to: '/procedures-level3/$id' as any, params: { id: linkedProcessId } as any });
+        }
+        return;
+      }
+      
+      // If readOnly and no linked process, don't allow editing
       if (readOnly) return;
       
       // Check if clicking on a container while another node is selected
@@ -432,11 +460,12 @@ export function ProcessFlowDiagram({
         }
       }
       
+      // Normal selection behavior
       setSelectedNodes([node.id]);
       setSelectedEdges([]);
       onNodeSelect?.(node);
     },
-    [setSelectedNodes, setSelectedEdges, onNodeSelect, readOnly, nodes, reactFlowInstance, isContainerNode, handleAttachNode],
+    [setSelectedNodes, setSelectedEdges, onNodeSelect, navigate, readOnly, nodes, reactFlowInstance, isContainerNode, handleAttachNode],
   );
 
   const onEdgeClick = useCallback(
@@ -473,6 +502,7 @@ export function ProcessFlowDiagram({
   }, [nodes, updateNode]);
 
   // Enrich nodes with callbacks, readOnly, and isContainer
+  // Enrich nodes with flowDirection for handle positioning
   const enrichedNodes = useMemo(() => {
     const containerNodes = nodes.filter((n) => isContainerNode(n.type));
     
@@ -504,10 +534,11 @@ export function ProcessFlowDiagram({
           onNodeUpdate: handleNodeStyleUpdate,
           currentStyle,
           currentHandlePositions: node.data?.handlePositions as { source?: string; target?: string } | undefined,
+          flowDirection, // Pass flowDirection to node data
         },
       };
     });
-  }, [nodes, handleAttachNode, handleDetachNode, handleNodeStyleUpdate, readOnly, isContainerNode]);
+  }, [nodes, handleAttachNode, handleDetachNode, handleNodeStyleUpdate, readOnly, isContainerNode, flowDirection]);
 
   // Handle save
   const handleSave = useCallback(async () => {
@@ -517,6 +548,16 @@ export function ProcessFlowDiagram({
       // Error handling is done in the mutation
     }
   }, [saveFlow]);
+
+  // Handle export image
+  const handleExportImage = useCallback(
+    async (format: 'png' | 'svg') => {
+      await exportFlowToImage(reactFlowWrapper.current, format, {
+        filename: `process-flow-${processId}`,
+      });
+    },
+    [reactFlowWrapper, processId]
+  );
 
   if (isLoading) {
     return (
@@ -562,6 +603,11 @@ export function ProcessFlowDiagram({
           nodesConnectable={!readOnly}
           elementsSelectable={!readOnly}
           deleteKeyCode={readOnly ? null : 'Delete'}
+          defaultEdgeOptions={{
+            type: 'smoothstep',
+            style: { stroke: 'hsl(210, 40%, 98%)', strokeWidth: 2 },
+            markerEnd: { type: 'arrowclosed', color: 'hsl(210, 40%, 98%)' },
+          }}
           fitView
           className="bg-gray-50"
         >
@@ -611,6 +657,12 @@ export function ProcessFlowDiagram({
                 hasSelectedNode={!!selectedNode || !!selectedEdge}
                 selectedNodeCount={(selectedNode ? 1 : 0) + (selectedEdge ? 1 : 0)}
                 onExtractFromImage={() => setIsImageExtractionModalOpen(true)}
+                flowDirection={flowDirection}
+                onFlowDirectionChange={(direction) => {
+                  setFlowDirection(direction);
+                  // Optionally trigger save to persist the direction preference
+                }}
+                onExportImage={handleExportImage}
               />
             </Panel>
           )}

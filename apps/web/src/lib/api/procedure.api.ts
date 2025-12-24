@@ -283,6 +283,7 @@ class ProcedureApiService {
     procedureId: string,
     nodes: any[],
     edges: any[],
+    flowDirection?: 'horizontal' | 'vertical',
   ): Promise<{ diagramId: string; message: string }> {
     try {
       return await post<{ diagramId: string; message: string }>(
@@ -291,6 +292,7 @@ class ProcedureApiService {
           procedureId,
           nodes,
           edges,
+          flowDirection: flowDirection ? flowDirection.toUpperCase() as 'HORIZONTAL' | 'VERTICAL' : undefined,
         },
       )
     } catch (error) {
@@ -378,7 +380,8 @@ export async function saveProcedureFlow(
   procedureId: string,
   nodes: any[],
   edges: any[],
+  flowDirection?: 'horizontal' | 'vertical',
 ): Promise<{ diagramId: string; message: string }> {
-  return procedureApi.saveProcedureFlow(procedureId, nodes, edges)
+  return procedureApi.saveProcedureFlow(procedureId, nodes, edges, flowDirection)
 }
 

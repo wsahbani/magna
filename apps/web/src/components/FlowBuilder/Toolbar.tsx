@@ -20,7 +20,11 @@ import {
   AlertCircle,
   Layers,
   Plus,
-  Image as ImageIcon
+  Image as ImageIcon,
+  ArrowLeftRight,
+  ArrowUpDown,
+  Download,
+  FileImage
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -69,6 +73,11 @@ interface ToolbarProps {
   hasPool?: boolean
   // Image extraction props
   onExtractFromImage?: () => void
+  // Flow direction props
+  flowDirection?: 'horizontal' | 'vertical'
+  onFlowDirectionChange?: (direction: 'horizontal' | 'vertical') => void
+  // Export image props
+  onExportImage?: (format: 'png' | 'svg') => void
 }
 
 export function Toolbar({
@@ -106,9 +115,16 @@ export function Toolbar({
   hasPool = false,
   // Image extraction props
   onExtractFromImage,
+  // Flow direction props
+  flowDirection = 'horizontal',
+  onFlowDirectionChange,
+  // Export image props
+  onExportImage,
 }: ToolbarProps) {
   const [showHandleMenu, setShowHandleMenu] = useState(false)
   const [showGridMenu, setShowGridMenu] = useState(false)
+  const [showFlowDirectionMenu, setShowFlowDirectionMenu] = useState(false)
+  const [showExportMenu, setShowExportMenu] = useState(false)
   const [sourcePosition, setSourcePosition] = useState<HandlePosition>('right')
   const [targetPosition, setTargetPosition] = useState<HandlePosition>('left')
   const [localGridSettings, setLocalGridSettings] = useState<GridSettings>(gridSettings)
@@ -168,6 +184,50 @@ export function Toolbar({
           <div className="flex items-center text-xs text-blue-500 ml-2">
             <Loader2 className="w-3 h-3 mr-1 animate-spin" />
             Chargement...
+          </div>
+        )}
+        
+        {/* Export Image */}
+        {onExportImage && (
+          <div className="relative ml-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowExportMenu(!showExportMenu)}
+              className="h-9"
+              title="Exporter en image"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Exporter
+            </Button>
+            
+            {showExportMenu && (
+              <div className="absolute top-12 left-0 bg-white border border-gray-200 rounded-lg shadow-lg p-2 z-50 w-48">
+                <div className="text-xs font-semibold text-gray-700 mb-2 px-2">Format d'export</div>
+                <div className="space-y-1">
+                  <button
+                    onClick={() => {
+                      onExportImage('png');
+                      setShowExportMenu(false);
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm rounded hover:bg-gray-100 transition-colors text-left"
+                  >
+                    <FileImage className="w-4 h-4" />
+                    PNG (Image)
+                  </button>
+                  <button
+                    onClick={() => {
+                      onExportImage('svg');
+                      setShowExportMenu(false);
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm rounded hover:bg-gray-100 transition-colors text-left"
+                  >
+                    <FileImage className="w-4 h-4" />
+                    SVG (Vectoriel)
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -439,6 +499,62 @@ export function Toolbar({
           </div>
         )}
       </div>
+
+      {/* Flow Direction */}
+      {onFlowDirectionChange && (
+        <div className="flex items-center gap-1 border-r border-gray-200 pr-2 relative">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowFlowDirectionMenu(!showFlowDirectionMenu)}
+            className="h-9"
+            title="Changer la direction du flow"
+          >
+            {flowDirection === 'horizontal' ? (
+              <ArrowLeftRight className="w-4 h-4 mr-2" />
+            ) : (
+              <ArrowUpDown className="w-4 h-4 mr-2" />
+            )}
+            {flowDirection === 'horizontal' ? 'Horizontal' : 'Vertical'}
+          </Button>
+          
+          {showFlowDirectionMenu && (
+            <div className="absolute top-12 left-0 bg-white border border-gray-200 rounded-lg shadow-lg p-3 z-50 w-56">
+              <div className="text-xs font-semibold text-gray-700 mb-2">Direction du flow</div>
+              <div className="space-y-2">
+                <button
+                  onClick={() => {
+                    onFlowDirectionChange('horizontal');
+                    setShowFlowDirectionMenu(false);
+                  }}
+                  className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded border-2 transition-all ${
+                    flowDirection === 'horizontal'
+                      ? 'bg-orange-500 text-white border-orange-500'
+                      : 'bg-white text-gray-700 border-gray-300 hover:border-orange-300'
+                  }`}
+                >
+                  <ArrowLeftRight className="w-4 h-4" />
+                  Horizontal (Gauche-Droite)
+                </button>
+                <button
+                  onClick={() => {
+                    onFlowDirectionChange('vertical');
+                    setShowFlowDirectionMenu(false);
+                  }}
+                  className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded border-2 transition-all ${
+                    flowDirection === 'vertical'
+                      ? 'bg-orange-500 text-white border-orange-500'
+                      : 'bg-white text-gray-700 border-gray-300 hover:border-orange-300'
+                  }`}
+                >
+                  <ArrowUpDown className="w-4 h-4" />
+                  Vertical (Haut-Bas)
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Handle Position */}
       <div className="flex items-center gap-1 border-r border-gray-200 pr-2 relative">

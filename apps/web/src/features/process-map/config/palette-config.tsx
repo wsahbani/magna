@@ -37,6 +37,7 @@ import {
   Send,
   Download,
   MessageSquare,
+  Target,
 } from 'lucide-react';
 
 /**
@@ -100,6 +101,12 @@ export class ProcessMapPaletteConfig implements PaletteConfig {
       icon: <Shield className="w-3 h-3 text-purple-600" />,
       category: 'Processus',
     },
+    {
+      type: 'sipoc',
+      label: 'SIPOC',
+      icon: <Target className="w-3 h-3 text-blue-600" />,
+      category: 'Processus',
+    },
     // Structure Category
     {
       type: 'domainGroup',
@@ -136,7 +143,7 @@ export class ProcessMapPaletteConfig implements PaletteConfig {
   ];
 
   getAllowedNodeTypes(): string[] {
-    return ['mainProcess', 'supportProcess', 'managementProcess', 'domainGroup', 'actorDepartment', 'simpleRectangle', 'externalEntity', 'text'];
+    return ['mainProcess', 'supportProcess', 'managementProcess', 'sipoc', 'domainGroup', 'actorDepartment', 'simpleRectangle', 'externalEntity', 'text'];
   }
 
   getNodeDefinitions(): PaletteNodeDefinition[] {
@@ -265,6 +272,13 @@ export class ProcessPaletteConfig implements PaletteConfig {
       icon: <Square className="w-3 h-3 text-gray-600" />,
       category: 'Formes',
     },
+    // Acteurs Category
+    {
+      type: 'actorDepartment',
+      label: 'Acteur / Rôle',
+      icon: <Users className="w-3 h-3 text-green-600" />,
+      category: 'Acteurs',
+    },
     // Text/Title Category
     {
       type: 'text',
@@ -293,6 +307,7 @@ export class ProcessPaletteConfig implements PaletteConfig {
       'inclusiveGateway',
       'eventBasedGateway',
       'simpleRectangle',
+      'actorDepartment',
       'text',
     ];
   }
@@ -302,7 +317,7 @@ export class ProcessPaletteConfig implements PaletteConfig {
   }
 
   getDefaultExpandedCategories(): string[] {
-    return ['Procédures', 'Événements', 'Tâches', 'Passerelles', 'Formes', 'Texte'];
+    return ['Procédures', 'Événements', 'Tâches', 'Passerelles', 'Formes', 'Acteurs', 'Texte'];
   }
 
   getTitle(): string {

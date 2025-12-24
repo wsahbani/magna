@@ -5,7 +5,7 @@
 
 import { useState } from 'react'
 import { useParams } from '@tanstack/react-router'
-import { PageWrapper } from '../../../components/layout/PageWrapper'
+import { PageWrapper, DetailSidebar, DetailFlowViewer } from '../../../components/layout'
 import { ProcedureFlowDiagram } from '../components/ProcedureFlowDiagram'
 import { procedureApi } from '../../../lib/api/procedure.api'
 import { useQuery } from '@tanstack/react-query'
@@ -16,6 +16,7 @@ import { useAuth } from '../../auth/context/AuthContext'
 import { ProcedureValidationDialog } from '../components/ProcedureValidationDialog'
 import { ProcedureValidationStatusBadge } from '../components/ProcedureValidationStatusBadge'
 import { useProcedureValidationRequests } from '../hooks/useProcedureValidation'
+import type { MetadataItem, DetailSection } from '../../../components/layout/DetailSidebar'
 
 export default function ProcedureDetailPage() {
   const { id } = useParams({ strict: false })
@@ -97,134 +98,159 @@ export default function ProcedureDetailPage() {
         </div>
       }
     >
-      {/* Procedure Info */}
-      <div className="bg-white rounded-lg shadow p-6 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div>
-            <BodySmall className="text-gray-500 mb-1">Code</BodySmall>
-            <Body className="font-semibold">{procedure.code || 'N/A'}</Body>
-          </div>
-          <div>
-            <BodySmall className="text-gray-500 mb-1">Statut</BodySmall>
-            <Body className="font-semibold flex items-center gap-2">
-              {procedure.status}
-              {(procedure.status === 'DRAFT' || procedure.status === 'IN_REVIEW') && (
-                <ProcedureValidationStatusBadge procedureId={procedure.id} compact={false} />
-              )}
-            </Body>
-          </div>
-          {procedure.process && (
-            <div>
-              <BodySmall className="text-gray-500 mb-1">Processus</BodySmall>
-              <Body className="font-semibold">{procedure.process.title}</Body>
-            </div>
-          )}
-          {procedure.version && (
-            <div>
-              <BodySmall className="text-gray-500 mb-1">Version</BodySmall>
-              <Body className="font-semibold">{procedure.version}</Body>
-            </div>
-          )}
-          {procedure.validatedBy && (
-            <div>
-              <BodySmall className="text-gray-500 mb-1">Validé par</BodySmall>
-              <Body className="font-semibold">{procedure.validatedBy}</Body>
-            </div>
-          )}
-          {procedure.validatedAt && (
-            <div>
-              <BodySmall className="text-gray-500 mb-1">Date de validation</BodySmall>
-              <Body className="font-semibold">
-                {new Date(procedure.validatedAt).toLocaleDateString('fr-FR')}
-              </Body>
-            </div>
-          )}
-          {procedure.effectiveDate && (
-            <div>
-              <BodySmall className="text-gray-500 mb-1">Date d'entrée en vigueur</BodySmall>
-              <Body className="font-semibold">
-                {new Date(procedure.effectiveDate).toLocaleDateString('fr-FR')}
-              </Body>
-            </div>
-          )}
-          {procedure.expirationDate && (
-            <div>
-              <BodySmall className="text-gray-500 mb-1">Date d'expiration</BodySmall>
-              <Body className="font-semibold">
-                {new Date(procedure.expirationDate).toLocaleDateString('fr-FR')}
-              </Body>
-            </div>
-          )}
-        </div>
-        {procedure.description && (
-          <div className="mt-4">
-            <BodySmall className="text-gray-500 mb-1">Description</BodySmall>
-            <Body>{procedure.description}</Body>
-          </div>
-        )}
-        {procedure.objective && (
-          <div className="mt-4">
-            <BodySmall className="text-gray-500 mb-1">Objectif</BodySmall>
-            <Body>{procedure.objective}</Body>
-          </div>
-        )}
-        {procedure.scope && (
-          <div className="mt-4">
-            <BodySmall className="text-gray-500 mb-1">Périmètre</BodySmall>
-            <Body>{procedure.scope}</Body>
-          </div>
-        )}
-      </div>
-
-      {/* Validation Requests Section */}
-      {(procedure.status === 'DRAFT' || procedure.status === 'IN_REVIEW') &&
-        validationRequests &&
-        validationRequests.length > 0 && (
-          <div className="bg-white rounded-lg shadow p-6 mb-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-orange-600" />
-              Statut de validation
-            </h3>
-            <div className="space-y-4">
-              {validationRequests.map((request: any) => (
-                <div
-                  key={request.id}
-                  className="flex items-start justify-between p-4 border border-gray-200 rounded-lg shadow-sm"
-                >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <BodySmall className="font-semibold text-gray-800">
-                        {request.validator.firstName} {request.validator.lastName}
-                      </BodySmall>
-                      <span
-                        className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          request.status === 'PENDING'
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : request.status === 'APPROVED'
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-red-100 text-red-800'
-                        }`}
-                      >
-                        {request.status === 'PENDING'
-                          ? 'En attente'
-                          : request.status === 'APPROVED'
-                            ? 'Approuvé'
-                            : 'Rejeté'}
-                      </span>
-                    </div>
-                    {request.comment && (
-                      <BodySmall className="text-gray-600 italic">"{request.comment}"</BodySmall>
+      {/* Split Layout: Details Left, Flow Right */}
+      <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-12rem)]">
+        {/* Left Sidebar - Details */}
+        <div className="w-full lg:w-1/4 xl:w-1/3 overflow-y-auto pr-2">
+          <DetailSidebar
+            metadata={[
+              {
+                label: 'Code',
+                value: procedure.code || 'N/A',
+              },
+              {
+                label: 'Statut',
+                value: (
+                  <span className="flex items-center gap-2">
+                    {procedure.status}
+                    {(procedure.status === 'DRAFT' || procedure.status === 'IN_REVIEW') && (
+                      <ProcedureValidationStatusBadge procedureId={procedure.id} compact={false} />
                     )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+                  </span>
+                ),
+              },
+              ...(procedure.process
+                ? [
+                    {
+                      label: 'Processus',
+                      value: procedure.process.title,
+                    },
+                  ]
+                : []),
+              ...(procedure.version
+                ? [
+                    {
+                      label: 'Version',
+                      value: procedure.version,
+                    },
+                  ]
+                : []),
+              ...(procedure.validatedBy
+                ? [
+                    {
+                      label: 'Validé par',
+                      value: procedure.validatedBy,
+                    },
+                  ]
+                : []),
+              ...(procedure.validatedAt
+                ? [
+                    {
+                      label: 'Date de validation',
+                      value: new Date(procedure.validatedAt).toLocaleDateString('fr-FR'),
+                    },
+                  ]
+                : []),
+              ...(procedure.effectiveDate
+                ? [
+                    {
+                      label: 'Date d\'entrée en vigueur',
+                      value: new Date(procedure.effectiveDate).toLocaleDateString('fr-FR'),
+                    },
+                  ]
+                : []),
+              ...(procedure.expirationDate
+                ? [
+                    {
+                      label: 'Date d\'expiration',
+                      value: new Date(procedure.expirationDate).toLocaleDateString('fr-FR'),
+                    },
+                  ]
+                : []),
+            ]}
+            sections={[
+              ...(procedure.description
+                ? [
+                    {
+                      title: 'Description',
+                      content: <BodySmall className="text-gray-700">{procedure.description}</BodySmall>,
+                    },
+                  ]
+                : []),
+              ...(procedure.objective
+                ? [
+                    {
+                      title: 'Objectif',
+                      content: <BodySmall className="text-gray-700">{procedure.objective}</BodySmall>,
+                    },
+                  ]
+                : []),
+              ...(procedure.scope
+                ? [
+                    {
+                      title: 'Périmètre',
+                      content: <BodySmall className="text-gray-700">{procedure.scope}</BodySmall>,
+                    },
+                  ]
+                : []),
+              ...(procedure.status === 'DRAFT' || procedure.status === 'IN_REVIEW'
+                ? validationRequests && validationRequests.length > 0
+                  ? [
+                      {
+                        title: 'Statut de validation',
+                        icon: <CheckCircle2 className="h-5 w-5" />,
+                        content: (
+                          <div className="space-y-4">
+                            {validationRequests.map((request: any) => (
+                              <div
+                                key={request.id}
+                                className="flex items-start justify-between p-4 border border-gray-200 rounded-lg shadow-sm"
+                              >
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <BodySmall className="font-semibold text-gray-800">
+                                      {request.validator.firstName} {request.validator.lastName}
+                                    </BodySmall>
+                                    <span
+                                      className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                        request.status === 'PENDING'
+                                          ? 'bg-yellow-100 text-yellow-800'
+                                          : request.status === 'APPROVED'
+                                            ? 'bg-green-100 text-green-800'
+                                            : 'bg-red-100 text-red-800'
+                                      }`}
+                                    >
+                                      {request.status === 'PENDING'
+                                        ? 'En attente'
+                                        : request.status === 'APPROVED'
+                                          ? 'Approuvé'
+                                          : 'Rejeté'}
+                                    </span>
+                                  </div>
+                                  {request.comment && (
+                                    <BodySmall className="text-gray-600 italic">
+                                      "{request.comment}"
+                                    </BodySmall>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ),
+                      },
+                    ]
+                  : []
+                : []),
+            ]}
+          />
+        </div>
 
-      {/* FlowDiagram Viewer (ReadOnly) */}
-      <div className="bg-white rounded-lg shadow" style={{ height: 'calc(100vh - 20rem)' }}>
-        <ProcedureFlowDiagram procedureId={procedure.id} readOnly={true} />
+        {/* Right Side - Flow */}
+        <div className="w-full lg:w-3/4 xl:w-2/3 flex-1">
+          <DetailFlowViewer>
+            <ProcedureFlowDiagram procedureId={procedure.id} readOnly={true} />
+          </DetailFlowViewer>
+        </div>
       </div>
 
       {/* Validation Dialog */}

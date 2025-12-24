@@ -1,34 +1,70 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Heading2, BodySmall, Caption } from '@repo/ui';
 import { ProcessIdentityCard } from '../types/fip.types';
+import { FipAccordionSection } from './FipAccordionSection';
+import { Target, MapPin, BarChart3, Users, AlertTriangle, Lightbulb, Briefcase, TrendingUp } from 'lucide-react';
+import { calculateFipSectionCompletions } from '../utils/fipHelpers';
 
 interface FipViewProps {
   fip: ProcessIdentityCard;
 }
 
 export const FipView: React.FC<FipViewProps> = ({ fip }) => {
+  // Calculer les pourcentages de complétude pour l'affichage
+  const completions = useMemo(() => {
+    const formData = {
+      objectives: fip.objectives || '',
+      scope: fip.scope || '',
+      indicators: fip.indicators || [],
+      stakeholders: fip.stakeholders || [],
+      risks: fip.risks || [],
+      opportunities: fip.opportunities || [],
+      resources: fip.resources || [],
+      performanceTargets: fip.performanceTargets || [],
+    };
+    return calculateFipSectionCompletions(formData);
+  }, [fip]);
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Objectifs */}
       {fip.objectives && (
-        <div>
-          <Heading2 className="mb-2">Objectifs</Heading2>
-          <BodySmall className="text-gray-700 whitespace-pre-wrap">{fip.objectives}</BodySmall>
-        </div>
+        <FipAccordionSection
+          id="objectives-view"
+          title="Objectifs"
+          icon={<Target className="w-5 h-5" />}
+          completionPercentage={completions.objectives}
+          defaultExpanded={true}
+        >
+          <BodySmall className="text-gray-700 whitespace-pre-wrap leading-relaxed">
+            {fip.objectives}
+          </BodySmall>
+        </FipAccordionSection>
       )}
 
       {/* Périmètre */}
       {fip.scope && (
-        <div>
-          <Heading2 className="mb-2">Périmètre</Heading2>
-          <BodySmall className="text-gray-700 whitespace-pre-wrap">{fip.scope}</BodySmall>
-        </div>
+        <FipAccordionSection
+          id="scope-view"
+          title="Périmètre"
+          icon={<MapPin className="w-5 h-5" />}
+          completionPercentage={completions.scope}
+        >
+          <BodySmall className="text-gray-700 whitespace-pre-wrap leading-relaxed">
+            {fip.scope}
+          </BodySmall>
+        </FipAccordionSection>
       )}
 
       {/* Indicateurs */}
       {fip.indicators && fip.indicators.length > 0 && (
-        <div>
-          <Heading2 className="mb-3">Indicateurs de Performance</Heading2>
+        <FipAccordionSection
+          id="indicators-view"
+          title="Indicateurs de Performance"
+          icon={<BarChart3 className="w-5 h-5" />}
+          count={fip.indicators.length}
+          completionPercentage={completions.indicators}
+        >
           <div className="space-y-3">
             {fip.indicators.map((indicator, index) => (
               <div key={index} className="p-4 border border-gray-200 rounded-md">
@@ -70,13 +106,18 @@ export const FipView: React.FC<FipViewProps> = ({ fip }) => {
               </div>
             ))}
           </div>
-        </div>
+        </FipAccordionSection>
       )}
 
       {/* Acteurs */}
       {fip.stakeholders && fip.stakeholders.length > 0 && (
-        <div>
-          <Heading2 className="mb-3">Acteurs et Responsabilités</Heading2>
+        <FipAccordionSection
+          id="stakeholders-view"
+          title="Acteurs et Responsabilités"
+          icon={<Users className="w-5 h-5" />}
+          count={fip.stakeholders.length}
+          completionPercentage={completions.stakeholders}
+        >
           <div className="space-y-3">
             {fip.stakeholders.map((stakeholder, index) => (
               <div key={index} className="p-4 border border-gray-200 rounded-md">
@@ -95,13 +136,18 @@ export const FipView: React.FC<FipViewProps> = ({ fip }) => {
               </div>
             ))}
           </div>
-        </div>
+        </FipAccordionSection>
       )}
 
       {/* Risques */}
       {fip.risks && fip.risks.length > 0 && (
-        <div>
-          <Heading2 className="mb-3">Risques</Heading2>
+        <FipAccordionSection
+          id="risks-view"
+          title="Risques"
+          icon={<AlertTriangle className="w-5 h-5" />}
+          count={fip.risks.length}
+          completionPercentage={completions.risks}
+        >
           <div className="space-y-3">
             {fip.risks.map((risk, index) => (
               <div key={index} className="p-4 border border-red-200 rounded-md bg-red-50">
@@ -129,13 +175,18 @@ export const FipView: React.FC<FipViewProps> = ({ fip }) => {
               </div>
             ))}
           </div>
-        </div>
+        </FipAccordionSection>
       )}
 
       {/* Opportunités */}
       {fip.opportunities && fip.opportunities.length > 0 && (
-        <div>
-          <Heading2 className="mb-3">Opportunités</Heading2>
+        <FipAccordionSection
+          id="opportunities-view"
+          title="Opportunités"
+          icon={<Lightbulb className="w-5 h-5" />}
+          count={fip.opportunities.length}
+          completionPercentage={completions.opportunities}
+        >
           <div className="space-y-3">
             {fip.opportunities.map((opportunity, index) => (
               <div key={index} className="p-4 border border-green-200 rounded-md bg-green-50">
@@ -155,13 +206,18 @@ export const FipView: React.FC<FipViewProps> = ({ fip }) => {
               </div>
             ))}
           </div>
-        </div>
+        </FipAccordionSection>
       )}
 
       {/* Ressources */}
       {fip.resources && fip.resources.length > 0 && (
-        <div>
-          <Heading2 className="mb-3">Ressources</Heading2>
+        <FipAccordionSection
+          id="resources-view"
+          title="Ressources"
+          icon={<Briefcase className="w-5 h-5" />}
+          count={fip.resources.length}
+          completionPercentage={completions.resources}
+        >
           <div className="space-y-3">
             {fip.resources.map((resource, index) => (
               <div key={index} className="p-4 border border-gray-200 rounded-md">
@@ -178,13 +234,18 @@ export const FipView: React.FC<FipViewProps> = ({ fip }) => {
               </div>
             ))}
           </div>
-        </div>
+        </FipAccordionSection>
       )}
 
       {/* Cibles de Performance */}
       {fip.performanceTargets && fip.performanceTargets.length > 0 && (
-        <div>
-          <Heading2 className="mb-3">Cibles de Performance</Heading2>
+        <FipAccordionSection
+          id="performance-targets-view"
+          title="Cibles de Performance"
+          icon={<TrendingUp className="w-5 h-5" />}
+          count={fip.performanceTargets.length}
+          completionPercentage={completions.performanceTargets}
+        >
           <div className="space-y-3">
             {fip.performanceTargets.map((target, index) => (
               <div key={index} className="p-4 border border-gray-200 rounded-md">
@@ -209,7 +270,7 @@ export const FipView: React.FC<FipViewProps> = ({ fip }) => {
               </div>
             ))}
           </div>
-        </div>
+        </FipAccordionSection>
       )}
     </div>
   );

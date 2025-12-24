@@ -26,6 +26,7 @@ export interface ProcessMapFlowState {
 
   // UI state
   viewport: Viewport;
+  flowDirection: 'horizontal' | 'vertical';
 }
 
 /**
@@ -56,12 +57,15 @@ export interface ProcessMapFlowActions {
   markAsSaved: () => void;
 
   // Flow management
-  loadFlow: (nodes: Node[], edges: Edge[]) => void;
+  loadFlow: (nodes: Node[], edges: Edge[], flowDirection?: 'horizontal' | 'vertical') => void;
   reset: () => void;
   setProcessMapId: (id: string | null) => void;
 
   // Viewport
   setViewport: (viewport: Viewport) => void;
+
+  // Flow direction
+  setFlowDirection: (direction: 'horizontal' | 'vertical') => void;
 
   // ReactFlow handlers
   onNodesChange: (changes: any[]) => void;

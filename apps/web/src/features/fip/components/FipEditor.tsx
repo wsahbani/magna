@@ -2,9 +2,10 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useFipStore } from '../store/fipStore';
 import { useFipByProcess, useCreateFip, useUpdateFip } from '../hooks/useFip';
 import { FipForm } from './FipForm';
+import { FipView } from './FipView';
 import { Button, Heading2, BodySmall, Caption } from '@repo/ui';
 import { ProcessIdentityCard, UpdateFipDto } from '../types/fip.types';
-import { AlertCircle, Loader2, Plus } from 'lucide-react';
+import { AlertCircle, Loader2, Plus, Edit, X } from 'lucide-react';
 
 interface FipEditorProps {
   processId: string;
@@ -12,8 +13,8 @@ interface FipEditorProps {
 }
 
 export const FipEditor: React.FC<FipEditorProps> = ({ processId, onSave }) => {
-  const [isSaving, setIsSaving] = useState(false);
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [formData, setFormData] = useState<UpdateFipDto | null>(null);
+  const [isEditMode, setIsEditMode] = useState(false);
 
   const {
     fips,
@@ -42,43 +43,38 @@ export const FipEditor: React.FC<FipEditorProps> = ({ processId, onSave }) => {
     async (data: UpdateFipDto) => {
       if (!fip) {
         // Create new FIP
-        setIsSaving(true);
         try {
           await createFipMutation.mutateAsync({
             processId,
             ...data,
           });
           await refetch();
-          setHasUnsavedChanges(false);
           onSave?.();
         } catch (err) {
           console.error('Failed to create FIP:', err);
-        } finally {
-          setIsSaving(false);
+          throw err;
         }
       } else {
         // Update existing FIP
-        setIsSaving(true);
         try {
           await updateFipMutation.mutateAsync({
             fipId: fip.fip_id,
             data,
           });
           await refetch();
-          setHasUnsavedChanges(false);
           onSave?.();
         } catch (err) {
           console.error('Failed to update FIP:', err);
-        } finally {
-          setIsSaving(false);
+          throw err;
         }
       }
     },
-    [fip, processId, createFipMutation, updateFipMutation, updateFip, refetch, onSave],
+    [fip, processId, createFipMutation, updateFipMutation, refetch, onSave],
   );
 
+  // Auto-save is disabled - users must manually save using the save button
+
   const handleCreateFip = useCallback(async () => {
-    setIsSaving(true);
     try {
       await createFipMutation.mutateAsync({
         processId,
@@ -94,8 +90,6 @@ export const FipEditor: React.FC<FipEditorProps> = ({ processId, onSave }) => {
       await refetch();
     } catch (err) {
       console.error('Failed to create FIP:', err);
-    } finally {
-      setIsSaving(false);
     }
   }, [processId, createFipMutation, refetch]);
 
@@ -149,10 +143,10 @@ export const FipEditor: React.FC<FipEditorProps> = ({ processId, onSave }) => {
           </BodySmall>
           <Button
             onClick={handleCreateFip}
-            disabled={isSaving}
+            disabled={createFipMutation.isPending}
             className="mt-4 bg-orange-600 hover:bg-orange-700"
           >
-            {isSaving ? (
+            {createFipMutation.isPending ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 Création...
@@ -200,18 +194,53 @@ export const FipEditor: React.FC<FipEditorProps> = ({ processId, onSave }) => {
                 </BodySmall>
               )}
             </div>
+            {/* Actions */}
+            <div className="flex items-center gap-3">
+              {/* Edit/View toggle */}
+              {fip.status !== 'published' && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsEditMode(!isEditMode)}
+                  className="flex items-center gap-2"
+                >
+                  {isEditMode ? (
+                    <>
+                      <X className="w-4 h-4" />
+                      Annuler
+                    </>
+                  ) : (
+                    <>
+                      <Edit className="w-4 h-4" />
+                      Modifier
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       </header>
 
       {/* Main content */}
       <main className="flex-1 overflow-auto p-6">
-        <FipForm
-          fip={fip}
-          onSave={handleSave}
-          isSaving={isSaving}
-          isEditable={fip.status !== 'published'}
-        />
+        <div
+          className={`transition-opacity duration-300 ${
+            isEditMode ? 'opacity-100' : 'opacity-100'
+          }`}
+        >
+          {isEditMode ? (
+            <FipForm
+              fip={fip}
+              onSave={handleSave}
+              isSaving={false}
+              isEditable={true}
+              onDataChange={undefined}
+            />
+          ) : (
+            <FipView fip={fip} />
+          )}
+        </div>
       </main>
     </div>
   );

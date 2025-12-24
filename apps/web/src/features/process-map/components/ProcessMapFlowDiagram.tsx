@@ -29,6 +29,7 @@ import { PaletteConfigFactory } from '../config/palette-config';
 import { getBackgroundVariant } from '../../../components/FlowBuilder/utils/gridUtils';
 import { ImageExtractionModal } from './ImageExtractionModal';
 import { processMapFlowKeys } from '../hooks/useProcessMapFlow';
+import { exportFlowToImage } from '../../../components/FlowBuilder/utils/exportFlowImage';
 
 interface ProcessMapFlowDiagramProps {
   processMapId: string;
@@ -86,6 +87,8 @@ export function ProcessMapFlowDiagram({
     onEdgesChange,
     onConnect,
     saveFlow,
+    flowDirection,
+    setFlowDirection,
   } = useProcessMapFlowStore(processMapId);
 
   // Sync selectedNode/selectedEdge with store when nodes/edges change
@@ -443,21 +446,7 @@ export function ProcessMapFlowDiagram({
   // Handle node/edge selection with navigation for linked nodes
   const onNodeClick = useCallback(
     (_event: React.MouseEvent, node: Node) => {
-      if (readOnly) return;
-      
-      // Check if clicking on a container while another node is selected
-      if (isContainerNode(node.type) && reactFlowInstance) {
-        const selectedNodes = nodes.filter((n) => n.selected && n.id !== node.id && !isContainerNode(n.type));
-        
-        if (selectedNodes.length === 1) {
-          // Attach the selected node to this container
-          const selectedNode = selectedNodes[0];
-          handleAttachNode(selectedNode.id, node.id);
-          return; // Don't proceed with navigation
-        }
-      }
-      
-      // Check if node has a linked process and we're in read-only mode or double-click
+      // FIRST: Check for linked process navigation (works in readOnly mode)
       const linkedProcessId = node.data?.linkedProcessId;
       const linkedProcessType = node.data?.linkedProcessType;
       const linkedProcessFlowType = node.data?.linkedProcessFlowType;
@@ -477,6 +466,21 @@ export function ProcessMapFlowDiagram({
           navigate({ to: '/procedures-level3/$id' as any, params: { id: linkedProcessId } as any });
         }
         return;
+      }
+      
+      // If readOnly and no linked process, don't allow editing
+      if (readOnly) return;
+      
+      // Check if clicking on a container while another node is selected
+      if (isContainerNode(node.type) && reactFlowInstance) {
+        const selectedNodes = nodes.filter((n) => n.selected && n.id !== node.id && !isContainerNode(n.type));
+        
+        if (selectedNodes.length === 1) {
+          // Attach the selected node to this container
+          const selectedNode = selectedNodes[0];
+          handleAttachNode(selectedNode.id, node.id);
+          return; // Don't proceed with navigation
+        }
       }
       
       // Normal selection behavior
@@ -528,6 +532,16 @@ export function ProcessMapFlowDiagram({
       // Error handling is done in the mutation
     }
   }, [saveFlow]);
+
+  // Handle export image
+  const handleExportImage = useCallback(
+    async (format: 'png' | 'svg') => {
+      await exportFlowToImage(reactFlowWrapper.current, format, {
+        filename: `process-map-flow-${processMapId}`,
+      });
+    },
+    [reactFlowWrapper, processMapId]
+  );
 
   // Handle adding mainProcess to a domainGroup
   const handleAddMainProcessToGroup = useCallback(
@@ -806,10 +820,11 @@ export function ProcessMapFlowDiagram({
           onNodeUpdate: handleNodeStyleUpdate,
           currentStyle,
           currentHandlePositions: node.data?.handlePositions as { source?: string; target?: string } | undefined,
+          flowDirection, // Pass flowDirection to node data
         },
       };
     });
-  }, [nodes, handleAddMainProcessToGroup, handleAutoLayout, handleAttachNode, handleDetachNode, handleNodeStyleUpdate, readOnly, isContainerNode]);
+  }, [nodes, handleAddMainProcessToGroup, handleAutoLayout, handleAttachNode, handleDetachNode, handleNodeStyleUpdate, readOnly, isContainerNode, flowDirection]);
 
   if (isLoading) {
     return (
@@ -855,6 +870,11 @@ export function ProcessMapFlowDiagram({
           nodesConnectable={!readOnly}
           elementsSelectable={!readOnly}
           deleteKeyCode={readOnly ? null : 'Delete'}
+          defaultEdgeOptions={{
+            type: 'smoothstep',
+            style: { stroke: 'hsl(210, 40%, 98%)', strokeWidth: 2 },
+            markerEnd: { type: 'arrowclosed', color: 'hsl(210, 40%, 98%)' },
+          }}
           snapToGrid={gridSettings.snapToGrid}
           snapGrid={[gridSettings.gridSize, gridSettings.gridSize]}
           fitView
@@ -921,6 +941,11 @@ export function ProcessMapFlowDiagram({
                 gridSettings={gridSettings}
                 showHelperLines={showHelperLines}
                 onExtractFromImage={() => setIsImageExtractionModalOpen(true)}
+                flowDirection={flowDirection}
+                onFlowDirectionChange={(direction) => {
+                  setFlowDirection(direction);
+                }}
+                onExportImage={handleExportImage}
               />
             </Panel>
           )}

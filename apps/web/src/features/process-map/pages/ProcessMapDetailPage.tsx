@@ -5,18 +5,18 @@
 
 import { useState } from 'react';
 import { useParams } from '@tanstack/react-router';
-import { PageWrapper } from '../../../components/layout/PageWrapper';
+import { PageWrapper, DetailSidebar, DetailFlowViewer } from '../../../components/layout';
 import { ProcessMapFlowDiagram } from '../components/ProcessMapFlowDiagram';
 import { useProcessMap } from '../hooks/useProcessMaps';
 import { MapPin, Edit, ArrowLeft, CheckCircle2 } from 'lucide-react';
-import { Button, Body, BodySmall } from '@repo/ui';
+import { Button, Body, BodySmall, Caption } from '@repo/ui';
 import { useNavigate } from '@tanstack/react-router';
 import { ProcessStatus } from '../types/enums';
 import { useAuth } from '../../auth/context/AuthContext';
 import { ProcessMapValidationDialog } from '../components/ProcessMapValidationDialog';
 import { ProcessMapValidationStatusBadge } from '../components/ProcessMapValidationStatusBadge';
 import { useProcessMapValidationRequests } from '../hooks/useProcessMapValidation';
-import { ValidationRequestsList } from '../../process/components/ValidationRequestsList';
+import type { MetadataItem, DetailSection } from '../../../components/layout/DetailSidebar';
 
 export default function ProcessMapDetailPage() {
   const { id } = useParams({ from: '/process-maps/$id' });
@@ -94,81 +94,96 @@ export default function ProcessMapDetailPage() {
         </div>
       }
     >
-      {/* ProcessMap Info */}
-      <div className="bg-white rounded-lg shadow p-6 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div>
-            <BodySmall className="text-gray-500 mb-1">Code</BodySmall>
-            <Body className="font-semibold">{processMap.code}</Body>
-          </div>
-          <div>
-            <BodySmall className="text-gray-500 mb-1">Statut</BodySmall>
-            <Body className="font-semibold flex items-center gap-2">
-              {processMap.status}
-              {(processMap.status === ProcessStatus.DRAFT || processMap.status === ProcessStatus.IN_REVIEW) && (
-                <ProcessMapValidationStatusBadge processMapId={processMap.id} compact={false} />
-              )}
-            </Body>
-          </div>
-          {processMap.description && (
-            <div className="md:col-span-2 lg:col-span-3">
-              <BodySmall className="text-gray-500 mb-1">Description</BodySmall>
-              <Body>{processMap.description}</Body>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Validation Requests Section */}
-      {(processMap.status === ProcessStatus.DRAFT || processMap.status === ProcessStatus.IN_REVIEW) &&
-        validationRequests &&
-        validationRequests.length > 0 && (
-          <div className="bg-white rounded-lg shadow p-6 mb-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-orange-600" />
-              Statut de validation
-            </h3>
-            {/* TODO: Create ProcessMapValidationRequestsList component similar to ValidationRequestsList */}
-            <div className="space-y-4">
-              {validationRequests.map((request: any) => (
-                <div
-                  key={request.id}
-                  className="flex items-start justify-between p-4 border border-gray-200 rounded-lg shadow-sm"
-                >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <BodySmall className="font-semibold text-gray-800">
-                        {request.validator.firstName} {request.validator.lastName}
-                      </BodySmall>
-                      <span
-                        className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          request.status === 'PENDING'
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : request.status === 'APPROVED'
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-red-100 text-red-800'
-                        }`}
-                      >
-                        {request.status === 'PENDING'
-                          ? 'En attente'
-                          : request.status === 'APPROVED'
-                            ? 'Approuvé'
-                            : 'Rejeté'}
-                      </span>
-                    </div>
-                    {request.comment && (
-                      <BodySmall className="text-gray-600 italic">"{request.comment}"</BodySmall>
+      {/* Split Layout: Details Left, Flow Right */}
+      <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-12rem)]">
+        {/* Left Sidebar - Details */}
+        <div className="w-full lg:w-1/4 xl:w-1/3 overflow-y-auto pr-2">
+          <DetailSidebar
+            metadata={[
+              {
+                label: 'Code',
+                value: processMap.code,
+              },
+              {
+                label: 'Statut',
+                value: (
+                  <span className="flex items-center gap-2">
+                    {processMap.status}
+                    {(processMap.status === ProcessStatus.DRAFT || processMap.status === ProcessStatus.IN_REVIEW) && (
+                      <ProcessMapValidationStatusBadge processMapId={processMap.id} compact={false} />
                     )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+                  </span>
+                ),
+              },
+            ]}
+            sections={[
+              ...(processMap.description
+                ? [
+                    {
+                      title: 'Description',
+                      content: <BodySmall className="text-gray-700">{processMap.description}</BodySmall>,
+                    },
+                  ]
+                : []),
+              ...(processMap.status === ProcessStatus.DRAFT ||
+              processMap.status === ProcessStatus.IN_REVIEW
+                ? validationRequests && validationRequests.length > 0
+                  ? [
+                      {
+                        title: 'Statut de validation',
+                        icon: <CheckCircle2 className="h-5 w-5" />,
+                        content: (
+                          <div className="space-y-4">
+                            {validationRequests.map((request: any) => (
+                              <div
+                                key={request.id}
+                                className="flex items-start justify-between p-4 border border-gray-200 rounded-lg shadow-sm"
+                              >
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <BodySmall className="font-semibold text-gray-800">
+                                      {request.validator.firstName} {request.validator.lastName}
+                                    </BodySmall>
+                                    <span
+                                      className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                        request.status === 'PENDING'
+                                          ? 'bg-yellow-100 text-yellow-800'
+                                          : request.status === 'APPROVED'
+                                            ? 'bg-green-100 text-green-800'
+                                            : 'bg-red-100 text-red-800'
+                                      }`}
+                                    >
+                                      {request.status === 'PENDING'
+                                        ? 'En attente'
+                                        : request.status === 'APPROVED'
+                                          ? 'Approuvé'
+                                          : 'Rejeté'}
+                                    </span>
+                                  </div>
+                                  {request.comment && (
+                                    <BodySmall className="text-gray-600 italic">
+                                      "{request.comment}"
+                                    </BodySmall>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ),
+                      },
+                    ]
+                  : []
+                : []),
+            ]}
+          />
+        </div>
 
-      {/* FlowDiagram Viewer (ReadOnly) */}
-      <div className="bg-white rounded-lg shadow" style={{ height: 'calc(100vh - 20rem)' }}>
-        <ProcessMapFlowDiagram processMapId={processMap.id} readOnly={true} />
+        {/* Right Side - Flow */}
+        <div className="w-full lg:w-3/4 xl:w-2/3 flex-1">
+          <DetailFlowViewer>
+            <ProcessMapFlowDiagram processMapId={processMap.id} readOnly={true} />
+          </DetailFlowViewer>
+        </div>
       </div>
 
       {/* Validation Dialog */}

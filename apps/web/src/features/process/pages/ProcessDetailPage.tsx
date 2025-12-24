@@ -5,10 +5,10 @@
 
 import { useState } from 'react'
 import { useParams } from '@tanstack/react-router'
-import { PageWrapper } from '../../../components/layout/PageWrapper'
+import { PageWrapper, DetailSidebar, DetailFlowViewer } from '../../../components/layout'
 import { ProcessFlowDiagram } from '../components/ProcessFlowDiagram'
 import { useProcess } from '../hooks/useProcesses'
-import { Workflow, Edit, ArrowLeft, CheckCircle2, Clock, Users, XCircle } from 'lucide-react'
+import { Workflow, Edit, ArrowLeft, CheckCircle2, Clock, Users, XCircle, FileText } from 'lucide-react'
 import { Button, Body, BodySmall, Caption } from '@repo/ui'
 import { useNavigate } from '@tanstack/react-router'
 import { ProcessType, ProcessStatus } from '../types/enums'
@@ -16,6 +16,7 @@ import { useAuth } from '../../auth/context/AuthContext'
 import { ProcessValidationDialog } from '../components/ProcessValidationDialog'
 import { useProcessValidationRequests } from '../hooks/useProcessValidation'
 import { ValidationStatusBadge } from '../components/ValidationStatusBadge'
+import type { MetadataItem, DetailSection } from '../../../components/layout/DetailSidebar'
 
 export default function ProcessDetailPage() {
   const { id } = useParams({ from: '/processes-level2/$id' })
@@ -83,6 +84,14 @@ export default function ProcessDetailPage() {
             Demander validation
           </Button>
           <Button
+            variant="outline"
+            onClick={() => navigate({ to: '/processes/$processId/fip', params: { processId: process.id } })}
+            className="border-blue-300 text-blue-600 hover:bg-blue-50"
+          >
+            <FileText className="h-4 w-4 mr-2" />
+            Voir FIP
+          </Button>
+          <Button
             onClick={() => {
               // Navigate to SIPOC flow if type is SIPOC, otherwise to FlowDiagram editor
               if (process.type === ProcessType.SIPOC) {
@@ -99,135 +108,9 @@ export default function ProcessDetailPage() {
         </div>
       }
     >
-      {/* Process Info */}
-      <div className="bg-white rounded-lg shadow p-6 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div>
-            <BodySmall className="text-gray-500 mb-1">Code</BodySmall>
-            <Body className="font-semibold">{process.code}</Body>
-          </div>
-          <div>
-            <BodySmall className="text-gray-500 mb-1">Type</BodySmall>
-            <Body className="font-semibold">{process.type}</Body>
-          </div>
-          <div>
-            <BodySmall className="text-gray-500 mb-1">Statut</BodySmall>
-            <Body className="font-semibold">{process.status}</Body>
-          </div>
-          {process.processMap && (
-            <div>
-              <BodySmall className="text-gray-500 mb-1">Carte des processus</BodySmall>
-              <Body className="font-semibold">{process.processMap.title}</Body>
-            </div>
-          )}
-          {process.workspace && (
-            <div>
-              <BodySmall className="text-gray-500 mb-1">Espace de travail</BodySmall>
-              <Body className="font-semibold">{process.workspace.name}</Body>
-            </div>
-          )}
-          {process.department && (
-            <div>
-              <BodySmall className="text-gray-500 mb-1">Département</BodySmall>
-              <Body className="font-semibold">{process.department.name}</Body>
-            </div>
-          )}
-          {process.priority && (
-            <div>
-              <BodySmall className="text-gray-500 mb-1">Priorité</BodySmall>
-              <Body className="font-semibold">{process.priority}</Body>
-            </div>
-          )}
-          {process.confidentiality && (
-            <div>
-              <BodySmall className="text-gray-500 mb-1">Confidentialité</BodySmall>
-              <Body className="font-semibold">{process.confidentiality}</Body>
-            </div>
-          )}
-          <div>
-            <BodySmall className="text-gray-500 mb-1">Procédures</BodySmall>
-            <Body className="font-semibold">{process._count?.procedures || 0}</Body>
-          </div>
-          {/* Validation Status */}
-          {(process.status === ProcessStatus.DRAFT || process.status === ProcessStatus.IN_REVIEW) &&
-            validationRequests.length > 0 && (
-              <div className="md:col-span-2 lg:col-span-3">
-                <BodySmall className="text-gray-500 mb-2">Statut de validation</BodySmall>
-                <div className="flex items-center gap-3">
-                  <ValidationStatusBadge processId={process.id} compact={false} />
-                  {validationRequests.length > 0 && (
-                    <div className="flex items-center gap-4 text-sm">
-                      <div className="flex items-center gap-1.5">
-                        <Users className="w-4 h-4 text-gray-400" />
-                        <Caption className="text-gray-600">
-                          {validationRequests.length} validateur{validationRequests.length > 1 ? 's' : ''}
-                        </Caption>
-                      </div>
-                      {validationRequests.filter((req) => req.status === 'APPROVED').length > 0 && (
-                        <div className="flex items-center gap-1.5">
-                          <CheckCircle2 className="w-4 h-4 text-green-600" />
-                          <Caption className="text-green-700">
-                            {validationRequests.filter((req) => req.status === 'APPROVED').length} approuvé
-                            {validationRequests.filter((req) => req.status === 'APPROVED').length > 1 ? 's' : ''}
-                          </Caption>
-                        </div>
-                      )}
-                      {validationRequests.filter((req) => req.status === 'PENDING').length > 0 && (
-                        <div className="flex items-center gap-1.5">
-                          <Clock className="w-4 h-4 text-orange-600" />
-                          <Caption className="text-orange-700">
-                            {validationRequests.filter((req) => req.status === 'PENDING').length} en attente
-                          </Caption>
-                        </div>
-                      )}
-                      {validationRequests.filter((req) => req.status === 'REJECTED').length > 0 && (
-                        <div className="flex items-center gap-1.5">
-                          <XCircle className="w-4 h-4 text-red-600" />
-                          <Caption className="text-red-700">
-                            {validationRequests.filter((req) => req.status === 'REJECTED').length} rejeté
-                            {validationRequests.filter((req) => req.status === 'REJECTED').length > 1 ? 's' : ''}
-                          </Caption>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-        </div>
-        {process.description && (
-          <div className="mt-4">
-            <BodySmall className="text-gray-500 mb-1">Description</BodySmall>
-            <Body>{process.description}</Body>
-          </div>
-        )}
-        {process.objectif && (
-          <div className="mt-4">
-            <BodySmall className="text-gray-500 mb-1">Objectif</BodySmall>
-            <Body>{process.objectif}</Body>
-          </div>
-        )}
-        {process.perimetre && (
-          <div className="mt-4">
-            <BodySmall className="text-gray-500 mb-1">Périmètre</BodySmall>
-            <Body>{process.perimetre}</Body>
-          </div>
-        )}
-        {process.finalite && (
-          <div className="mt-4">
-            <BodySmall className="text-gray-500 mb-1">Finalité</BodySmall>
-            <Body>{process.finalite}</Body>
-          </div>
-        )}
-      </div>
-
-      {/* FlowDiagram Viewer (ReadOnly) - Only show for FLOW type */}
-      {process.type === ProcessType.FLOW ? (
-        <div className="bg-white rounded-lg shadow" style={{ height: 'calc(100vh - 20rem)' }}>
-          <ProcessFlowDiagram processId={process.id} readOnly={true} />
-        </div>
-      ) : process.type === ProcessType.SIPOC ? (
-        <div className="bg-white rounded-lg shadow p-6">
+      {/* Split Layout: Details Left, Flow Right */}
+      {process.type === ProcessType.SIPOC ? (
+        <div className="bg-white rounded-lg shadow-sm p-6">
           <div className="text-center py-12">
             <Body className="text-gray-600 mb-4">
               Ce processus est de type SIPOC. Utilisez le bouton "Modifier" pour accéder à l'éditeur SIPOC.
@@ -243,7 +126,176 @@ export default function ProcessDetailPage() {
             </Button>
           </div>
         </div>
-      ) : null}
+      ) : (
+        <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-12rem)]">
+          {/* Left Sidebar - Details */}
+          <div className="w-full lg:w-1/4 xl:w-1/3 overflow-y-auto pr-2">
+            <DetailSidebar
+              metadata={[
+                {
+                  label: 'Code',
+                  value: process.code,
+                },
+                {
+                  label: 'Type',
+                  value: process.type,
+                },
+                {
+                  label: 'Statut',
+                  value: process.status,
+                },
+                ...(process.processMap
+                  ? [
+                      {
+                        label: 'Carte des processus',
+                        value: process.processMap.title,
+                      },
+                    ]
+                  : []),
+                ...(process.workspace
+                  ? [
+                      {
+                        label: 'Espace de travail',
+                        value: process.workspace.name,
+                      },
+                    ]
+                  : []),
+                ...(process.department
+                  ? [
+                      {
+                        label: 'Département',
+                        value: process.department.name,
+                      },
+                    ]
+                  : []),
+                ...(process.priority
+                  ? [
+                      {
+                        label: 'Priorité',
+                        value: process.priority,
+                      },
+                    ]
+                  : []),
+                ...(process.confidentiality
+                  ? [
+                      {
+                        label: 'Confidentialité',
+                        value: process.confidentiality,
+                      },
+                    ]
+                  : []),
+                {
+                  label: 'Procédures',
+                  value: process._count?.procedures || 0,
+                },
+              ]}
+              sections={[
+                ...(process.description
+                  ? [
+                      {
+                        title: 'Description',
+                        content: <BodySmall className="text-gray-700">{process.description}</BodySmall>,
+                      },
+                    ]
+                  : []),
+                ...(process.objectif
+                  ? [
+                      {
+                        title: 'Objectif',
+                        content: <BodySmall className="text-gray-700">{process.objectif}</BodySmall>,
+                      },
+                    ]
+                  : []),
+                ...(process.perimetre
+                  ? [
+                      {
+                        title: 'Périmètre',
+                        content: <BodySmall className="text-gray-700">{process.perimetre}</BodySmall>,
+                      },
+                    ]
+                  : []),
+                ...(process.finalite
+                  ? [
+                      {
+                        title: 'Finalité',
+                        content: <BodySmall className="text-gray-700">{process.finalite}</BodySmall>,
+                      },
+                    ]
+                  : []),
+                ...(process.status === ProcessStatus.DRAFT || process.status === ProcessStatus.IN_REVIEW
+                  ? validationRequests.length > 0
+                    ? [
+                        {
+                          title: 'Statut de validation',
+                          icon: <CheckCircle2 className="h-5 w-5" />,
+                          content: (
+                            <div className="space-y-4">
+                              <div className="flex items-center gap-3 mb-4">
+                                <ValidationStatusBadge processId={process.id} compact={false} />
+                                {validationRequests.length > 0 && (
+                                  <div className="flex items-center gap-4 text-sm">
+                                    <div className="flex items-center gap-1.5">
+                                      <Users className="w-4 h-4 text-gray-400" />
+                                      <Caption className="text-gray-600">
+                                        {validationRequests.length} validateur
+                                        {validationRequests.length > 1 ? 's' : ''}
+                                      </Caption>
+                                    </div>
+                                    {validationRequests.filter((req) => req.status === 'APPROVED').length > 0 && (
+                                      <div className="flex items-center gap-1.5">
+                                        <CheckCircle2 className="w-4 h-4 text-green-600" />
+                                        <Caption className="text-green-700">
+                                          {validationRequests.filter((req) => req.status === 'APPROVED').length}{' '}
+                                          approuvé
+                                          {validationRequests.filter((req) => req.status === 'APPROVED').length > 1
+                                            ? 's'
+                                            : ''}
+                                        </Caption>
+                                      </div>
+                                    )}
+                                    {validationRequests.filter((req) => req.status === 'PENDING').length > 0 && (
+                                      <div className="flex items-center gap-1.5">
+                                        <Clock className="w-4 h-4 text-orange-600" />
+                                        <Caption className="text-orange-700">
+                                          {validationRequests.filter((req) => req.status === 'PENDING').length} en
+                                          attente
+                                        </Caption>
+                                      </div>
+                                    )}
+                                    {validationRequests.filter((req) => req.status === 'REJECTED').length > 0 && (
+                                      <div className="flex items-center gap-1.5">
+                                        <XCircle className="w-4 h-4 text-red-600" />
+                                        <Caption className="text-red-700">
+                                          {validationRequests.filter((req) => req.status === 'REJECTED').length} rejeté
+                                          {validationRequests.filter((req) => req.status === 'REJECTED').length > 1
+                                            ? 's'
+                                            : ''}
+                                        </Caption>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ),
+                        },
+                      ]
+                    : []
+                  : []),
+              ]}
+            />
+          </div>
+
+          {/* Right Side - Flow */}
+          {process.type === ProcessType.FLOW && (
+            <div className="w-full lg:w-3/4 xl:w-2/3 flex-1">
+              <DetailFlowViewer>
+                <ProcessFlowDiagram processId={process.id} readOnly={true} />
+              </DetailFlowViewer>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Validation Dialog */}
       {process && validationDialogOpen && (

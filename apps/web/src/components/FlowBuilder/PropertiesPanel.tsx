@@ -116,8 +116,8 @@ export function PropertiesPanel({
     // Use selectedNode directly to get latest style values
     const currentStyle: Record<string, any> = (selectedNode.data?.style as Record<string, any>) || {}
     
-    // Check if node is a process type (mainProcess, supportProcess, managementProcess)
-    const isProcessNode = ['mainProcess', 'supportProcess', 'managementProcess', 'process'].includes(
+    // Check if node is a process type (mainProcess, supportProcess, managementProcess, sipoc)
+    const isProcessNode = ['mainProcess', 'supportProcess', 'managementProcess', 'sipoc', 'process'].includes(
       selectedNode.type || ''
     )
     

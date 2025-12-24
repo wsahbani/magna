@@ -23,7 +23,8 @@ import {
   Minus,
   Move,
   ArrowUpDown,
-  ArrowLeftRight
+  ArrowLeftRight,
+  Target
 } from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
 import { createNode, defineNodeConfig, HANDLE_CONFIGS, COLOR_SCHEMES } from './BaseNode'
@@ -80,7 +81,8 @@ const NodeToolbar = memo(({
   isContainer,
   onNodeUpdate,
   currentStyle,
-  currentHandlePositions
+  currentHandlePositions,
+  onCreateProcess
 }: { 
   nodeId: string
   selected: boolean
@@ -92,6 +94,7 @@ const NodeToolbar = memo(({
   onNodeUpdate?: (nodeId: string, data: Partial<Node['data']>) => void
   currentStyle?: Record<string, any>
   currentHandlePositions?: { source?: string; target?: string }
+  onCreateProcess?: (nodeId: string, containerId: string) => void
 }) => {
   const [showAttachMenu, setShowAttachMenu] = useState(false)
   const [showStyleMenu, setShowStyleMenu] = useState(false)
@@ -742,6 +745,96 @@ export const ManagementProcessNode = createNode(
 )
 
 ManagementProcessNode.displayName = 'ManagementProcessNode'
+
+/**
+ * Nœud SIPOC - Rectangle arrondi avec bordure bleue
+ * Processus de type SIPOC (Supplier Input Process Output Customer)
+ */
+export const SipocNode = createNode(
+  defineNodeConfig({
+    shape: 'custom',
+    backgroundColor: 'white',
+    borderColor: 'border-blue-500',
+    borderWidth: 2,
+    icon: <Target className="w-5 h-5 text-blue-600" />,
+    resizable: true,
+    minWidth: 140,
+    minHeight: 80,
+    maxWidth: 500,
+    maxHeight: 400,
+    isContainer: false,
+    handles: [
+      HANDLE_CONFIGS.targetLeft,
+      HANDLE_CONFIGS.sourceRight,
+    ],
+    showLabel: true,
+    labelPosition: 'inside',
+    customRender: ({ data, selected, renderHandles, renderIcon, renderLabel, width, height, id }) => {
+      const selectedClass = selected ? 'ring-4 ring-orange-400 ring-opacity-50 shadow-lg' : 'shadow'
+      const hasLink = !!data?.linkedProcessId
+      
+      const inlineStyle: any = {
+        width: width ? `${width}px` : '100%',
+        height: height ? `${height}px` : '100%',
+      }
+      if (data?.style?.backgroundColor) inlineStyle.backgroundColor = data.style.backgroundColor
+      if (data?.style?.color) inlineStyle.color = data.style.color
+      if (data?.style?.fontFamily) inlineStyle.fontFamily = data.style.fontFamily
+      if (data?.style?.fontSize) {
+        const fontSizeStr = String(data.style.fontSize)
+        inlineStyle.fontSize = fontSizeStr.includes('px') ? fontSizeStr : `${fontSizeStr}px`
+      }
+      if (data?.style?.borderColor) {
+        inlineStyle.borderColor = data.style.borderColor
+        inlineStyle.borderStyle = data.style.borderStyle || 'solid'
+      }
+      if (data?.style?.borderStyle) inlineStyle.borderStyle = data.style.borderStyle
+      
+      return (
+        <div className="relative w-full h-full" style={{ width: inlineStyle.width, height: inlineStyle.height }}>
+          <NodeToolbar
+            nodeId={id}
+            selected={selected}
+            parentId={data?.parentId}
+            availableContainers={data?.availableContainers}
+            onAttach={data?.onAttach}
+            onDetach={data?.onDetach}
+            isContainer={data?.isContainer}
+            onNodeUpdate={data?.onNodeUpdate}
+            currentStyle={data?.currentStyle}
+            currentHandlePositions={data?.currentHandlePositions}
+            onCreateProcess={data?.onCreateProcess}
+          />
+          <div
+            className={`relative min-w-[140px] min-h-[80px] flex flex-row items-center justify-start gap-3 px-4 py-2 rounded-lg w-full h-full ${selectedClass} transition-all`}
+            style={{
+              backgroundColor: inlineStyle.backgroundColor || 'white',
+              borderWidth: inlineStyle.borderWidth || '2px',
+              borderColor: inlineStyle.borderColor || '#3b82f6',
+              borderStyle: inlineStyle.borderStyle || 'solid',
+              fontFamily: inlineStyle.fontFamily || undefined,
+              fontSize: inlineStyle.fontSize || undefined,
+              color: inlineStyle.color || undefined,
+            }}
+          >
+            {renderHandles()}
+            {hasLink && (
+              <div className="absolute top-1 right-1 bg-orange-500 rounded-full p-1 shadow-sm z-20">
+                <Link2 className="w-3 h-3 text-white" />
+              </div>
+            )}
+            {renderIcon()}
+            <div className="flex-1 min-w-0">
+              {renderLabel()}
+            </div>
+          </div>
+        </div>
+      )
+    },
+  })
+)
+
+SipocNode.displayName = 'SipocNode'
 
 /**
  * Nœud Groupe de Domaine - Grand conteneur

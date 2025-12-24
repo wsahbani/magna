@@ -101,6 +101,7 @@ export async function saveProcessFlow(
   processId: string,
   nodes: any[],
   edges: any[],
+  flowDirection?: 'horizontal' | 'vertical',
 ): Promise<{ diagramId: string; message: string }> {
   return post<{ diagramId: string; message: string }>(
     `${BASE_URL}/${processId}/flow/save`,
@@ -108,6 +109,7 @@ export async function saveProcessFlow(
       processId,
       nodes,
       edges,
+      flowDirection: flowDirection ? flowDirection.toUpperCase() as 'HORIZONTAL' | 'VERTICAL' : undefined,
     },
   )
 }

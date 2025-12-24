@@ -44,6 +44,7 @@ const initialState = {
   lastSaved: null as Date | null,
   processId: null as string | null,
   viewport: initialViewport,
+  flowDirection: 'horizontal' as 'horizontal' | 'vertical',
 };
 
 /**
@@ -257,11 +258,12 @@ export const useProcessFlowStore = create<ProcessFlowStore>()(
       /**
        * Load flow data (from API)
        */
-      loadFlow: (nodes: Node[], edges: Edge[]) => {
+      loadFlow: (nodes: Node[], edges: Edge[], flowDirection?: 'horizontal' | 'vertical') => {
         set(
           {
             nodes,
             edges,
+            flowDirection: flowDirection || 'horizontal',
             isDirty: false,
             lastSaved: new Date(),
             selectedNodeIds: [],
@@ -293,6 +295,15 @@ export const useProcessFlowStore = create<ProcessFlowStore>()(
        */
       setViewport: (viewport: Viewport) => {
         set({ viewport }, false, 'setViewport');
+      },
+
+      // ==================== Flow Direction Operations ====================
+
+      /**
+       * Set flow direction (horizontal or vertical)
+       */
+      setFlowDirection: (direction: 'horizontal' | 'vertical') => {
+        set({ flowDirection: direction }, false, 'setFlowDirection');
       },
 
       // ==================== ReactFlow Handlers ====================

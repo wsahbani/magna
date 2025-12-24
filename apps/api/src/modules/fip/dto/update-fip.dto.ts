@@ -1,7 +1,6 @@
 import {
   IsString,
   IsOptional,
-  IsObject,
 } from 'class-validator';
 
 export class UpdateFipDto {
@@ -18,27 +17,21 @@ export class UpdateFipDto {
   scope?: string;
 
   @IsOptional()
-  @IsObject()
   indicators?: any;
 
   @IsOptional()
-  @IsObject()
   stakeholders?: any;
 
   @IsOptional()
-  @IsObject()
   risks?: any;
 
   @IsOptional()
-  @IsObject()
   opportunities?: any;
 
   @IsOptional()
-  @IsObject()
   resources?: any;
 
   @IsOptional()
-  @IsObject()
   performanceTargets?: any;
 }
 

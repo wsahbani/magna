@@ -7,7 +7,7 @@ import WorkspaceDetailPage from './features/workspaces/pages/WorkspaceDetailPage
 // DEPRECATED: Old processes feature - replaced by features/process
 // import ProcessesPage from './features/processes/pages/ProcessesPage'
 // import FlowDetailPage from './features/processes/pages/FlowDetailPage'
-// import SipocDetailPage from './features/processes/pages/SipocDetailPage'
+import SipocDetailPage from './features/processes/pages/SipocDetailPage'
 // import BpmnDetailPage from './features/processes/pages/BpmnDetailPage'
 import FipDetailPage from './features/fip/pages/FipDetailPage'
 import { SipocListPage } from './features/sipoc'
@@ -129,21 +129,21 @@ const workspaceDetailRoute = createRoute({
 //   ),
 // })
 // 
-// // SIPOC detail route - protected route
-// const sipocDetailRoute = createRoute({
-//   getParentRoute: () => rootRoute,
-//   path: '/processes/sipoc/$id',
-//   beforeLoad: () => {
-//     if (!isAuthenticated()) {
-//       throw redirect({ to: '/login' })
-//     }
-//   },
-//   component: () => (
-//     <AdminLayout>
-//       <SipocDetailPage />
-//     </AdminLayout>
-//   ),
-// })
+// SIPOC detail route - protected route
+const sipocDetailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/processes/sipoc/$id',
+  beforeLoad: () => {
+    if (!isAuthenticated()) {
+      throw redirect({ to: '/login' })
+    }
+  },
+  component: () => (
+    <AdminLayout>
+      <SipocDetailPage />
+    </AdminLayout>
+  ),
+})
 // 
 // // BPMN detail route - protected route
 // const bpmnDetailRoute = createRoute({
@@ -461,7 +461,7 @@ const routeTree = rootRoute.addChildren([
   workspaceDetailRoute,
   // processesRoute,
   // flowDetailRoute,
-  // sipocDetailRoute,
+  sipocDetailRoute,
   // bpmnDetailRoute,
   sipocListRoute,
   fipDetailRoute,

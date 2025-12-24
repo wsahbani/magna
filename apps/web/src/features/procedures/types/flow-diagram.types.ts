@@ -7,6 +7,7 @@ export interface ProcedureFlowDiagram {
   diagramId: string | null
   nodes: ProcedureFlowNode[]
   edges: ProcedureFlowEdge[]
+  flowDirection?: 'HORIZONTAL' | 'VERTICAL'
 }
 
 /**
@@ -147,5 +148,6 @@ export interface SaveProcedureFlowDto {
   nodes: SaveProcedureNodeDto[]
   edges: SaveProcedureEdgeDto[]
   changesLog?: string
+  flowDirection?: 'HORIZONTAL' | 'VERTICAL'
 }
 

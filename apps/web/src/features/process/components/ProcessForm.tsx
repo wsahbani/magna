@@ -174,7 +174,14 @@ export function ProcessForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6" onKeyDown={handleKeyDown}>
+    <form 
+      onSubmit={(e) => {
+        e.preventDefault()
+        handleSubmit(e)
+      }} 
+      className="space-y-6" 
+      onKeyDown={handleKeyDown}
+    >
       {/* Title */}
       <div className="space-y-2">
         <Label htmlFor="title" className="flex items-center gap-2">
@@ -239,6 +246,7 @@ export function ProcessForm({
             validateForm()
           }}
           disabled={isLoadingProcessMaps || !!defaultProcessMapId}
+          onOpenChange={() => {}}
         >
           <SelectTrigger
             id="processMapId"
@@ -279,6 +287,7 @@ export function ProcessForm({
             validateForm()
           }}
           disabled={isLoadingWorkspaces}
+          onOpenChange={() => {}}
         >
           <SelectTrigger
             id="workspaceId"
@@ -314,6 +323,7 @@ export function ProcessForm({
         <Select
           value={formData.type}
           onValueChange={(value) => setFormData({ ...formData, type: value as ProcessType })}
+          onOpenChange={() => {}}
         >
           <SelectTrigger id="type">
             <SelectValue placeholder="Sélectionner un type" />
@@ -339,6 +349,7 @@ export function ProcessForm({
           onValueChange={(value) => {
             setFormData({ ...formData, status: value as ProcessStatus })
           }}
+          onOpenChange={() => {}}
         >
           <SelectTrigger id="status">
             <SelectValue placeholder="Sélectionner un statut" />
@@ -364,6 +375,7 @@ export function ProcessForm({
           onValueChange={(value) =>
             setFormData({ ...formData, priority: value as ProcessPriority })
           }
+          onOpenChange={() => {}}
         >
           <SelectTrigger id="priority">
             <SelectValue placeholder="Sélectionner une priorité" />
@@ -389,6 +401,7 @@ export function ProcessForm({
           onValueChange={(value) =>
             setFormData({ ...formData, confidentiality: value as ConfidentialityLevel })
           }
+          onOpenChange={() => {}}
         >
           <SelectTrigger id="confidentiality">
             <SelectValue placeholder="Sélectionner un niveau de confidentialité" />

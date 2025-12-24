@@ -76,6 +76,7 @@ export interface SaveFlowDto {
   procedureId?: string // For level 3
   nodes: SaveNodeDto[]
   edges: SaveEdgeDto[]
+  flowDirection?: 'HORIZONTAL' | 'VERTICAL'
 }
 
 export interface SaveNodeDto {
@@ -114,5 +115,6 @@ export interface FlowResponse {
   diagramId: string | null
   nodes: Node[]
   edges: Edge[]
+  flowDirection?: 'HORIZONTAL' | 'VERTICAL'
 }
 

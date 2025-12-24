@@ -216,6 +216,34 @@ export class ProcessService {
         }
       }
 
+      // Create FIP (Fiche d'Identité de Processus) automatically
+      try {
+        await tx.processIdentityCard.create({
+          data: {
+            processId: process.id,
+            createdBy: validUserId,
+            status: 'draft',
+            objectives: createProcessDto.objectif || null,
+            scope: createProcessDto.perimetre || null,
+            indicators: null,
+            stakeholders: null,
+            risks: null,
+            opportunities: null,
+            resources: null,
+            performanceTargets: null,
+          },
+        });
+        this.logger.log(`FIP created successfully for Process ${process.id}`);
+      } catch (error) {
+        // Log error and rethrow to fail the transaction
+        // This ensures data consistency: if FIP creation fails, Process creation should also fail
+        this.logger.error(
+          `Failed to create FIP for Process ${process.id}:`,
+          error,
+        );
+        throw error;
+      }
+
       // Récupérer le Process avec tous les détails en utilisant le client de transaction
       // Utiliser tx au lieu de this.processRepository pour voir les changements dans la transaction
       return tx.process.findUnique({

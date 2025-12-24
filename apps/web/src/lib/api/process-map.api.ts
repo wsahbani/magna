@@ -65,11 +65,12 @@ export const processMapApi = {
   /**
    * Save FlowDiagram for ProcessMap (level 1)
    */
-  saveFlow: async (processMapId: string, nodes: any[], edges: any[]): Promise<any> => {
+  saveFlow: async (processMapId: string, nodes: any[], edges: any[], flowDirection?: 'horizontal' | 'vertical'): Promise<any> => {
     return post<any>(`/process-maps/${processMapId}/flow/save`, {
       processMapId,
       nodes,
       edges,
+      flowDirection: flowDirection ? flowDirection.toUpperCase() as 'HORIZONTAL' | 'VERTICAL' : undefined,
     })
   },
 

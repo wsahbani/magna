@@ -55,6 +55,10 @@ export interface UseProcedureFlowStoreReturn {
   // Utils
   setProcedureId: (id: string | null) => void;
   setNodes: (nodes: Node[]) => void;
+  
+  // Flow direction
+  flowDirection: 'horizontal' | 'vertical';
+  setFlowDirection: (direction: 'horizontal' | 'vertical') => void;
 
   // Swimlane operations
   addLaneToPool: (poolId: string, laneData?: { label?: string; size?: number; color?: string }) => void;
@@ -117,6 +121,8 @@ export function useProcedureFlowStore(
   const toggleLaneCollapsed = useStore((state) => state.toggleLaneCollapsed);
   const togglePoolOrientation = useStore((state) => state.togglePoolOrientation);
   const updatePoolLabel = useStore((state) => state.updatePoolLabel);
+  const flowDirection = useStore((state) => state.flowDirection);
+  const setFlowDirection = useStore((state) => state.setFlowDirection);
 
   // React Query hooks
   const { data: flowData, isLoading } = useProcedureFlow(procedureId);
@@ -159,7 +165,17 @@ export function useProcedureFlowStore(
       const apiNodesIds = apiNodes.map((n: Node) => n.id).sort().join(',');
 
       if (currentNodesIds !== apiNodesIds || nodes.length !== apiNodes.length || edges.length !== apiEdges.length) {
-        loadFlowToStore(apiNodes, apiEdges);
+        // Convert flowDirection from API format (HORIZONTAL/VERTICAL) to store format (horizontal/vertical)
+        const apiFlowDirection = flowData.flowDirection === 'VERTICAL' ? 'vertical' : 'horizontal';
+        loadFlowToStore(apiNodes, apiEdges, apiFlowDirection);
+      }
+      
+      // Update flowDirection separately if it changed
+      if (flowData.flowDirection) {
+        const apiFlowDirection = flowData.flowDirection === 'VERTICAL' ? 'vertical' : 'horizontal';
+        if (flowDirection !== apiFlowDirection) {
+          setFlowDirection(apiFlowDirection);
+        }
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -196,6 +212,7 @@ export function useProcedureFlowStore(
         procedureId,
         nodes: currentState.nodes,
         edges: currentState.edges,
+        flowDirection: currentState.flowDirection,
       });
 
       // Mark as saved after successful API call
@@ -250,6 +267,10 @@ export function useProcedureFlowStore(
     // Utils
     setProcedureId,
     setNodes,
+    
+    // Flow direction
+    flowDirection,
+    setFlowDirection,
 
     // Swimlane operations
     addLaneToPool,

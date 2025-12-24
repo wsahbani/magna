@@ -1,7 +1,6 @@
 import {
   IsString,
   IsOptional,
-  IsObject,
   IsUUID,
 } from 'class-validator';
 
@@ -22,27 +21,21 @@ export class CreateFipDto {
   scope?: string;
 
   @IsOptional()
-  @IsObject()
   indicators?: any;
 
   @IsOptional()
-  @IsObject()
   stakeholders?: any;
 
   @IsOptional()
-  @IsObject()
   risks?: any;
 
   @IsOptional()
-  @IsObject()
   opportunities?: any;
 
   @IsOptional()
-  @IsObject()
   resources?: any;
 
   @IsOptional()
-  @IsObject()
   performanceTargets?: any;
 }
 

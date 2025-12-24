@@ -7,9 +7,10 @@ import { ProcessRepository } from './repositories/process.repository';
 import { PrismaModule } from '../../database/prisma.module';
 import { ProcedureModule } from '../procedure/procedure.module';
 import { SipocModule } from '../sipoc/sipoc.module';
+import { FipModule } from '../fip/fip.module';
 
 @Module({
-  imports: [PrismaModule, forwardRef(() => ProcedureModule), SipocModule],
+  imports: [PrismaModule, forwardRef(() => ProcedureModule), SipocModule, FipModule],
   controllers: [ProcessController],
   providers: [ProcessService, ProcessFlowService, ProcessValidationService, ProcessRepository],
   exports: [ProcessService, ProcessFlowService, ProcessValidationService, ProcessRepository],

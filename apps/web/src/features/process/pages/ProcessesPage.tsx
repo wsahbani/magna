@@ -9,6 +9,7 @@ import { ProcessTable } from '../components/ProcessTable'
 import { ProcessEmptyState } from '../components/ProcessEmptyState'
 import { ProcessForm } from '../components/ProcessForm'
 import { AIGenerateProcessModal } from '../components/AIGenerateProcessModal'
+import { CreateSIPOCDialog } from '../components/CreateSIPOCDialog'
 import {
   useProcesses,
   useCreateProcess,
@@ -28,6 +29,7 @@ export default function ProcessesPage() {
   const searchParams = useSearch({ strict: false }) as any
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid')
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
+  const [isCreateSIPOCDialogOpen, setIsCreateSIPOCDialogOpen] = useState(false)
   const [isAIGenerateDialogOpen, setIsAIGenerateDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [selectedProcess, setSelectedProcess] = useState<Process | null>(null)
@@ -78,6 +80,20 @@ export default function ProcessesPage() {
   const handleDelete = async (process: Process) => {
     if (window.confirm('Êtes-vous sûr de vouloir supprimer ce processus ?')) {
       await deleteMutation.mutateAsync(process.id)
+    }
+  }
+
+  const handleCreateSIPOC = async (formData: any) => {
+    try {
+      const process = await createMutation.mutateAsync(formData)
+      toast.success('SIPOC créé avec succès')
+      setIsCreateSIPOCDialogOpen(false)
+      // Rediriger vers la page SIPOC
+      window.location.href = `/processes/sipoc/${process.id}`
+    } catch (error: any) {
+      toast.error(
+        error?.response?.data?.message || 'Erreur lors de la création du SIPOC',
+      )
     }
   }
 
@@ -132,6 +148,14 @@ export default function ProcessesPage() {
           >
             <Sparkles className="w-4 h-4 mr-2" />
             Générer avec IA
+          </Button>
+          <Button
+            onClick={() => setIsCreateSIPOCDialogOpen(true)}
+            variant="outline"
+            className="border-blue-600 text-blue-600 hover:bg-blue-50"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Créer SIPOC
           </Button>
           <Button
             onClick={() => setIsCreateDialogOpen(true)}
@@ -235,6 +259,16 @@ export default function ProcessesPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Create SIPOC Dialog */}
+      <CreateSIPOCDialog
+        open={isCreateSIPOCDialogOpen}
+        onOpenChange={setIsCreateSIPOCDialogOpen}
+        onSubmit={handleCreateSIPOC}
+        defaultProcessMapId={searchParams?.processMapId}
+        defaultWorkspaceId={searchParams?.workspaceId}
+        isLoading={createMutation.isPending}
+      />
 
       {/* AI Generate Dialog */}
       <AIGenerateProcessModal
