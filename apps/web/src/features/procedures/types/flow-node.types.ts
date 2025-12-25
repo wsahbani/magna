@@ -24,7 +24,7 @@ export interface FlowNode extends Node {
   data: FlowNodeData;
   parentId?: string;
   parentNode?: string;
-  extent?: 'parent' | [number, number, number, number];
+  extent?: 'parent' | [[number, number], [number, number]];
 }
 
 /**
@@ -100,6 +100,7 @@ export function createNodeWithParent(
     parentNode: parentId,
     extent: 'parent',
     data: {
+      label: (node.data as FlowNodeData).label || '',
       ...node.data,
       parentNodeId: parentId,
       laneId,

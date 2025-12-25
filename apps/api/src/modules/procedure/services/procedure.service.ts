@@ -25,6 +25,18 @@ export class ProcedureService {
   ) {}
 
   async create(dto: CreateProcedureDto, userId?: string): Promise<ProcedureEntity> {
+    // Validate Process exists if provided
+    if (dto.processId) {
+      const process = await this.prisma.process.findUnique({
+        where: { id: dto.processId },
+      });
+      if (!process) {
+        throw new NotFoundException(
+          `Process with ID "${dto.processId}" not found`,
+        );
+      }
+    }
+
     // Validate userId exists or use fallback
     let validUserId = userId || 'system';
     if (validUserId && validUserId !== 'system') {

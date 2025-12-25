@@ -27,25 +27,27 @@ export class ProcessService {
    * Automatically creates a FlowDiagram (level=2) for the Process
    */
   async create(createProcessDto: CreateProcessDto, userId: string) {
-    // Check if code already exists within the ProcessMap
-    const existing = await this.processRepository.findByCode(
-      createProcessDto.processMapId,
-      createProcessDto.code,
-    );
-    if (existing) {
-      throw new ConflictException(
-        `Process with code "${createProcessDto.code}" already exists in this ProcessMap`,
-      );
-    }
+    // Validate ProcessMap exists if provided
+    if (createProcessDto.processMapId) {
+      const processMap = await this.prisma.processMap.findUnique({
+        where: { id: createProcessDto.processMapId },
+      });
+      if (!processMap) {
+        throw new NotFoundException(
+          `ProcessMap with ID "${createProcessDto.processMapId}" not found`,
+        );
+      }
 
-    // Validate ProcessMap exists
-    const processMap = await this.prisma.processMap.findUnique({
-      where: { id: createProcessDto.processMapId },
-    });
-    if (!processMap) {
-      throw new NotFoundException(
-        `ProcessMap with ID "${createProcessDto.processMapId}" not found`,
+      // Check if code already exists within the ProcessMap
+      const existing = await this.processRepository.findByCode(
+        createProcessDto.processMapId,
+        createProcessDto.code,
       );
+      if (existing) {
+        throw new ConflictException(
+          `Process with code "${createProcessDto.code}" already exists in this ProcessMap`,
+        );
+      }
     }
 
     // Validate workspace exists
@@ -424,8 +426,8 @@ export class ProcessService {
           );
         }
       }
-    } else if (updateProcessDto.code && updateProcessDto.code !== process.code) {
-      // Check if code already exists in the current ProcessMap
+    } else if (updateProcessDto.code && updateProcessDto.code !== process.code && process.processMapId) {
+      // Check if code already exists in the current ProcessMap (only if process has a parent)
       const existing = await this.processRepository.findByCode(
         process.processMapId,
         updateProcessDto.code,

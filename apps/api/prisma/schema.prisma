@@ -323,8 +323,8 @@ model Process {
   status      ProcessStatus @default(DRAFT)
 
   // Hiérarchie
-  processMapId String
-  processMap   ProcessMap @relation(fields: [processMapId], references: [id], onDelete: Cascade)
+  processMapId String?
+  processMap   ProcessMap? @relation(fields: [processMapId], references: [id], onDelete: Cascade)
 
   // Organisation
   workspaceId  String
@@ -389,7 +389,6 @@ model Process {
   subProcessNodes        Node[] @relation("NodeSubProcess")
   linkedInstructionNodes Node[] @relation("NodeInstruction")
 
-  @@unique([processMapId, code])
   @@index([processMapId])
   @@index([workspaceId])
   @@index([status])
@@ -406,8 +405,8 @@ model Procedure {
   status      ProcedureStatus @default(DRAFT)
 
   // Hiérarchie
-  processId String
-  process   Process @relation(fields: [processId], references: [id], onDelete: Cascade)
+  processId String?
+  process   Process? @relation(fields: [processId], references: [id], onDelete: Cascade)
 
   // Organisation
   workspaceId  String
@@ -446,7 +445,6 @@ model Procedure {
   notifications      Notification[]
   validationRequests ProcedureValidationRequest[]
 
-  @@unique([processId, code])
   @@index([processId])
   @@index([workspaceId])
   @@index([status])
@@ -1832,4 +1830,35 @@ model ProcessIdentityCard {
   @@index([processId])
   @@index([status])
   @@map("process_identity_cards")
+}
+
+// ====================================
+// SETTINGS & CONFIGURATION
+// ====================================
+
+model Setting {
+  id          String      @id @default(uuid())
+  key         String      @unique // Ex: "ai.openai.apiKey", "app.logo", "ai.model"
+  value       String? // Valeur du paramètre (peut être null)
+  type        SettingType // Type de donnée
+  category    String // Catégorie: "ai", "app", "system", "email"
+  description String? // Description du paramètre
+  isEncrypted Boolean     @default(false) // Indique si la valeur est chiffrée
+  isPublic    Boolean     @default(false) // Accessible sans auth admin
+  metadata    Json? // Métadonnées supplémentaires (options, validation, etc.)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([category])
+  @@index([key])
+  @@map("settings")
+}
+
+enum SettingType {
+  STRING
+  NUMBER
+  BOOLEAN
+  JSON
+  FILE
+  SECRET
 }

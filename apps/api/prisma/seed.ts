@@ -816,6 +816,264 @@ async function main() {
 
   console.log(`  ✅ Created FlowNodes and FlowEdges for Processes`);
 
+  // ====================================
+  // SEED SETTINGS (Default Configuration)
+  // ====================================
+  console.log('⚙️  Seeding settings...');
+  
+  const defaultSettings: any[] = [
+    // AI Configuration
+    {
+      key: 'ai.provider',
+      value: 'openai',
+      type: 'STRING',
+      category: 'ai',
+      description: 'Fournisseur IA par défaut (openai, anthropic, azure)',
+      isEncrypted: false,
+      isPublic: false,
+      metadata: {
+        options: ['openai', 'anthropic', 'azure'],
+      },
+    },
+    {
+      key: 'ai.openai.apiKey',
+      value: null,
+      type: 'SECRET',
+      category: 'ai',
+      description: 'Clé API OpenAI',
+      isEncrypted: true,
+      isPublic: false,
+      metadata: {
+        placeholder: 'sk-...',
+      },
+    },
+    {
+      key: 'ai.openai.model',
+      value: 'gpt-4',
+      type: 'STRING',
+      category: 'ai',
+      description: 'Modèle OpenAI par défaut',
+      isEncrypted: false,
+      isPublic: false,
+      metadata: {
+        options: ['gpt-4', 'gpt-4-turbo', 'gpt-3.5-turbo'],
+      },
+    },
+    {
+      key: 'ai.anthropic.apiKey',
+      value: null,
+      type: 'SECRET',
+      category: 'ai',
+      description: 'Clé API Claude (Anthropic)',
+      isEncrypted: true,
+      isPublic: false,
+      metadata: {
+        placeholder: 'sk-ant-...',
+      },
+    },
+    {
+      key: 'ai.anthropic.model',
+      value: 'claude-3-sonnet-20240229',
+      type: 'STRING',
+      category: 'ai',
+      description: 'Modèle Claude par défaut',
+      isEncrypted: false,
+      isPublic: false,
+      metadata: {
+        options: ['claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-haiku-20240307'],
+      },
+    },
+    {
+      key: 'ai.temperature',
+      value: '0.7',
+      type: 'NUMBER',
+      category: 'ai',
+      description: 'Température pour la génération (0.0 = déterministe, 1.0 = créatif)',
+      isEncrypted: false,
+      isPublic: false,
+      metadata: {
+        min: 0,
+        max: 1,
+        step: 0.1,
+      },
+    },
+    {
+      key: 'ai.maxTokens',
+      value: '4000',
+      type: 'NUMBER',
+      category: 'ai',
+      description: 'Limite maximale de tokens par requête',
+      isEncrypted: false,
+      isPublic: false,
+      metadata: {
+        min: 100,
+        max: 100000,
+      },
+    },
+    // Application Settings
+    {
+      key: 'app.name',
+      value: 'MAGNA - Process Manager',
+      type: 'STRING',
+      category: 'app',
+      description: 'Nom de l\'application',
+      isEncrypted: false,
+      isPublic: true,
+    },
+    {
+      key: 'app.logo',
+      value: '/logo.svg',
+      type: 'FILE',
+      category: 'app',
+      description: 'URL ou chemin du logo de l\'application',
+      isEncrypted: false,
+      isPublic: true,
+    },
+    {
+      key: 'app.favicon',
+      value: '/favicon.ico',
+      type: 'FILE',
+      category: 'app',
+      description: 'URL ou chemin du favicon',
+      isEncrypted: false,
+      isPublic: true,
+    },
+    {
+      key: 'app.primaryColor',
+      value: '#FF7900',
+      type: 'STRING',
+      category: 'app',
+      description: 'Couleur principale de l\'application (hex)',
+      isEncrypted: false,
+      isPublic: true,
+      metadata: {
+        format: 'color',
+      },
+    },
+    {
+      key: 'app.language',
+      value: 'fr',
+      type: 'STRING',
+      category: 'app',
+      description: 'Langue par défaut',
+      isEncrypted: false,
+      isPublic: true,
+      metadata: {
+        options: ['fr', 'en', 'ar'],
+      },
+    },
+    {
+      key: 'app.timezone',
+      value: 'Europe/Paris',
+      type: 'STRING',
+      category: 'app',
+      description: 'Fuseau horaire par défaut',
+      isEncrypted: false,
+      isPublic: true,
+    },
+    // System Settings
+    {
+      key: 'system.maintenanceMode',
+      value: 'false',
+      type: 'BOOLEAN',
+      category: 'system',
+      description: 'Activer le mode maintenance',
+      isEncrypted: false,
+      isPublic: false,
+    },
+    {
+      key: 'system.allowRegistration',
+      value: 'false',
+      type: 'BOOLEAN',
+      category: 'system',
+      description: 'Autoriser les inscriptions publiques',
+      isEncrypted: false,
+      isPublic: false,
+    },
+    {
+      key: 'system.sessionTimeout',
+      value: '480',
+      type: 'NUMBER',
+      category: 'system',
+      description: 'Durée de session en minutes',
+      isEncrypted: false,
+      isPublic: false,
+      metadata: {
+        min: 15,
+        max: 1440,
+      },
+    },
+    // Email Settings
+    {
+      key: 'email.smtp.host',
+      value: null,
+      type: 'STRING',
+      category: 'email',
+      description: 'Serveur SMTP',
+      isEncrypted: false,
+      isPublic: false,
+      metadata: {
+        placeholder: 'smtp.example.com',
+      },
+    },
+    {
+      key: 'email.smtp.port',
+      value: '587',
+      type: 'NUMBER',
+      category: 'email',
+      description: 'Port SMTP',
+      isEncrypted: false,
+      isPublic: false,
+    },
+    {
+      key: 'email.smtp.user',
+      value: null,
+      type: 'STRING',
+      category: 'email',
+      description: 'Nom d\'utilisateur SMTP',
+      isEncrypted: false,
+      isPublic: false,
+    },
+    {
+      key: 'email.smtp.password',
+      value: null,
+      type: 'SECRET',
+      category: 'email',
+      description: 'Mot de passe SMTP',
+      isEncrypted: true,
+      isPublic: false,
+    },
+    {
+      key: 'email.from.name',
+      value: 'MAGNA Process Manager',
+      type: 'STRING',
+      category: 'email',
+      description: 'Nom de l\'expéditeur par défaut',
+      isEncrypted: false,
+      isPublic: false,
+    },
+    {
+      key: 'email.from.address',
+      value: 'noreply@magna.orange.tn',
+      type: 'STRING',
+      category: 'email',
+      description: 'Adresse email de l\'expéditeur par défaut',
+      isEncrypted: false,
+      isPublic: false,
+      metadata: {
+        format: 'email',
+      },
+    },
+  ];
+
+  for (const setting of defaultSettings) {
+    await prisma.setting.create({
+      data: setting,
+    });
+  }
+
+  console.log(`✅ Created ${defaultSettings.length} default settings`);
+
   console.log('✅ Database seeded successfully!');
   console.log(`🔐 Default password for seeded users: ${defaultPassword}`);
   console.log(`Created ${users.length} users`);

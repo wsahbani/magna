@@ -15,6 +15,7 @@ import { PrismaModule } from './database/prisma.module';
 import { ConfigModule } from '@nestjs/config';
 import { AIModule } from './modules/ai/ai.module';
 import { DatabaseModule } from './modules/database/database.module';
+import { SettingsModule } from './modules/settings/settings.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -32,6 +33,7 @@ import { DatabaseModule } from './modules/database/database.module';
     GroupsModule,
     AIModule,
     DatabaseModule,
+    SettingsModule,
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService],

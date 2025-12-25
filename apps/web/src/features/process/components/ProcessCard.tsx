@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Trash2, Edit2, Eye, Workflow, Target, Shield, CheckCircle2 } from 'lucide-react'
-import { Button, BodySmall } from '@repo/ui'
+import { Button, BodySmall, Badge } from '@repo/ui'
 import type { Process } from '../types/process.types'
 import { ProcessStatus, ProcessType, ProcessPriority } from '../types/enums'
 import { useAuth } from '../../auth/context/AuthContext'
@@ -12,6 +12,7 @@ interface ProcessCardProps {
   onView?: (process: Process) => void
   onEdit?: (process: Process) => void
   onDelete?: (process: Process) => void
+  showLevelBadge?: boolean
 }
 
 const STATUS_CONFIG: Record<ProcessStatus, { label: string; color: string }> = {
@@ -35,7 +36,7 @@ const PRIORITY_CONFIG: Record<ProcessPriority, { label: string; color: string }>
   [ProcessPriority.CRITICAL]: { label: 'Critique', color: 'text-red-600' },
 }
 
-export function ProcessCard({ process, onView, onEdit, onDelete }: ProcessCardProps) {
+export function ProcessCard({ process, onView, onEdit, onDelete, showLevelBadge = false }: ProcessCardProps) {
   const [validationDialogOpen, setValidationDialogOpen] = useState(false)
   const { user } = useAuth()
   const status = STATUS_CONFIG[process.status] || STATUS_CONFIG[ProcessStatus.DRAFT]
@@ -55,7 +56,14 @@ export function ProcessCard({ process, onView, onEdit, onDelete }: ProcessCardPr
         {/* Header */}
         <div className="flex items-start justify-between mb-3">
           <div className="flex-1 min-w-0">
-            <h3 className="text-base font-semibold text-gray-900 mb-1 truncate">{process.title}</h3>
+            <div className="flex items-center gap-2 mb-1">
+              {showLevelBadge && (
+                <Badge className="bg-blue-500 text-white text-xs px-2 py-0.5">
+                  Level 2
+                </Badge>
+              )}
+              <h3 className="text-base font-semibold text-gray-900 truncate">{process.title}</h3>
+            </div>
             <BodySmall className="text-gray-500">{process.code}</BodySmall>
           </div>
           <span

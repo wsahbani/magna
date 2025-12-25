@@ -14,15 +14,13 @@ export class ProcessRepository extends BaseRepository<Process> {
   }
 
   /**
-   * Find Process by code within a ProcessMap
+   * Find Process by code within a ProcessMap (or globally if no processMapId)
    */
   async findByCode(processMapId: string, code: string): Promise<Process | null> {
-    return this.model.findUnique({
+    return this.model.findFirst({
       where: {
-        processMapId_code: {
-          processMapId,
-          code,
-        },
+        processMapId,
+        code,
       },
     });
   }

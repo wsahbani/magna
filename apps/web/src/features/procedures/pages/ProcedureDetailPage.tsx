@@ -65,11 +65,11 @@ export default function ProcedureDetailPage() {
 
   return (
     <PageWrapper
-      title={procedure.name || 'Procédure'}
+      title={procedure.title || 'Procédure'}
       description={procedure.description || 'Procédure opérationnelle (Niveau 3)'}
       breadcrumbs={[
         { label: 'Procédures', icon: <FileText className="w-4 h-4" /> },
-        { label: procedure.name || 'Procédure' },
+        { label: procedure.title || 'Procédure' },
       ]}
       actions={
         <div className="flex gap-2">
@@ -127,14 +127,7 @@ export default function ProcedureDetailPage() {
                     },
                   ]
                 : []),
-              ...(procedure.version
-                ? [
-                    {
-                      label: 'Version',
-                      value: procedure.version,
-                    },
-                  ]
-                : []),
+
               ...(procedure.validatedBy
                 ? [
                     {

@@ -130,7 +130,13 @@ export const handleApiError = (error: unknown): string => {
 /**
  * Generic GET request
  */
-export const get = async <T = any>(url: string, config = {}): Promise<T> => {
+export const get = async <T = any>(url: string, config: any = {}): Promise<T> => {
+  // Clean up undefined params
+  if (config.params) {
+    config.params = Object.fromEntries(
+      Object.entries(config.params).filter(([_, value]) => value !== undefined && value !== null && value !== '')
+    )
+  }
   const response = await apiClient.get<T>(url, config)
   return response.data
 }

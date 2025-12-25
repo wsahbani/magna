@@ -101,7 +101,7 @@ export class ProcedureRepository {
   }
 
   async create(data: {
-    processId: string;
+    processId?: string;
     title: string;
     code: string;
     workspaceId: string;

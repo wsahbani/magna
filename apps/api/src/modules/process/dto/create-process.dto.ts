@@ -27,13 +27,13 @@ export class CreateProcessDto {
   @IsOptional()
   description?: string;
 
-  @ApiProperty({
-    description: 'ProcessMap ID (parent)',
+  @ApiPropertyOptional({
+    description: 'ProcessMap ID (parent) - optional',
     example: 'clx1234567890',
   })
   @IsString()
-  @IsNotEmpty()
-  processMapId: string;
+  @IsOptional()
+  processMapId?: string;
 
   @ApiProperty({
     description: 'Workspace ID',

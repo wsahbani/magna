@@ -186,6 +186,9 @@ importers:
       axios:
         specifier: ^1.13.1
         version: 1.13.1
+      date-fns:
+        specifier: ^4.1.0
+        version: 4.1.0
       html2canvas:
         specifier: ^1.4.1
         version: 1.4.1
@@ -4784,6 +4787,10 @@ packages:
       d3-interpolate: 3.0.1
       d3-selection: 3.0.0
       d3-transition: 3.0.1(d3-selection@3.0.0)
+    dev: false
+
+  /date-fns@4.1.0:
+    resolution: {integrity: sha512-Ukq0owbQXxa/U3EGtsdVBkR1w7KOQ5gIBqdH2hkvknzZPYvBxb/aa6E8L7tmjFtkwZBu3UXBbjIgPo/Ez4xaNg==}
     dev: false
 
   /debug@2.6.9:

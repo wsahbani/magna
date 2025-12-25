@@ -1,0 +1,97 @@
+before_script:
+  - echo "Debug CI_PROJECT_DIR = $CI_PROJECT_DIR"
+  - ls -lah "$CI_PROJECT_DIR"
+
+stages:
+  - build
+
+variables:
+  API_IMAGE_NAME: "$CI_REGISTRY_IMAGE/api"
+  WEB_IMAGE_NAME: "$CI_REGISTRY_IMAGE/web"
+
+build-api:
+  image: gcr.io/kaniko-project/executor:v1.14.0-debug
+  stage: build
+  script:
+    # Create Docker config
+    - >
+      echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_JOB_TOKEN\"}}}" > /kaniko/.docker/config.json
+    # Set tag
+    - TAG=$(date +%Y%m%d%H%M)
+    # Execute build for API
+    - >
+      /kaniko/executor
+      --context "$CI_PROJECT_DIR"
+      --dockerfile "$CI_PROJECT_DIR/apps/api/Dockerfile"
+      --destination "$API_IMAGE_NAME:$CI_COMMIT_REF_SLUG-$TAG"
+      --destination "$API_IMAGE_NAME:latest"
+      --verbosity=error
+  only:
+    changes:
+      - apps/api/**/*
+      - packages/**/*
+      - apps/api/Dockerfile
+      - turbo.json
+      - package.json
+      - yarn.lock
+    refs:
+      - main
+
+build-web:
+  image: gcr.io/kaniko-project/executor:v1.14.0-debug
+  stage: build
+  script:
+    # Create Docker config
+    - >
+      echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_JOB_TOKEN\"}}}" > /kaniko/.docker/config.json
+    # Set tag
+    - TAG=$(date +%Y%m%d%H%M)
+    # Execute build for Web
+    - >
+      /kaniko/executor
+      --context "$CI_PROJECT_DIR"
+      --dockerfile "$CI_PROJECT_DIR/apps/wev/Dockerfile"
+      --destination "$WEB_IMAGE_NAME:$CI_COMMIT_REF_SLUG-$TAG"
+      --destination "$WEB_IMAGE_NAME:latest"
+  only:
+    changes:
+      - apps/web/**/*
+      - packages/**/*
+      - apps/web/Dockerfile
+      - turbo.json
+      - package.json
+    refs:
+      - main
+
+# Optional: Force build both when core files change
+build-all:
+  image: gcr.io/kaniko-project/executor:v1.14.0-debug
+  stage: build
+  script:
+    # Create Docker config
+    - >
+      echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_JOB_TOKEN\"}}}" > /kaniko/.docker/config.json
+    # Set tag
+    - TAG=$(date +%Y%m%d%H%M)
+    # Build API
+    - >
+      /kaniko/executor
+      --context "$CI_PROJECT_DIR"
+      --dockerfile "$CI_PROJECT_DIR/apps/api/Dockerfile"
+      --destination "$API_IMAGE_NAME:$CI_COMMIT_REF_SLUG-$TAG"
+      --destination "$API_IMAGE_NAME:latest"
+      --verbosity=debug
+    # Build Web
+    - >
+      /kaniko/executor
+      --context "$CI_PROJECT_DIR"
+      --dockerfile "$CI_PROJECT_DIR/apps/web/Dockerfile"
+      --destination "$WEB_IMAGE_NAME:$CI_COMMIT_REF_SLUG-$TAG"
+      --destination "$WEB_IMAGE_NAME:latest"
+      --verbosity=debug
+  only:
+    changes:
+      - turbo.json
+      - package.json
+    refs:
+      - main

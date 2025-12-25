@@ -45,14 +45,13 @@ const navigationItems: NavItem[] = [
   // Legacy routes
 
   // Autres
-
   { label: 'Documents', icon: FileText, href: '/documents' },
   { label: 'Projects', icon: FolderKanban, href: '/projects' },
   { label: 'Tags', icon: Tags, href: '/tags' },
   { label: 'Users', icon: Users, href: '/users' },
   { label: 'Groups', icon: Shield, href: '/groups' },
   { label: 'Notifications', icon: Bell, href: '/notifications', badge: 3 },
-  { label: 'Settings', icon: Settings, href: '/settings' },
+  { label: 'Paramètres', icon: Settings, href: '/settings' },
 ]
 
 interface SidebarProps {
@@ -139,8 +138,8 @@ export function Sidebar({ collapsed = false, onCollapse, mobileOpen = false, onM
                     className={cn(
                       'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors relative group',
                       active
-                        ? 'bg-[#FF7900] text-white font-medium'
-                        : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                        ? 'bg-[#FF7900] text-white font-semibold'
+                        : 'text-white hover:bg-gray-800 hover:text-white'
                     )}
                   >
                     <Icon className={cn('w-5 h-5 flex-shrink-0', active && 'text-white')} />

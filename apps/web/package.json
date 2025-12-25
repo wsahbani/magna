@@ -17,6 +17,7 @@
     "@tanstack/react-table": "^8.21.3",
     "@xyflow/react": "^12.9.2",
     "axios": "^1.13.1",
+    "date-fns": "^4.1.0",
     "html2canvas": "^1.4.1",
     "jspdf": "^3.0.4",
     "lucide-react": "^0.294.0",

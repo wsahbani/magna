@@ -1,5 +1,5 @@
-import { Trash2, Edit2, Eye, MapPin, CheckCircle2 } from 'lucide-react'
-import { Button, BodySmall } from '@repo/ui'
+import { Trash2, Edit2, Eye, MapPin, CheckCircle2, Map } from 'lucide-react'
+import { Button, BodySmall, Badge } from '@repo/ui'
 import type { ProcessMap } from '../types/process-map.types'
 import { ProcessStatus } from '../types/enums'
 import { ProcessMapValidationStatusBadge } from './ProcessMapValidationStatusBadge'
@@ -12,6 +12,7 @@ interface ProcessMapCardProps {
   onView?: (processMap: ProcessMap) => void
   onEdit?: (processMap: ProcessMap) => void
   onDelete?: (processMap: ProcessMap) => void
+  showLevelBadge?: boolean
 }
 
 const STATUS_CONFIG: Record<ProcessStatus, { label: string; color: string }> = {
@@ -23,7 +24,7 @@ const STATUS_CONFIG: Record<ProcessStatus, { label: string; color: string }> = {
   [ProcessStatus.OBSOLETE]: { label: 'Obsolète', color: 'bg-gray-100 text-gray-800 border-gray-300' },
 }
 
-export function ProcessMapCard({ processMap, onView, onEdit, onDelete }: ProcessMapCardProps) {
+export function ProcessMapCard({ processMap, onView, onEdit, onDelete, showLevelBadge = false }: ProcessMapCardProps) {
   const [validationDialogOpen, setValidationDialogOpen] = useState(false)
   const { user } = useAuth()
   const status = STATUS_CONFIG[processMap.status] || STATUS_CONFIG[ProcessStatus.DRAFT]
@@ -39,7 +40,14 @@ export function ProcessMapCard({ processMap, onView, onEdit, onDelete }: Process
         {/* Header */}
         <div className="flex items-start justify-between mb-4">
           <div className="flex-1 min-w-0">
-            <h3 className="text-lg font-semibold text-gray-900 mb-1 truncate">{processMap.title}</h3>
+            <div className="flex items-center gap-2 mb-1">
+              {showLevelBadge && (
+                <Badge className="bg-orange-500 text-white text-xs px-2 py-0.5">
+                  Level 1
+                </Badge>
+              )}
+              <h3 className="text-lg font-semibold text-gray-900 truncate">{processMap.title}</h3>
+            </div>
             <BodySmall className="text-gray-500">{processMap.code}</BodySmall>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0 ml-2">

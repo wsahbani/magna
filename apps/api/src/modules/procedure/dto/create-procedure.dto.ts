@@ -8,9 +8,9 @@ import {
 } from 'class-validator';
 
 export class CreateProcedureDto {
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  processId: string;
+  processId?: string;
 
   @IsNotEmpty()
   @IsString()

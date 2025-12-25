@@ -26,6 +26,7 @@ import ProcessMapFlowEditorPage from './features/process-map/pages/ProcessMapFlo
 import ProcessesPageLevel2 from './features/process/pages/ProcessesPage'
 import ProcessDetailPageLevel2 from './features/process/pages/ProcessDetailPage'
 import ProcessFlowEditorPageLevel2 from './features/process/pages/ProcessFlowEditorPage'
+import { SettingsPage } from './features/settings/pages/SettingsPage'
 
 // Check if user is authenticated
 const isAuthenticated = () => {
@@ -93,6 +94,22 @@ const workspaceDetailRoute = createRoute({
   component: () => (
     <AdminLayout>
       <WorkspaceDetailPage />
+    </AdminLayout>
+  ),
+})
+
+// Settings route with admin layout - protected route
+const settingsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/settings',
+  beforeLoad: () => {
+    if (!isAuthenticated()) {
+      throw redirect({ to: '/login' })
+    }
+  },
+  component: () => (
+    <AdminLayout>
+      <SettingsPage />
     </AdminLayout>
   ),
 })
@@ -459,6 +476,7 @@ const routeTree = rootRoute.addChildren([
   indexRoute,
   workspacesRoute,
   workspaceDetailRoute,
+  settingsRoute,
   // processesRoute,
   // flowDetailRoute,
   sipocDetailRoute,
