@@ -18,6 +18,15 @@ services:
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1d}
       PORT: 3001
+      OIDC_DISCOVERY_URI: "https://orange-sso.example.com/.well-known/openid-configuration"
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-your-client-id}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-your-client-secret}
+      OIDC_CALLBACK_URL: ${OIDC_CALLBACK_URL:-http://localhost:3001/api/auth/oidc/callback}
+      OIDC_SCOPES: ${OIDC_SCOPES:-openid profile email}
+      LLM_PROXY_API_KEY: ${LLM_PROXY_API_KEY:-your-llm-proxy-api-key}
+      LLM_PROXY_BASE_URL: ${LLM_PROXY_BASE_URL:-https://llmproxy.ai.orange}
+      LLM_PROXY_DEFAULT_MODEL: ${LLM_PROXY_DEFAULT_MODEL:-vertex_ai/claude4-sonnet}
+
     networks:
       - magna-network
     healthcheck:

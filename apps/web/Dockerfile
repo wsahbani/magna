@@ -1,6 +1,16 @@
 # Build stage
 FROM node:20-alpine AS builder
 
+# Accept build arguments
+ARG VITE_API_URL=http://localhost:3001
+ARG VITE_APP_NAME=MAGNA
+ARG VITE_APP_VERSION=1.0.0
+
+# Set as environment variables for Vite build
+ENV VITE_API_URL=$VITE_API_URL
+ENV VITE_APP_NAME=$VITE_APP_NAME
+ENV VITE_APP_VERSION=$VITE_APP_VERSION
+
 WORKDIR /app
 
 # Copy root package files
@@ -13,6 +23,7 @@ RUN corepack enable && corepack prepare pnpm@8.15.6 --activate
 # Copy workspace packages
 COPY packages ./packages
 COPY apps/web ./apps/web
+
 
 # Install dependencies
 RUN pnpm install --frozen-lockfile

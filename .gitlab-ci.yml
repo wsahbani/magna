@@ -22,8 +22,9 @@ build-api:
     - >
       /kaniko/executor
       --context "$CI_PROJECT_DIR"
-      --dockerfile "$CI_PROJECT_DIR/apps/api/Dockerfile"
-      --destination "$API_IMAGE_NAME:$CI_COMMIT_REF_SLUG-$TAG"
+      --dockerfile "$CI_PROJECT_DIR/apps/api/Dockerfile"      --build-arg VITE_API_URL="${VITE_API_URL:-http://localhost:3001}"
+      --build-arg VITE_APP_NAME="${VITE_APP_NAME:-MAGNA}"
+      --build-arg VITE_APP_VERSION="${CI_COMMIT_SHORT_SHA}"      --destination "$API_IMAGE_NAME:$CI_COMMIT_REF_SLUG-$TAG"
       --destination "$API_IMAGE_NAME:latest"
       --verbosity=error
   only:
@@ -51,6 +52,9 @@ build-web:
       /kaniko/executor
       --context "$CI_PROJECT_DIR"
       --dockerfile "$CI_PROJECT_DIR/apps/web/Dockerfile"
+      --build-arg VITE_API_URL="${VITE_API_URL:-http://localhost:3001}"
+      --build-arg VITE_APP_NAME="${VITE_APP_NAME:-MAGNA}"
+      --build-arg VITE_APP_VERSION="${CI_COMMIT_SHORT_SHA}"
       --destination "$WEB_IMAGE_NAME:$CI_COMMIT_REF_SLUG-$TAG"
       --destination "$WEB_IMAGE_NAME:latest"
   only:
@@ -77,8 +81,9 @@ build-all:
     - >
       /kaniko/executor
       --context "$CI_PROJECT_DIR"
-      --dockerfile "$CI_PROJECT_DIR/apps/api/Dockerfile"
-      --destination "$API_IMAGE_NAME:$CI_COMMIT_REF_SLUG-$TAG"
+      --dockerfile "$CI_PROJECT_DIR/apps/api/Dockerfile"      --build-arg VITE_API_URL="${VITE_API_URL:-http://localhost:3001}"
+      --build-arg VITE_APP_NAME="${VITE_APP_NAME:-MAGNA}"
+      --build-arg VITE_APP_VERSION="${CI_COMMIT_SHORT_SHA}"      --destination "$API_IMAGE_NAME:$CI_COMMIT_REF_SLUG-$TAG"
       --destination "$API_IMAGE_NAME:latest"
       --verbosity=debug
     # Build Web
@@ -86,6 +91,9 @@ build-all:
       /kaniko/executor
       --context "$CI_PROJECT_DIR"
       --dockerfile "$CI_PROJECT_DIR/apps/web/Dockerfile"
+      --build-arg VITE_API_URL="${VITE_API_URL:-http://localhost:3001}"
+      --build-arg VITE_APP_NAME="${VITE_APP_NAME:-MAGNA}"
+      --build-arg VITE_APP_VERSION="${CI_COMMIT_SHORT_SHA}"
       --destination "$WEB_IMAGE_NAME:$CI_COMMIT_REF_SLUG-$TAG"
       --destination "$WEB_IMAGE_NAME:latest"
       --verbosity=debug
@@ -94,4 +102,4 @@ build-all:
       - turbo.json
       - package.json
     refs:
-      - develop
+      - main
