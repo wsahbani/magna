@@ -35,7 +35,7 @@ build-api:
       - package.json
       - yarn.lock
     refs:
-      - main
+      - develop
 
 build-web:
   image: gcr.io/kaniko-project/executor:v1.14.0-debug
@@ -61,7 +61,7 @@ build-web:
       - turbo.json
       - package.json
     refs:
-      - main
+      - develop
 
 # Optional: Force build both when core files change
 build-all:
@@ -94,4 +94,4 @@ build-all:
       - turbo.json
       - package.json
     refs:
-      - main
+      - develop
