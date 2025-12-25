@@ -50,7 +50,7 @@ build-web:
     - >
       /kaniko/executor
       --context "$CI_PROJECT_DIR"
-      --dockerfile "$CI_PROJECT_DIR/apps/wev/Dockerfile"
+      --dockerfile "$CI_PROJECT_DIR/apps/web/Dockerfile"
       --destination "$WEB_IMAGE_NAME:$CI_COMMIT_REF_SLUG-$TAG"
       --destination "$WEB_IMAGE_NAME:latest"
   only:
