@@ -27,6 +27,9 @@ RUN pnpm run build
 # Production stage
 FROM node:20-alpine AS production
 
+# Install OpenSSL for Prisma (Alpine 3.18+ includes OpenSSL 3.0)
+RUN apk add --no-cache openssl
+
 WORKDIR /app
 
 # Install pnpm
@@ -40,13 +43,19 @@ COPY .npmrc* ./
 COPY packages ./packages
 COPY apps/api/package.json ./apps/api/
 
-# Install production dependencies only
-RUN pnpm install --prod --frozen-lockfile
+# Copy Prisma schema
+COPY apps/api/prisma ./apps/api/prisma
 
-# Copy built application and generated Prisma Client from builder
+# Install ALL dependencies (including devDependencies for Prisma CLI)
+RUN pnpm install --frozen-lockfile
+
+# Generate Prisma Client
+WORKDIR /app/apps/api
+RUN pnpm exec prisma generate
+
+# Copy built application from builder
+WORKDIR /app
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
-COPY --from=builder /app/apps/api/prisma ./apps/api/prisma
-COPY --from=builder /app/apps/api/node_modules/@prisma ./apps/api/node_modules/@prisma
 
 WORKDIR /app/apps/api
 
@@ -58,4 +67,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
   CMD node -e "require('http').get('http://localhost:3001/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
 
 # Start the application
-CMD ["node", "dist/main.js"]
+CMD ["node", "dist/src/main.js"]

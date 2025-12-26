@@ -5,7 +5,7 @@ services:
 
   # NestJS API
   api:
-    image: http://registry.gitlab.tech.orange/process-enabler-19326/magna_mvp/magna/api:latest
+    image: api:latest
     build:
       context: .
       dockerfile: apps/api/Dockerfile
@@ -39,25 +39,25 @@ services:
       start_period: 40s
 
   # React Web App with Nginx
-  web:
-    image: http://registry.gitlab.tech.orange/process-enabler-19326/magna_mvp/magna/web:latest
-    build:
-      context: .
-      dockerfile: apps/web/Dockerfile
-    container_name: magna-web
-    restart: unless-stopped
-    ports:
-      - "${WEB_PORT:-80}:80"
-    depends_on:
-      - api
-    networks:
-      - magna-network
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
+  # web:
+  #   image: web:latest
+  #   build:
+  #     context: .
+  #     dockerfile: apps/web/Dockerfile
+  #   container_name: magna-web
+  #   restart: unless-stopped
+  #   ports:
+  #     - "${WEB_PORT:-80}:80"
+  #   depends_on:
+  #     - api
+  #   networks:
+  #     - magna-network
+  #   healthcheck:
+  #     test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/health"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #     start_period: 10s
 
 networks:
   magna-network:
