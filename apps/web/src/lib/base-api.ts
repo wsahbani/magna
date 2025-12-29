@@ -5,8 +5,14 @@
 
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios'
 
-// API Base URL
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+// API Base URL with /api prefix
+const getApiBaseUrl = (): string => {
+  const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+  // Add /api prefix if not already present
+  return baseUrl.endsWith('/api') ? baseUrl : `${baseUrl}/api`
+}
+
+const API_BASE_URL = getApiBaseUrl()
 
 // Create axios instance
 const apiClient: AxiosInstance = axios.create({

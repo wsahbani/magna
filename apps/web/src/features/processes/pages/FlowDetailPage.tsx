@@ -11,6 +11,9 @@ import { ReactFlowInstance, Node, Edge, Connection } from '@xyflow/react'
 import { useFlowStore } from '../../../stores/flowStore'
 import { useSaveFlow, useLoadFlow } from '../../../hooks/useFlowPersistence'
 import { useFlowChanges } from '../../../hooks/useFlowChanges'
+import { AIGenerateProcessModal } from '../../process/components/AIGenerateProcessModal'
+import type { GeneratedProcessStructure } from '../../../lib/api/ai.api'
+import { toast } from 'sonner'
 
 export default function FlowDetailPage() {
   const { id } = useParams({ from: '/processes/flow/$id' })
@@ -25,6 +28,7 @@ export default function FlowDetailPage() {
     backgroundPattern: 'dots',
   })
   const [showHelperLines, setShowHelperLines] = useState(true)
+  const [isAIGenerateDialogOpen, setIsAIGenerateDialogOpen] = useState(false)
   
   // Flow persistence hooks
   const saveFlowMutation = useSaveFlow()
@@ -214,6 +218,88 @@ export default function FlowDetailPage() {
     reactFlowInstance?.fitView()
   }, [reactFlowInstance])
 
+  // Handle AI generation success
+  const handleAIGenerateSuccess = useCallback((response: {
+    structure: GeneratedProcessStructure;
+    estimatedCost: number;
+    cached: boolean;
+    tokensUsed: { prompt: number; completion: number; total: number };
+    processMapId?: string;
+    workspaceId?: string;
+    flowDirection?: 'horizontal' | 'vertical';
+  }) => {
+    const { structure } = response
+    
+    let totalNodesAdded = 0
+    
+    // Add procedures as nodes
+    structure.procedures?.forEach((proc: any) => {
+      addNode({
+        type: 'procedure',
+        position: proc.position || { x: Math.random() * 500, y: Math.random() * 500 },
+        data: {
+          label: proc.label,
+          description: proc.description || '',
+        },
+      })
+      totalNodesAdded++
+    })
+
+    // Add tasks as nodes
+    structure.tasks?.forEach((task: any) => {
+      addNode({
+        type: task.type || 'task',
+        position: task.position || { x: Math.random() * 500, y: Math.random() * 500 },
+        data: {
+          label: task.label,
+          description: task.description || '',
+        },
+      })
+      totalNodesAdded++
+    })
+
+    // Add events as nodes
+    structure.events?.forEach((event: any) => {
+      addNode({
+        type: event.type || 'startEvent',
+        position: event.position || { x: Math.random() * 500, y: Math.random() * 500 },
+        data: {
+          label: event.label,
+          description: event.description || '',
+        },
+      })
+      totalNodesAdded++
+    })
+
+    // Add gateways as nodes
+    structure.gateways?.forEach((gateway: any) => {
+      addNode({
+        type: gateway.type || 'exclusiveGateway',
+        position: gateway.position || { x: Math.random() * 500, y: Math.random() * 500 },
+        data: {
+          label: gateway.label || '',
+          description: gateway.description || '',
+        },
+      })
+      totalNodesAdded++
+    })
+
+    // Add generated edges to the flow
+    let edgesAdded = 0
+    structure.edges?.forEach((edge: any) => {
+      addEdge({
+        source: edge.source,
+        target: edge.target,
+        sourceHandle: edge.sourceHandle || null,
+        targetHandle: edge.targetHandle || null,
+      })
+      edgesAdded++
+    })
+
+    toast.success(`${totalNodesAdded} nœuds et ${edgesAdded} connexions ajoutés`)
+    setIsAIGenerateDialogOpen(false)
+  }, [addNode, addEdge])
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -231,30 +317,32 @@ export default function FlowDetailPage() {
   }
 
   return (
-    <EditorLayout
-      title={process.name}
-      toolbar={
-        <Toolbar
-          onSave={handleSave}
-          onDelete={handleDelete}
-          onZoomIn={handleZoomIn}
-          onZoomOut={handleZoomOut}
-          onFitView={handleFitView}
-          onChangeHandlePosition={handleChangeHandlePosition}
-          onGridSettingsChange={setGridSettings}
-          onHelperLinesToggle={setShowHelperLines}
-          hasSelectedNode={!!selectedNode}
-          gridSettings={gridSettings}
-          showHelperLines={showHelperLines}
-          isSaving={saveFlowMutation.isPending}
-          saveError={saveFlowMutation.error}
-          isLoadingFlow={isLoadingFlow}
-        />
-      }
-      palette={<Palette onDragStart={onDragStart} />}
-      canvas={
-        <div ref={reactFlowWrapper} className="w-full h-full" onDrop={onDrop} onDragOver={onDragOver}>
-          <FlowBuilder
+    <>
+      <EditorLayout
+        title={process?.title}
+        toolbar={
+          <Toolbar
+            onSave={handleSave}
+            onDelete={handleDelete}
+            onZoomIn={handleZoomIn}
+            onZoomOut={handleZoomOut}
+            onFitView={handleFitView}
+            onChangeHandlePosition={handleChangeHandlePosition}
+            onGridSettingsChange={setGridSettings}
+            onHelperLinesToggle={setShowHelperLines}
+            hasSelectedNode={!!selectedNode}
+            gridSettings={gridSettings}
+            showHelperLines={showHelperLines}
+            isSaving={saveFlowMutation.isPending}
+            saveError={saveFlowMutation.error}
+            onAIGenerate={() => setIsAIGenerateDialogOpen(true)}
+            isLoadingFlow={isLoadingFlow}
+          />
+        }
+        palette={<Palette onDragStart={onDragStart} />}
+        canvas={
+          <div ref={reactFlowWrapper} className="w-full h-full" onDrop={onDrop} onDragOver={onDragOver}>
+            <FlowBuilder
             nodes={nodes}
             edges={edges}
             onNodesChange={onNodesChange}
@@ -274,14 +362,22 @@ export default function FlowDetailPage() {
           />
         </div>
       }
-      properties={
-        <PropertiesPanel
-          selectedNode={selectedNode}
-          selectedEdge={selectedEdge}
-          onNodeUpdate={onNodeUpdate}
-          onEdgeUpdate={onEdgeUpdate}
-        />
-      }
-    />
+        properties={
+          <PropertiesPanel
+            selectedNode={selectedNode}
+            selectedEdge={selectedEdge}
+            onNodeUpdate={onNodeUpdate}
+            onEdgeUpdate={onEdgeUpdate}
+          />
+        }
+      />
+      <AIGenerateProcessModal
+        open={isAIGenerateDialogOpen}
+        onOpenChange={setIsAIGenerateDialogOpen}
+        processMapId={process?.processMapId}
+        workspaceId={process?.workspaceId}
+        onSuccess={handleAIGenerateSuccess}
+      />
+    </>
   )
 }

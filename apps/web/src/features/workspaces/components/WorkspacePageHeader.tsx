@@ -1,5 +1,5 @@
 import { Plus } from 'lucide-react';
-import { Button } from '@repo/ui';
+import { BodySmall, Button, Heading3 } from '@repo/ui';
 import { Heading1, Body } from '@repo/ui';
 
 interface WorkspacePageHeaderProps {
@@ -8,16 +8,16 @@ interface WorkspacePageHeaderProps {
 
 export const WorkspacePageHeader = ({ onCreateClick }: WorkspacePageHeaderProps) => {
   return (
-    <div className="flex items-center justify-between mb-6">
+    <div className="flex items-center justify-between mb-4">
       <div>
-        <Heading1 className="text-gray-900">Workspaces</Heading1>
-        <Body className="text-gray-600 mt-1">
+        <Heading3 className="text-gray-900">Workspaces</Heading3>
+        <BodySmall className="text-gray-600 mt-0.5">
           Gérez vos espaces de travail et leur hiérarchie
-        </Body>
+        </BodySmall>
       </div>
-      <Button onClick={onCreateClick} variant="orange" className="gap-2">
+      <Button onClick={onCreateClick} variant="orange" size="sm" className="gap-2">
         <Plus className="w-4 h-4" />
-        Nouveau Workspace
+        Nouveau
       </Button>
     </div>
   );

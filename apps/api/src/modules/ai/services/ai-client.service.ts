@@ -19,7 +19,7 @@ const LLM_CONFIG = {
   defaultModel: process.env.LLM_PROXY_DEFAULT_MODEL, // Utiliser gpt-4o-mini pour respecter le budget
 };
 
-
+console.log('LLM Proxy Configuration:', LLM_CONFIG);
 @Injectable()
 export class AIClientService implements OnModuleInit {
   private readonly logger = new Logger(AIClientService.name);
