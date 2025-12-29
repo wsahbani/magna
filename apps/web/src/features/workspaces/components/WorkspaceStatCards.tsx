@@ -22,18 +22,18 @@ interface StatCardProps {
 const StatCard = ({ title, value, icon: Icon, color, bgColor, isLoading }: StatCardProps) => {
   return (
     <Card className="border border-gray-200 hover:shadow-md transition-shadow duration-200">
-      <CardContent className="p-6">
+      <CardContent className="p-3">
         <div className="flex items-center justify-between">
           <div className="flex-1">
-            <Caption className="text-gray-600 font-medium">{title}</Caption>
+            <Caption className="text-gray-600 text-xs">{title}</Caption>
             {isLoading ? (
-              <div className="h-8 w-20 bg-gray-200 animate-pulse rounded mt-2" />
+              <div className="h-6 w-16 bg-gray-200 animate-pulse rounded mt-1" />
             ) : (
-              <Heading3 className="text-gray-900 mt-2">{value}</Heading3>
+              <Body className="text-gray-900 font-semibold mt-0.5">{value}</Body>
             )}
           </div>
-          <div className={`p-3 rounded-lg ${bgColor}`}>
-            <Icon className={`w-6 h-6 ${color}`} />
+          <div className={`p-2 rounded-lg ${bgColor}`}>
+            <Icon className={`w-4 h-4 ${color}`} />
           </div>
         </div>
       </CardContent>
@@ -80,7 +80,7 @@ export const WorkspaceStatCards = ({
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
       {stats.map((stat) => (
         <StatCard
           key={stat.title}

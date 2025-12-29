@@ -24,7 +24,8 @@ import {
   ArrowLeftRight,
   ArrowUpDown,
   Download,
-  FileImage
+  FileImage,
+  Sparkles
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -78,6 +79,8 @@ interface ToolbarProps {
   onFlowDirectionChange?: (direction: 'horizontal' | 'vertical') => void
   // Export image props
   onExportImage?: (format: 'png' | 'svg') => void
+  // AI Generation prop
+  onAIGenerate?: () => void
 }
 
 export function Toolbar({
@@ -97,6 +100,7 @@ export function Toolbar({
   onChangeHandlePosition,
   onGridSettingsChange,
   onHelperLinesToggle,
+  onAIGenerate,
   hasSelectedNode = false,
   selectedNodeCount = 0,
   isGroupSelected = false,
@@ -125,6 +129,7 @@ export function Toolbar({
   const [showGridMenu, setShowGridMenu] = useState(false)
   const [showFlowDirectionMenu, setShowFlowDirectionMenu] = useState(false)
   const [showExportMenu, setShowExportMenu] = useState(false)
+  const [showAIMenu, setShowAIMenu] = useState(false)
   const [sourcePosition, setSourcePosition] = useState<HandlePosition>('right')
   const [targetPosition, setTargetPosition] = useState<HandlePosition>('left')
   const [localGridSettings, setLocalGridSettings] = useState<GridSettings>(gridSettings)
@@ -184,6 +189,60 @@ export function Toolbar({
           <div className="flex items-center text-xs text-blue-500 ml-2">
             <Loader2 className="w-3 h-3 mr-1 animate-spin" />
             Chargement...
+          </div>
+        )}
+        
+        {/* AI Menu */}
+        {(onAIGenerate || onExtractFromImage) && (
+          <div className="relative ml-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowAIMenu(!showAIMenu)}
+              className="border-orange-600 text-orange-600 hover:bg-orange-50 h-9"
+              title="Outils IA"
+            >
+              <Sparkles className="w-4 h-4 mr-2" />
+              IA
+            </Button>
+            
+            {showAIMenu && (
+              <div className="absolute top-12 left-0 bg-white border border-gray-200 rounded-lg shadow-lg p-2 z-50 w-64">
+                <div className="text-xs font-semibold text-gray-700 mb-2 px-2">Outils d'intelligence artificielle</div>
+                <div className="space-y-1">
+                  {onAIGenerate && (
+                    <button
+                      onClick={() => {
+                        onAIGenerate();
+                        setShowAIMenu(false);
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm rounded hover:bg-orange-50 transition-colors text-left text-gray-700"
+                    >
+                      <Sparkles className="w-4 h-4 text-orange-600" />
+                      <div>
+                        <div className="font-medium">Générer avec texte</div>
+                        <div className="text-xs text-gray-500">Décrire le processus en texte</div>
+                      </div>
+                    </button>
+                  )}
+                  {onExtractFromImage && (
+                    <button
+                      onClick={() => {
+                        onExtractFromImage();
+                        setShowAIMenu(false);
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm rounded hover:bg-orange-50 transition-colors text-left text-gray-700"
+                    >
+                      <ImageIcon className="w-4 h-4 text-orange-600" />
+                      <div>
+                        <div className="font-medium">Extraire depuis image</div>
+                        <div className="text-xs text-gray-500">Analyser une image de processus</div>
+                      </div>
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
         
@@ -349,22 +408,6 @@ export function Toolbar({
               Ajouter Lane
             </Button>
           )}
-        </div>
-      )}
-
-      {/* AI Image Extraction */}
-      {onExtractFromImage && (
-        <div className="flex items-center gap-1 border-r border-gray-200 pr-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onExtractFromImage}
-            className="h-9 border-orange-600 text-orange-600 hover:bg-orange-50"
-            title="Extraire depuis une image"
-          >
-            <ImageIcon className="w-4 h-4 mr-2" />
-            Extraire depuis image
-          </Button>
         </div>
       )}
 
