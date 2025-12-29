@@ -20,7 +20,7 @@ async function bootstrap() {
     origin: "*", // Vite dev server
     credentials: true,
   });
-   app.setGlobalPrefix('api');
+  //app.setGlobalPrefix('api');
 
   // Swagger API Documentation
   const config = new DocumentBuilder()
