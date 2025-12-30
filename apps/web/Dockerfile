@@ -1,52 +1,106 @@
-# Build stage
-FROM node:20-alpine AS builder
+# Multi-stage build for Vite Web app
+FROM node:20-alpine AS base
 
-# Accept build arguments
-ARG VITE_API_URL=http://localhost:3001
+# Install pnpm
+RUN npm install -g pnpm@8.15.6 && \
+  npm cache clean --force
+
+WORKDIR /app
+
+# ============================================
+# Dependencies stage
+# ============================================
+FROM base AS deps
+
+# Copy workspace configuration
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
+
+# Copy all packages' package.json files (needed for workspace resolution)
+COPY packages/ui/package.json ./packages/ui/
+COPY packages/eslint-config/package.json ./packages/eslint-config/
+COPY packages/typescript-config/package.json ./packages/typescript-config/
+
+# Copy all apps' package.json files (needed for workspace resolution)
+COPY apps/web/package.json ./apps/web/
+COPY apps/api/package.json ./apps/api/
+
+# Copy .npmrc if exists
+COPY .npmrc* ./
+
+# Install ALL dependencies (including web and its workspace deps)
+RUN pnpm install --frozen-lockfile && \
+  pnpm store prune
+
+# ============================================
+# Builder stage
+# ============================================
+FROM base AS builder
+
+WORKDIR /app
+
+# Copy workspace configuration
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
+
+# Copy ALL installed dependencies with workspace structure
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/packages ./packages
+COPY --from=deps /app/apps ./apps
+
+# Now copy source code on top (this preserves node_modules but adds source)
+COPY packages/ ./packages/
+COPY apps/web/ ./apps/web/
+
+# Build arguments
+ARG VITE_API_URL
 ARG VITE_APP_NAME=MAGNA
 ARG VITE_APP_VERSION=1.0.0
 
-# Set as environment variables for Vite build
+ENV NODE_ENV=production
 ENV VITE_API_URL=$VITE_API_URL
 ENV VITE_APP_NAME=$VITE_APP_NAME
 ENV VITE_APP_VERSION=$VITE_APP_VERSION
 
-WORKDIR /app
+# Build workspace dependencies then the app
+RUN pnpm -r --filter="@repo/ui..." build && \
+  cd apps/web && \
+  pnpm build
 
-# Copy root package files
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY .npmrc* ./
+# Verify build succeeded
+RUN test -d /app/apps/web/dist || \
+  (echo "Build failed: dist output not found" && exit 1)
 
-# Install pnpm
-RUN corepack enable && corepack prepare pnpm@8.15.6 --activate
-
-# Copy workspace packages
-COPY packages ./packages
-COPY apps/web ./apps/web
-
-
-# Install dependencies
-RUN pnpm install --frozen-lockfile
-
-# Build the web application
-WORKDIR /app/apps/web
-RUN pnpm run build
-
-# Production stage with nginx
+# ============================================
+# Production stage - Nginx
+# ============================================
 FROM nginx:1.25-alpine AS production
 
-# Copy custom nginx config
+# Install wget for health checks
+RUN apk add --no-cache wget
+
+# Remove default nginx config
+RUN rm -rf /etc/nginx/conf.d/default.conf
+
+# Copy nginx configuration
 COPY apps/web/nginx.conf /etc/nginx/conf.d/default.conf
 
-# Copy built files from builder
+# Copy built static files to nginx html directory
 COPY --from=builder /app/apps/web/dist /usr/share/nginx/html
 
-# Add healthcheck
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:4200/ || exit 1
+# Create nginx cache directory
+RUN mkdir -p /var/cache/nginx/client_temp && \
+  mkdir -p /var/cache/nginx/proxy_temp && \
+  mkdir -p /var/cache/nginx/fastcgi_temp && \
+  mkdir -p /var/cache/nginx/uwsgi_temp && \
+  mkdir -p /var/cache/nginx/scgi_temp && \
+  chown -R nginx:nginx /var/cache/nginx && \
+  chown -R nginx:nginx /usr/share/nginx/html && \
+  chown -R nginx:nginx /var/log/nginx
+
+# Set proper permissions
+RUN chmod -R 755 /usr/share/nginx/html
 
 # Expose port 4200
 EXPOSE 4200
 
-# Start nginx
+# Start nginx in foreground
 CMD ["nginx", "-g", "daemon off;"]
