@@ -7,7 +7,7 @@ import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'ax
 
 // API Base URL with /api prefix
 const getApiBaseUrl = (): string => {
-  const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+  const baseUrl = import.meta.env.VITE_API_URL || 'https://happy-05-dev.sso-test.infra.ftgroup'
   // Add /api prefix if not already present
   return baseUrl.endsWith('/api') ? baseUrl : `${baseUrl}/api`
 }
