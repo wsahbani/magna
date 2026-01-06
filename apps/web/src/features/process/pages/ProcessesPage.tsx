@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate, useSearch } from '@tanstack/react-router'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, BodySmall, Button } from '@repo/ui'
 import { PageWrapper } from '../../../components/layout/PageWrapper'
-import { Workflow, Plus, Sparkles } from 'lucide-react'
+import { Workflow, Plus, Sparkles, Filter } from 'lucide-react'
 import { ViewModeToggle } from '../../process-map/components/ViewModeToggle'
 import { ProcessGridView } from '../components/ProcessGridView'
 import { ProcessTable } from '../components/ProcessTable'
@@ -28,6 +28,7 @@ export default function ProcessesPage() {
   // Using optional chaining and type assertion for now
   const searchParams = useSearch({ strict: false }) as any
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid')
+  const [typeFilter, setTypeFilter] = useState<ProcessType | 'ALL'>('ALL')
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [isCreateSIPOCDialogOpen, setIsCreateSIPOCDialogOpen] = useState(false)
   const [isAIGenerateDialogOpen, setIsAIGenerateDialogOpen] = useState(false)
@@ -35,12 +36,19 @@ export default function ProcessesPage() {
   const [selectedProcess, setSelectedProcess] = useState<Process | null>(null)
 
   // Fetch Processes with optional filters
-  const { data, isLoading } = useProcesses({
+  const processParams: any = {
     processMapId: searchParams?.processMapId as string | undefined,
     workspaceId: searchParams?.workspaceId as string | undefined,
     page: searchParams?.page as number | undefined,
     limit: searchParams?.limit as number | undefined,
-  })
+  }
+  
+  // Only add type filter if not 'ALL'
+  if (typeFilter !== 'ALL') {
+    processParams.type = typeFilter
+  }
+  
+  const { data, isLoading } = useProcesses(processParams)
 
   const createMutation = useCreateProcess()
   const updateMutation = useUpdateProcess()
@@ -167,8 +175,52 @@ export default function ProcessesPage() {
         </div>
       }
     >
-      {/* View Mode Toggle */}
-      <div className="flex justify-end mb-4">
+      {/* Filters and View Mode Toggle */}
+      <div className="flex justify-between items-center mb-4">
+        {/* Type Filter */}
+        <div className="flex items-center gap-2">
+          <Filter className="w-4 h-4 text-gray-500" />
+          <div className="flex gap-2">
+            <Button
+              variant={typeFilter === 'ALL' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setTypeFilter('ALL')}
+              className={
+                typeFilter === 'ALL'
+                  ? 'bg-orange-600 hover:bg-orange-700'
+                  : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+              }
+            >
+              Tous
+            </Button>
+            <Button
+              variant={typeFilter === ProcessType.FLOW ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setTypeFilter(ProcessType.FLOW)}
+              className={
+                typeFilter === ProcessType.FLOW
+                  ? 'bg-orange-600 hover:bg-orange-700'
+                  : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+              }
+            >
+              Flow
+            </Button>
+            <Button
+              variant={typeFilter === ProcessType.SIPOC ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setTypeFilter(ProcessType.SIPOC)}
+              className={
+                typeFilter === ProcessType.SIPOC
+                  ? 'bg-orange-600 hover:bg-orange-700'
+                  : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+              }
+            >
+              SIPOC
+            </Button>
+          </div>
+        </div>
+
+        {/* View Mode Toggle */}
         <ViewModeToggle viewMode={viewMode} onViewModeChange={setViewMode} />
       </div>
 
@@ -177,8 +229,33 @@ export default function ProcessesPage() {
         <div className="flex justify-center items-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600"></div>
         </div>
-      ) : data?.data.length === 0 ? (
-        <ProcessEmptyState onCreateClick={() => setIsCreateDialogOpen(true)} />
+      ) : !data || data.data.length === 0 ? (
+        <div className="flex flex-col items-center justify-center h-64 text-center">
+          <Workflow className="w-16 h-16 text-gray-300 mb-4" />
+          <h3 className="text-lg font-semibold text-gray-700 mb-2">
+            {typeFilter === 'ALL' 
+              ? 'Aucun processus trouvé'
+              : typeFilter === ProcessType.FLOW
+              ? 'Aucun processus Flow trouvé'
+              : 'Aucun processus SIPOC trouvé'
+            }
+          </h3>
+          <p className="text-gray-500 mb-4">
+            {typeFilter === 'ALL'
+              ? 'Commencez par créer votre premier processus'
+              : 'Essayez de changer le filtre ou créez un nouveau processus'
+            }
+          </p>
+          {typeFilter === 'ALL' && (
+            <Button
+              onClick={() => setIsCreateDialogOpen(true)}
+              className="bg-orange-600 hover:bg-orange-700"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Créer un processus
+            </Button>
+          )}
+        </div>
       ) : viewMode === 'grid' ? (
         <ProcessGridView
           processes={data?.data || []}

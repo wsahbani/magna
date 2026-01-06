@@ -14,6 +14,10 @@ export const sipocKeys = {
   details: () => [...sipocKeys.all, 'detail'] as const,
   detail: (id: string) => [...sipocKeys.details(), id] as const,
   byProcess: (processId: string) => [...sipocKeys.all, 'process', processId] as const,
+  elements: {
+    all: ['sipoc-elements'] as const,
+    bySipoc: (sipocId: string) => [...sipocKeys.elements.all, 'sipoc', sipocId] as const,
+  },
   connections: {
     all: ['sipoc-connections'] as const,
     byElement: (elementId: string) => [...sipocKeys.connections.all, 'element', elementId] as const,
@@ -98,6 +102,56 @@ export const useDeleteSipocDiagram = () => {
     mutationFn: (id: string) => sipocApi.deleteSipocDiagram(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: sipocKeys.lists() })
+    },
+  })
+}
+
+// ====================================
+// SIPOC ELEMENTS HOOKS
+// ====================================
+
+/**
+ * Get SIPOC elements by SIPOC ID
+ */
+export const useSipocElements = (sipocId: string | undefined) => {
+  return useQuery({
+    queryKey: sipocKeys.elements.bySipoc(sipocId!),
+    queryFn: () => sipocApi.getElements(sipocId!),
+    enabled: !!sipocId,
+  })
+}
+
+/**
+ * Update SIPOC element mutation
+ */
+export const useUpdateSipocElement = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ sipocId, elementId, data }: { 
+      sipocId: string; 
+      elementId: string; 
+      data: { title?: string; description?: string; contactInfo?: string } 
+    }) => sipocApi.updateElement(sipocId, elementId, data),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: sipocKeys.elements.bySipoc(variables.sipocId) })
+      queryClient.invalidateQueries({ queryKey: sipocKeys.detail(variables.sipocId) })
+    },
+  })
+}
+
+/**
+ * Delete SIPOC element mutation
+ */
+export const useDeleteSipocElement = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ sipocId, elementId }: { sipocId: string; elementId: string }) =>
+      sipocApi.deleteElement(sipocId, elementId),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: sipocKeys.elements.bySipoc(variables.sipocId) })
+      queryClient.invalidateQueries({ queryKey: sipocKeys.detail(variables.sipocId) })
     },
   })
 }
