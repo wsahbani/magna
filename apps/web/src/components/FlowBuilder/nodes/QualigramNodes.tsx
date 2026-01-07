@@ -850,7 +850,7 @@ export const DomainGroupNode = createNode(
     resizable: true,
     minWidth: 200,
     minHeight: 150,
-    maxWidth: 1800,
+    maxWidth: 3000,
     maxHeight: 1400,
     isContainer: true, // This node can contain other nodes as children
     handles: [
@@ -860,6 +860,8 @@ export const DomainGroupNode = createNode(
     showLabel: true,
     labelPosition: 'inside',
     customRender: ({ data, selected, renderHandles, renderIcon, renderLabel, width, height, id }: any) => {
+      
+      
       // DomainGroupNodeWithPlus is a wrapper component that uses useNodes hook
       return <DomainGroupNodeWithPlus 
         data={data} 
@@ -905,6 +907,32 @@ const DomainGroupNodeWithPlus = memo(({
   const onAddMainProcess = data?.onAddMainProcess
   const onAutoLayout = data?.onAutoLayout
 
+  // State for attachment menu
+  const [showAttachMenu, setShowAttachMenu] = useState(false)
+  const attachMenuRef = useRef<HTMLDivElement>(null)
+
+  // Get attachment handlers and data
+  const parentId = data?.parentId
+  const availableGroups = (data?.availableContainers as Array<{ id: string; data?: { label?: string } }>) || []
+  const onAttachToGroup = data?.onAttachToGroup as ((nodeId: string, groupId: string) => void) | undefined
+  const onDetachFromGroup = data?.onDetachFromGroup as ((nodeId: string) => void) | undefined
+  
+
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (attachMenuRef.current && !attachMenuRef.current.contains(event.target as HTMLElement)) {
+        setShowAttachMenu(false)
+      }
+    }
+
+    if (showAttachMenu) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showAttachMenu])
+
   // Filter children nodes (nodes with this group as parent)
   const children = allNodes.filter((n) => (n as any).parentId === id)
 
@@ -929,23 +957,82 @@ const DomainGroupNodeWithPlus = memo(({
       style={inlineStyle}
     >
       {renderHandles()}
+
+      {/* Toolbar for group operations */}
+      {selected && (
+        <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 flex gap-1 z-10 bg-white rounded-lg shadow-lg border border-gray-200 p-1 pointer-events-auto" onClick={(e) => e.stopPropagation()}>
+          {parentId ? (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                if (onDetachFromGroup) {
+                  onDetachFromGroup(id)
+                }
+              }}
+              className="bg-red-500 hover:bg-red-600 text-white rounded p-1.5 shadow-sm transition-colors"
+              title="Détacher du groupe parent"
+            >
+              <Unlink className="w-4 h-4" />
+            </button>
+          ) : (
+            <div className="relative" ref={attachMenuRef}>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setShowAttachMenu(!showAttachMenu)
+                }}
+                className="bg-green-500 hover:bg-green-600 text-white rounded p-1.5 shadow-sm transition-colors"
+                title="Attacher à un autre groupe"
+              >
+                <Link className="w-4 h-4" />
+              </button>
+              {showAttachMenu && availableGroups && availableGroups.length > 0 && (
+                <div className="absolute top-full mt-1 left-0 bg-white rounded-md shadow-xl border border-gray-200 py-1 min-w-[200px] max-h-[300px] overflow-y-auto z-20">
+                  {availableGroups.map((group) => (
+                    <button
+                      key={group.id}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        console.log('Attaching node', id, 'to group', group.id,onAttachToGroup)
+                        if (onAttachToGroup) {
+
+                          onAttachToGroup(id, group.id)
+                        }
+                        setShowAttachMenu(false)
+                      }}
+                      className="w-full text-left px-3 py-2 hover:bg-orange-50 transition-colors text-sm"
+                    >
+                      {group.data?.label || group.id}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {showAttachMenu && (!availableGroups || availableGroups.length === 0) && (
+                <div className="absolute top-full mt-1 left-0 bg-white rounded-md shadow-xl border border-gray-200 py-2 px-3 min-w-[200px] z-20 text-xs text-gray-500">
+                  Aucun autre groupe disponible
+                </div>
+              )}
+            </div>
+          )}
+          {showAutoLayoutButton && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onAutoLayout?.(id)
+              }}
+              className="bg-orange-500 hover:bg-orange-600 text-white rounded p-1.5 shadow-sm transition-colors"
+              title="Réorganiser automatiquement les processus"
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+      )}
       <div className="flex items-center justify-between gap-2 mb-3 border-b border-gray-300 pb-2">
         <div className="flex items-center gap-2">
           {renderIcon()}
           {renderLabel()}
         </div>
-        {showAutoLayoutButton && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              onAutoLayout?.(id)
-            }}
-            className="bg-orange-500 hover:bg-orange-600 text-white rounded-full p-1.5 shadow-sm transition-all hover:scale-110 pointer-events-auto"
-            title="Réorganiser automatiquement les processus"
-          >
-            <LayoutGrid className="w-4 h-4" />
-          </button>
-        )}
       </div>
       {/* Conteneur pour les processus enfants */}
       <div className="flex-1 flex items-center justify-center text-gray-400 text-xs relative">
@@ -1165,8 +1252,8 @@ export const SimpleRectangleNode = createNode(
     resizable: true,
     minWidth: 120,
     minHeight: 60,
-    maxWidth: 500,
-    maxHeight: 400,
+    maxWidth: 1000,
+    maxHeight: 800,
     isContainer: true,
     handles: [
       HANDLE_CONFIGS.targetLeft,
@@ -1211,7 +1298,7 @@ export const SimpleRectangleNode = createNode(
             onCreateProcess={data?.onCreateProcess}
           />
           <div
-            className={`relative rounded-lg px-5 py-4 min-w-[120px] min-h-[60px] flex items-center justify-center w-full h-full ${selectedClass} transition-all`}
+            className={`relative rounded-lg px-5 py-4 min-w-[120px] min-h-[60px] flex items-start justify-center w-full h-full ${selectedClass} transition-all`}
             style={{
               backgroundColor: inlineStyle.backgroundColor || 'white',
               borderWidth: inlineStyle.borderWidth || '2px',

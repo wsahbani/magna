@@ -205,13 +205,32 @@ export class ProcessMapAIService {
     // Générer un préfixe unique basé sur le timestamp et un random pour éviter les collisions
     const uniquePrefix = `ai-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
-    // Créer les nodes de groupes et leurs processus
-    structure.groups.forEach((group, groupIndex) => {
-      const groupX = START_X + groupIndex * (GROUP_WIDTH + GROUP_SPACING);
-      const groupY = START_Y;
+    // Fonction récursive pour traiter les groupes et leurs sous-groupes
+    const processGroup = (
+      group: any,
+      groupIndex: number,
+      parentId: string | null,
+      parentX: number,
+      parentY: number,
+      depth: number,
+    ): string => {
+      // Calculer la position absolue du groupe
+      const groupX = parentId
+        ? parentX + (group.position?.x ?? 20)
+        : group.position?.x ?? START_X + groupIndex * (GROUP_WIDTH + GROUP_SPACING);
+      const groupY = parentId
+        ? parentY + (group.position?.y ?? 60)
+        : group.position?.y ?? START_Y;
+      
+      const groupWidth = group.dimensions?.width ?? GROUP_WIDTH;
+      const groupHeight = group.dimensions?.height ?? GROUP_HEIGHT;
 
-      // Créer le node groupe avec un ID unique
-      const groupNodeId = `${uniquePrefix}-domainGroup-${groupIndex}`;
+      // Créer un ID unique pour ce groupe
+      const groupNodeId = group.id
+        ? `${uniquePrefix}-${group.id}`
+        : `${uniquePrefix}-domainGroup-${depth}-${groupIndex}`;
+
+      // Créer le node groupe
       nodes.push({
         id: groupNodeId,
         type: 'domainGroup',
@@ -219,23 +238,48 @@ export class ProcessMapAIService {
         description: group.description,
         positionX: groupX,
         positionY: groupY,
-        width: GROUP_WIDTH,
-        height: GROUP_HEIGHT,
+        width: groupWidth,
+        height: groupHeight,
+        parentId: parentId, // Référence au groupe parent si imbriqué
         data: {
           description: group.description,
         },
       });
 
-      // Créer les processus dans le groupe
-      group.processes.forEach((process, processIndex) => {
-        // ID unique pour chaque process node
-        const processNodeId = `${uniquePrefix}-domainGroup-${groupIndex}-process-${processIndex}`;
-        // Position relative au groupe (centré horizontalement, espacés verticalement)
-        const processX = groupX + GROUP_WIDTH / 2 - PROCESS_WIDTH / 2;
-        const processY =
-          groupY +
-          60 + // Header du groupe
-          processIndex * (PROCESS_HEIGHT + PROCESS_SPACING);
+      // Traiter les sous-groupes imbriqués (nestedGroups) de manière récursive
+      if (group.nestedGroups && Array.isArray(group.nestedGroups)) {
+        group.nestedGroups.forEach((nestedGroup: any, nestedIndex: number) => {
+          processGroup(
+            nestedGroup,
+            nestedIndex,
+            groupNodeId, // Ce groupe devient le parent
+            groupX, // Position absolue du parent
+            groupY,
+            depth + 1,
+          );
+        });
+      }
+
+      // Créer les processus dans ce groupe
+      group.processes.forEach((process: any, processIndex: number) => {
+        const processNodeId = `${uniquePrefix}-${groupNodeId}-process-${processIndex}`;
+        
+        // Position du processus (relative au groupe ou calculée automatiquement)
+        let processX: number;
+        let processY: number;
+        
+        if (process.position) {
+          // Position relative au groupe
+          processX = groupX + process.position.x;
+          processY = groupY + process.position.y;
+        } else {
+          // Position automatique (centré horizontalement, espacés verticalement)
+          processX = groupX + groupWidth / 2 - PROCESS_WIDTH / 2;
+          processY = groupY + 60 + processIndex * (PROCESS_HEIGHT + PROCESS_SPACING);
+        }
+        
+        const processWidth = process.dimensions?.width ?? PROCESS_WIDTH;
+        const processHeight = process.dimensions?.height ?? PROCESS_HEIGHT;
 
         nodes.push({
           id: processNodeId,
@@ -244,14 +288,21 @@ export class ProcessMapAIService {
           description: process.description,
           positionX: processX,
           positionY: processY,
-          width: PROCESS_WIDTH,
-          height: PROCESS_HEIGHT,
+          width: processWidth,
+          height: processHeight,
           parentId: groupNodeId, // Attaché au groupe
           data: {
             description: process.description,
           },
         });
       });
+
+      return groupNodeId;
+    };
+
+    // Traiter tous les groupes racine (et leurs enfants récursivement)
+    structure.groups.forEach((group, groupIndex) => {
+      processGroup(group, groupIndex, null, 0, 0, 0);
     });
 
     // Sauvegarder le flow avec tous les nodes

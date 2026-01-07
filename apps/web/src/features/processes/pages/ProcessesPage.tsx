@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, BodySmall, Button } from '@repo/ui'
 import { PageWrapper } from '../../../components/layout/PageWrapper'
-import { FileText, Plus } from 'lucide-react'
+import { FileText, Plus, Search } from 'lucide-react'
 import { ProcessPageHeader } from '../components/ProcessPageHeader'
 import { ProcessFilters } from '../components/ProcessFilters'
 import { ViewModeToggle } from '../components/ViewModeToggle'
@@ -99,6 +99,38 @@ export default function ProcessesPage() {
         </Button>
       }
     >
+      {/* Search Bar */}
+      <div className="mb-4">
+        <div className="relative w-full sm:w-96">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+          <input
+            type="text"
+            placeholder="Rechercher par titre, code ou description..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+          />
+          {search && (
+            <button
+              onClick={() => setSearch('')}
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            >
+              <svg
+                className="h-4 w-4"
+                fill="none"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* Filters & View Mode */}
       <div className="flex flex-col md:flex-row gap-4 items-end">
         <div className="flex-1 w-full">
@@ -122,7 +154,24 @@ export default function ProcessesPage() {
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600"></div>
         </div>
       ) : data?.data.length === 0 ? (
-        <ProcessEmptyState onCreateClick={() => setIsCreateDialogOpen(true)} />
+        search ? (
+          <div className="text-center py-12">
+            <Search className="mx-auto h-12 w-12 text-gray-400" />
+            <h3 className="mt-4 text-lg font-medium text-gray-900">Aucun résultat</h3>
+            <p className="mt-2 text-sm text-gray-500">
+              Aucun processus ne correspond à votre recherche "{search}".
+            </p>
+            <Button
+              variant="outline"
+              onClick={() => setSearch('')}
+              className="mt-4"
+            >
+              Effacer la recherche
+            </Button>
+          </div>
+        ) : (
+          <ProcessEmptyState onCreateClick={() => setIsCreateDialogOpen(true)} />
+        )
       ) : viewMode === 'grid' ? (
         <ProcessGridView
           processes={data?.data || []}

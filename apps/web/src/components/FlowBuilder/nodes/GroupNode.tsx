@@ -5,7 +5,7 @@
  * Supports parent-child relationships and hierarchical grouping
  */
 
-import { memo, useState } from 'react'
+import { memo, useState, useRef, useEffect } from 'react'
 import { NodeProps, NodeResizer } from '@xyflow/react'
 import { 
   Folder, 
@@ -15,19 +15,41 @@ import {
   Users,
   Box,
   Layers,
+  Link,
+  Unlink,
 } from 'lucide-react'
 
 /**
  * GroupNode Component
  */
-export const GroupNode = memo(({ data, selected }: NodeProps) => {
+export const GroupNode = memo(({ id, data, selected }: NodeProps) => {
   const [isHovered, setIsHovered] = useState(false)
+  const [showAttachMenu, setShowAttachMenu] = useState(false)
+  const attachMenuRef = useRef<HTMLDivElement>(null)
   
   // Type-safe data access
   const label = (data?.label as string) || 'Group'
   const groupType = (data?.groupType as 'category' | 'subprocess' | 'container' | 'custom') || 'category'
   const collapsed = (data?.collapsed as boolean) || false
   const childIds = (data?.childIds as string[]) || []
+  const parentId = (data?.parentId as string) || null
+  const availableGroups = (data?.availableGroups as Array<{ id: string; data?: { label?: string } }>) || []
+  const onAttachToGroup = data?.onAttachToGroup as ((nodeId: string, groupId: string) => void) | undefined
+  const onDetachFromGroup = data?.onDetachFromGroup as ((nodeId: string) => void) | undefined
+  
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (attachMenuRef.current && !attachMenuRef.current.contains(event.target as Node)) {
+        setShowAttachMenu(false)
+      }
+    }
+
+    if (showAttachMenu) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showAttachMenu])
   
   // Get style from data
   const nodeStyle = (data?.style as Record<string, any>) || {}
@@ -113,6 +135,63 @@ export const GroupNode = memo(({ data, selected }: NodeProps) => {
         borderRadius: `${borderRadius}px`,
       }}
     >
+      {/* Toolbar for group operations */}
+      {selected && (
+        <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 flex gap-1 z-10 bg-white rounded-lg shadow-lg border border-gray-200 p-1 pointer-events-auto" onClick={(e) => e.stopPropagation()}>
+          {parentId ? (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                if (onDetachFromGroup) {
+                  onDetachFromGroup(id)
+                }
+              }}
+              className="bg-red-500 hover:bg-red-600 text-white rounded p-1.5 shadow-sm transition-colors"
+              title="Detach from parent group"
+            >
+              <Unlink className="w-4 h-4" />
+            </button>
+          ) : (
+            <div className="relative" ref={attachMenuRef}>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setShowAttachMenu(!showAttachMenu)
+                }}
+                className="bg-green-500 hover:bg-green-600 text-white rounded p-1.5 shadow-sm transition-colors"
+                title="Attach to another group"
+              >
+                <Link className="w-4 h-4" />
+              </button>
+              {showAttachMenu && availableGroups && availableGroups.length > 0 && (
+                <div className="absolute top-full mt-1 left-0 bg-white rounded-md shadow-xl border border-gray-200 py-1 min-w-[200px] max-h-[300px] overflow-y-auto z-20">
+                  {availableGroups.map((group) => (
+                    <button
+                      key={group.id}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        if (onAttachToGroup) {
+                          onAttachToGroup(id, group.id)
+                        }
+                        setShowAttachMenu(false)
+                      }}
+                      className="w-full text-left px-3 py-2 hover:bg-orange-50 transition-colors text-sm flex items-center gap-2"
+                    >
+                      <Folder className="w-4 h-4 text-orange-600" />
+                      <span className="truncate">{group.data?.label || group.id}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {showAttachMenu && (!availableGroups || availableGroups.length === 0) && (
+                <div className="absolute top-full mt-1 left-0 bg-white rounded-md shadow-xl border border-gray-200 py-2 px-3 min-w-[200px] z-20 text-xs text-gray-500">
+                  No other groups available
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
       {/* Resizer when selected - must have pointer-events-auto */}
       {selected && (
         <div style={{ pointerEvents: 'auto' }}>
@@ -173,7 +252,7 @@ export const GroupNode = memo(({ data, selected }: NodeProps) => {
           <div className="text-center text-gray-400 text-xs mt-8 pointer-events-none">
             <div className="flex flex-col items-center gap-2">
               <Box className="w-8 h-8 opacity-30" />
-              <span>Drag nodes here to group them</span>
+              <span>Drag nodes here to group them dd </span>
             </div>
           </div>
         )}

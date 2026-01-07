@@ -177,7 +177,7 @@ export class AIClientService implements OnModuleInit {
         ],
         max_tokens: maxTokens,
         temperature,
-        response_format: { type: 'json_object' }, // Force JSON response
+        response_format: options.responseFormat || { type: 'json_object' }, // Use provided format or default to JSON
       });
 
       const content = response.choices[0]?.message?.content || '';

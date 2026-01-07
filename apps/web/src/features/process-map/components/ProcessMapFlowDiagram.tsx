@@ -27,6 +27,7 @@ import { nodeTypes } from '../../../components/FlowBuilder/nodeTypes';
 import { useProcessMapFlowStore } from '../hooks/useProcessMapFlowStore';
 import { PaletteConfigFactory } from '../config/palette-config';
 import { getBackgroundVariant } from '../../../components/FlowBuilder/utils/gridUtils';
+import { useGroupAttachment } from '../../../components/FlowBuilder/hooks/useGroupAttachment';
 import { ImageExtractionModal } from './ImageExtractionModal';
 import { processMapFlowKeys } from '../hooks/useProcessMapFlow';
 import { exportFlowToImage } from '../../../components/FlowBuilder/utils/exportFlowImage';
@@ -91,6 +92,12 @@ export function ProcessMapFlowDiagram({
     setFlowDirection,
   } = useProcessMapFlowStore(processMapId);
 
+  // === Group Attachment ===
+  const { attachGroupToGroup, detachGroupFromParent, getAvailableGroups } = useGroupAttachment(
+    nodes,
+    onNodesChange
+  );
+
   // Sync selectedNode/selectedEdge with store when nodes/edges change
   useEffect(() => {
     if (selectedNode) {
@@ -148,8 +155,27 @@ export function ProcessMapFlowDiagram({
   // Helper function to check if a node is a container
   const isContainerNode = useCallback((nodeType: string | undefined): boolean => {
     // Only domainGroup is a container node
-    return nodeType === 'domainGroup'
+    return nodeType === 'domainGroup' ||  nodeType === 'simpleRectangle';
   }, [])
+
+  // Helper function to calculate absolute position by traversing parent hierarchy
+  const calculateAbsolutePosition = useCallback((node: Node, nodesList: Node[]): { x: number; y: number } => {
+    let absoluteX = node.position.x;
+    let absoluteY = node.position.y;
+    let currentNode = node;
+    
+    // Traverse up the parent hierarchy
+    while (currentNode.parentId) {
+      const parent = nodesList.find((n) => n.id === currentNode.parentId);
+      if (!parent) break;
+      
+      absoluteX += parent.position.x;
+      absoluteY += parent.position.y;
+      currentNode = parent;
+    }
+    
+    return { x: absoluteX, y: absoluteY };
+  }, []);
 
   // Helper function to check if a dragged node intersects with a container
   const checkNodeIntersection = useCallback((
@@ -157,22 +183,16 @@ export function ProcessMapFlowDiagram({
     containerNode: Node,
     nodes: Node[]
   ): boolean => {
-    // Calculate absolute position of the dragged node
-    let absoluteNodePosition = draggedNode.position;
-    if (draggedNode.parentId) {
-      const parent = nodes.find((n) => n.id === draggedNode.parentId);
-      if (parent) {
-        absoluteNodePosition = {
-          x: draggedNode.position.x + parent.position.x,
-          y: draggedNode.position.y + parent.position.y,
-        };
-      }
-    }
+    // Calculate absolute position of the dragged node (considering full parent hierarchy)
+    const absoluteNodePosition = calculateAbsolutePosition(draggedNode, nodes);
+
+    // Calculate absolute position of container (in case container itself has a parent)
+    const absoluteContainerPosition = calculateAbsolutePosition(containerNode, nodes);
 
     // Calculate container bounds
     const containerBounds = {
-      x: containerNode.position.x,
-      y: containerNode.position.y,
+      x: absoluteContainerPosition.x,
+      y: absoluteContainerPosition.y,
       width: (containerNode.width as number) || 200,
       height: (containerNode.height as number) || 150,
     };
@@ -186,39 +206,32 @@ export function ProcessMapFlowDiagram({
     };
 
     // Check intersection (at least 50% overlap)
-    const overlapX = Math.max(0,
-      Math.min(nodeBounds.x + nodeBounds.width, containerBounds.x + containerBounds.width) -
-      Math.max(nodeBounds.x, containerBounds.x)
-    );
-    const overlapY = Math.max(0,
-      Math.min(nodeBounds.y + nodeBounds.height, containerBounds.y + containerBounds.height) -
-      Math.max(nodeBounds.y, containerBounds.y)
-    );
-    const overlapArea = overlapX * overlapY;
+    // Calculate the intersection rectangle
+    const intersectLeft = Math.max(nodeBounds.x, containerBounds.x);
+    const intersectTop = Math.max(nodeBounds.y, containerBounds.y);
+    const intersectRight = Math.min(nodeBounds.x + nodeBounds.width, containerBounds.x + containerBounds.width);
+    const intersectBottom = Math.min(nodeBounds.y + nodeBounds.height, containerBounds.y + containerBounds.height);
+    
+    // Calculate overlap dimensions
+    const overlapWidth = Math.max(0, intersectRight - intersectLeft);
+    const overlapHeight = Math.max(0, intersectBottom - intersectTop);
+    const overlapArea = overlapWidth * overlapHeight;
     const nodeArea = nodeBounds.width * nodeBounds.height;
 
     return overlapArea > nodeArea * 0.5;
-  }, []);
+  }, [calculateAbsolutePosition]);
 
   // Handle attaching a node to a container
   const handleAttachNode = useCallback((nodeId: string, containerId: string) => {
+    console.log('Attaching node', nodeId, 'to container', containerId);
     if (readOnly) return;
     
     const node = nodes.find((n) => n.id === nodeId);
     const container = nodes.find((n) => n.id === containerId);
     if (!node || !container) return;
 
-    // Calculate absolute position of the node
-    let absolutePosition = node.position;
-    if (node.parentId) {
-      const currentParent = nodes.find((n) => n.id === node.parentId);
-      if (currentParent) {
-        absolutePosition = {
-          x: node.position.x + currentParent.position.x,
-          y: node.position.y + currentParent.position.y,
-        };
-      }
-    }
+    // Calculate absolute position of the node (considering full parent hierarchy)
+    const absolutePosition = calculateAbsolutePosition(node, nodes);
 
     // Calculate relative position within container
     const relativePosition = {
@@ -235,7 +248,7 @@ export function ProcessMapFlowDiagram({
         parentNodeId: containerId,
       },
     } as any);
-  }, [nodes, updateNode, readOnly]);
+  }, [nodes, updateNode, readOnly, calculateAbsolutePosition]);
 
   // Handle detaching a node from its container
   const handleDetachNode = useCallback((nodeId: string) => {
@@ -268,16 +281,27 @@ export function ProcessMapFlowDiagram({
   const onNodeDrag = useCallback(
     (_event: React.MouseEvent, node: Node) => {
       if (readOnly) return;
-      if (isContainerNode(node.type)) return;
+      // if (isContainerNode(node.type)) return;
 
       const containerNodes = nodes.filter((n) =>
         isContainerNode(n.type) && n.id !== node.id
       );
 
-      // Find the container that intersects
-      const intersectingContainer = containerNodes.find((container) =>
+      // Find all containers that intersect
+      const intersectingContainers = containerNodes.filter((container) =>
         checkNodeIntersection(node, container, nodes)
       );
+
+    
+
+      // Return the container with the smallest area (most specific)
+      const intersectingContainer = intersectingContainers.length > 0
+        ? intersectingContainers.reduce((smallest, container) => {
+            const smallestArea = ((smallest.width as number) || 200) * ((smallest.height as number) || 150);
+            const containerArea = ((container.width as number) || 200) * ((container.height as number) || 150);
+            return containerArea < smallestArea ? container : smallest;
+          })
+        : undefined;
 
       // Update highlight
       if (intersectingContainer) {
@@ -332,7 +356,7 @@ export function ProcessMapFlowDiagram({
       if (!reactFlowInstance) return;
 
       // Skip if node is a container itself
-      if (isContainerNode(node.type)) return;
+     // if (isContainerNode(node.type)) return;
 
       // Get current node state from nodes array (may have been updated by ReactFlow)
       const currentNode = nodes.find((n) => n.id === node.id);
@@ -341,26 +365,39 @@ export function ProcessMapFlowDiagram({
       // Use parentId at top level (ReactFlow standard)
       const currentNodeWithParent = currentNode as Node & { parentId?: string };
       
-      // Calculate absolute position if node currently has a parent
-      let absoluteNodePosition = currentNode.position;
+      // If node already has a parent, don't change the parent relationship during drag
       if (currentNodeWithParent.parentId) {
-        const currentParent = nodes.find((n) => n.id === currentNodeWithParent.parentId);
-        if (currentParent) {
-          // Convert relative position to absolute for overlap calculation
-          absoluteNodePosition = {
-            x: currentNode.position.x + currentParent.position.x,
-            y: currentNode.position.y + currentParent.position.y,
-          };
+        // Just reset highlight and return
+        if (highlightedContainerId) {
+          const highlightedContainer = nodes.find((n) => n.id === highlightedContainerId);
+          if (highlightedContainer) {
+            updateNode(highlightedContainerId, {
+              data: {
+                ...highlightedContainer.data,
+                isHighlighted: false,
+              },
+            } as any);
+          }
+          setHighlightedContainerId(null);
         }
+        return;
       }
+      
+      // Calculate absolute position (considering full parent hierarchy for nested containers)
+      const absoluteNodePosition = calculateAbsolutePosition(currentNode, nodes);
 
       // Find if node was dropped on a container node
       const containerNodes = nodes.filter((n) => {
+
         // Check if node is a container and not the dragged node itself
         if (isContainerNode(n.type) && n.id !== node.id) {
+          
+          // Calculate absolute position of container (in case container itself has a parent)
+          const absoluteContainerPosition = calculateAbsolutePosition(n, nodes);
+          
           const containerBounds = {
-            x: n.position.x,
-            y: n.position.y,
+            x: absoluteContainerPosition.x,
+            y: absoluteContainerPosition.y,
             width: (n.width as number) || 200,
             height: (n.height as number) || 150,
           };
@@ -372,21 +409,35 @@ export function ProcessMapFlowDiagram({
             width: (currentNode.width as number) || 100,
             height: (currentNode.height as number) || 50,
           };
+          ;
           
           // Check if node overlaps with container (at least 50% of node area)
-          const overlapX = Math.max(0, Math.min(nodeBounds.x + nodeBounds.width, containerBounds.x + containerBounds.width) - Math.max(nodeBounds.x, containerBounds.x));
-          const overlapY = Math.max(0, Math.min(nodeBounds.y + nodeBounds.height, containerBounds.y + containerBounds.height) - Math.max(nodeBounds.y, containerBounds.y));
-          const overlapArea = overlapX * overlapY;
-          const nodeArea = nodeBounds.width * nodeBounds.height;
+          // Calculate the intersection rectangle
+          const intersectLeft = Math.max(nodeBounds.x, containerBounds.x);
+          const intersectTop = Math.max(nodeBounds.y, containerBounds.y);
+          const intersectRight = Math.min(nodeBounds.x + nodeBounds.width, containerBounds.x + containerBounds.width);
+          const intersectBottom = Math.min(nodeBounds.y + nodeBounds.height, containerBounds.y + containerBounds.height);
           
-          return overlapArea > nodeArea * 0.5; // At least 50% overlap
+          console.log({ intersectLeft, intersectTop, intersectRight, intersectBottom } ,n?.data?.label);
+          // Calculate overlap dimensions
+          const overlapWidth = Math.max(0, intersectRight - intersectLeft);
+          const overlapHeight = Math.max(0, intersectBottom - intersectTop);
+          const overlapArea = overlapWidth * overlapHeight;
+          const nodeArea = nodeBounds.width * nodeBounds.height;
+           return overlapArea > nodeArea * 0.5; // At least 50% overlap
         }
         return false;
       });
 
+      console.log({ containerNodes})
+
       if (containerNodes.length > 0) {
-        // Node was dropped on a container - set parent relationship
-        const containerNode = containerNodes[0];
+        // Node was dropped on one or more containers - select the one with the smallest area (most specific)
+        const containerNode = containerNodes.reduce((smallest, container) => {
+          const smallestArea = ((smallest.width as number) || 200) * ((smallest.height as number) || 150);
+          const containerArea = ((container.width as number) || 200) * ((container.height as number) || 150);
+          return containerArea < smallestArea ? container : smallest;
+        });
         
         // Calculate relative position within container using absolute position
         const relativePosition = {
@@ -472,16 +523,16 @@ export function ProcessMapFlowDiagram({
       if (readOnly) return;
       
       // Check if clicking on a container while another node is selected
-      if (isContainerNode(node.type) && reactFlowInstance) {
-        const selectedNodes = nodes.filter((n) => n.selected && n.id !== node.id && !isContainerNode(n.type));
+      // if (isContainerNode(node.type) && reactFlowInstance) {
+      //   const selectedNodes = nodes.filter((n) => n.selected && n.id !== node.id && !isContainerNode(n.type));
         
-        if (selectedNodes.length === 1) {
-          // Attach the selected node to this container
-          const selectedNode = selectedNodes[0];
-          handleAttachNode(selectedNode.id, node.id);
-          return; // Don't proceed with navigation
-        }
-      }
+      //   if (selectedNodes.length === 1) {
+      //     // Attach the selected node to this container
+      //     const selectedNode = selectedNodes[0];
+      //     handleAttachNode(selectedNode.id, node.id);
+      //     return; // Don't proceed with navigation
+      //   }
+      // }
       
       // Normal selection behavior
       setSelectedNodes([node.id]);
@@ -786,23 +837,67 @@ export function ProcessMapFlowDiagram({
     } as any);
   }, [nodes, updateNode]);
 
+  // Sort nodes so parents come before children (required by ReactFlow)
+  const sortedNodes = useMemo(() => {
+    // Create a map for quick node lookup
+    const nodeMap = new Map(nodes.map(n => [n.id, n]));
+    const sorted: Node[] = [];
+    const visited = new Set<string>();
+    const visiting = new Set<string>();
+
+    // Recursive function to visit node and its parents first
+    const visit = (nodeId: string) => {
+      if (visited.has(nodeId)) return;
+      if (visiting.has(nodeId)) {
+        // Circular dependency detected - just skip
+        console.warn(`Circular dependency detected for node ${nodeId}`);
+        return;
+      }
+
+      const node = nodeMap.get(nodeId);
+      if (!node) return;
+
+      visiting.add(nodeId);
+
+      // Visit parent first if it exists
+      const parentId = (node as any).parentId || (node as any).parentNode;
+      if (parentId && nodeMap.has(parentId)) {
+        visit(parentId);
+      }
+
+      visiting.delete(nodeId);
+      visited.add(nodeId);
+      sorted.push(node);
+    };
+
+    // Visit all nodes
+    nodes.forEach(node => visit(node.id));
+
+    return sorted;
+  }, [nodes]);
+
   // Enrich nodes with callbacks, readOnly, and isContainer
   const enrichedNodes = useMemo(() => {
-    const containerNodes = nodes.filter((n) => isContainerNode(n.type));
+    const containerNodes = sortedNodes.filter((n) => isContainerNode(n.type));
     
-    return nodes.map((node) => {
+    return sortedNodes.map((node) => {
       const isContainer = isContainerNode(node.type)
       const currentStyle = (node.data?.style as Record<string, any>) || {}
       
-      if (node.type === 'domainGroup') {
+      if (node.type === 'domainGroup' || node.type === 'simpleRectangle') {
+        const availableGroups = getAvailableGroups(node.id);
         return {
           ...node,
           data: {
             ...node.data,
             isContainer: true,
-            onAddMainProcess: handleAddMainProcessToGroup,
-            onAutoLayout: handleAutoLayout,
+            onAddMainProcess: node.type === 'domainGroup' ? handleAddMainProcessToGroup : undefined,
+            onAutoLayout: node.type === 'domainGroup' ? handleAutoLayout : undefined,
             readOnly,
+            availableGroups,
+            availableContainers: containerNodes.filter((c) => c.id !== node.id),
+            onAttachToGroup: attachGroupToGroup,
+            onDetachFromGroup: detachGroupFromParent,
           },
         };
       }
@@ -824,7 +919,7 @@ export function ProcessMapFlowDiagram({
         },
       };
     });
-  }, [nodes, handleAddMainProcessToGroup, handleAutoLayout, handleAttachNode, handleDetachNode, handleNodeStyleUpdate, readOnly, isContainerNode, flowDirection]);
+  }, [sortedNodes, handleAddMainProcessToGroup, handleAutoLayout, handleAttachNode, handleDetachNode, handleNodeStyleUpdate, readOnly, isContainerNode, flowDirection]);
 
   if (isLoading) {
     return (
