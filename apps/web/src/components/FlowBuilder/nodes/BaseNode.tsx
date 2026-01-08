@@ -374,7 +374,7 @@ export const createNode = (config: BaseNodeConfig) => {
         data?.onNodeUpdate !== undefined
       
       // Don't render toolbar on containers
-      if (!hasToolbarProps || data?.isContainer) return null
+      if (!hasToolbarProps) return null
 
       return (
         <NodeToolbar

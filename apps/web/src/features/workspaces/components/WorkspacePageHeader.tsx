@@ -17,7 +17,7 @@ export const WorkspacePageHeader = ({ onCreateClick }: WorkspacePageHeaderProps)
       </div>
       <Button onClick={onCreateClick} variant="orange" size="sm" className="gap-2">
         <Plus className="w-4 h-4" />
-        Nouveau
+        Créer un workspace
       </Button>
     </div>
   );

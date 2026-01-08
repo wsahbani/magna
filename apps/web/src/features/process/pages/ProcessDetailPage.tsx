@@ -8,8 +8,8 @@ import { useParams } from '@tanstack/react-router'
 import { PageWrapper, DetailSidebar, DetailFlowViewer } from '../../../components/layout'
 import { ProcessFlowDiagram } from '../components/ProcessFlowDiagram'
 import { useProcess } from '../hooks/useProcesses'
-import { Workflow, Edit, ArrowLeft, CheckCircle2, Clock, Users, XCircle, FileText } from 'lucide-react'
-import { Button, Body, BodySmall, Caption } from '@repo/ui'
+import { Workflow, Edit, ArrowLeft, CheckCircle2, Clock, Users, XCircle, FileText, Info } from 'lucide-react'
+import { Button, Body, BodySmall, Caption, Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@repo/ui'
 import { useNavigate } from '@tanstack/react-router'
 import { ProcessType, ProcessStatus } from '../types/enums'
 import { useAuth } from '../../auth/context/AuthContext'
@@ -24,6 +24,7 @@ export default function ProcessDetailPage() {
   const { data: process, isLoading } = useProcess(id)
   const { user } = useAuth()
   const [validationDialogOpen, setValidationDialogOpen] = useState(false)
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false)
   const { data: validationRequests = [] } = useProcessValidationRequests(
     process?.id,
   )
@@ -127,11 +128,28 @@ export default function ProcessDetailPage() {
           </div>
         </div>
       ) : (
-        <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-12rem)]">
-          {/* Left Sidebar - Details */}
-          <div className="w-full lg:w-1/4 xl:w-1/3 overflow-y-auto pr-2">
-            <DetailSidebar
-              metadata={[
+        <div className="relative h-[calc(100vh-12rem)]">
+          {/* Floating Info Button */}
+          <Dialog open={detailsDialogOpen} onOpenChange={setDetailsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                className="absolute top-4 right-4 z-10 bg-white/90 backdrop-blur-sm shadow-lg hover:bg-white border-orange-300"
+              >
+                <Info className="h-5 w-5 text-orange-600" />
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-[600px] max-h-[85vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Détails du processus</DialogTitle>
+                <DialogDescription>
+                  Informations et statut de validation
+                </DialogDescription>
+              </DialogHeader>
+              <div className="mt-4">
+                <DetailSidebar
+                  metadata={[
                 {
                   label: 'Code',
                   value: process.code,
@@ -283,12 +301,14 @@ export default function ProcessDetailPage() {
                     : []
                   : []),
               ]}
-            />
-          </div>
+                />
+              </div>
+            </DialogContent>
+          </Dialog>
 
-          {/* Right Side - Flow */}
+          {/* Full Width Flow */}
           {process.type === ProcessType.FLOW && (
-            <div className="w-full lg:w-3/4 xl:w-2/3 flex-1">
+            <div className="w-full h-full">
               <DetailFlowViewer>
                 <ProcessFlowDiagram processId={process.id} readOnly={true} />
               </DetailFlowViewer>

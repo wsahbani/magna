@@ -23,6 +23,7 @@ import { useNodeGrouping } from './hooks/useNodeGrouping'
 import { useGroupDragDrop } from './hooks/useGroupDragDrop'
 import { useFlowLoading } from './hooks/useFlowLoading'
 import { useFlowAutoSave, useManualSave } from './hooks/useFlowSaving'
+import { useGroupAttachment } from './hooks/useGroupAttachment'
 
 // Components
 import { Toolbar } from './Toolbar'
@@ -149,6 +150,12 @@ export function FlowBuilder({
     setGroupCounter
   )
   
+  // === Group Attachment ===
+  const { attachGroupToGroup, detachGroupFromParent, getAvailableGroups } = useGroupAttachment(
+    nodes,
+    onNodesChangeProp
+  )
+  
   // === Group Drag & Drop ===
   const { handleNodeDragStop: handleGroupDragStop } = useGroupDragDrop(
     nodes,
@@ -206,13 +213,29 @@ export function FlowBuilder({
   const selectedNodeCount = selectedNodes.length
   const selectedNode = selectedNodes.length === 1 ? selectedNodes[0] : null
 
+  // === Enhance group nodes with attach/detach handlers ===
+  const enhancedNodes = nodes.map(node => {
+    if (node.type === 'group' || node.type === 'domainGroup' || node.type ==="simpleRectangle") {
+      const availableGroups = getAvailableGroups(node.id)
+      return {
+        ...node,
+        data: {
+          ...node.data,
+          availableGroups,
+          onAttachToGroup: attachGroupToGroup,
+          onDetachFromGroup: detachGroupFromParent,
+        },
+      }
+    }
+    return node
+  })
   // === Background Variant ===
   const backgroundVariant = getBackgroundVariant(gridSettings.backgroundPattern)
 
   return (
     <div className="w-full h-full">
       <ReactFlow
-        nodes={nodes}
+        nodes={enhancedNodes}
         edges={edges}
         onNodesChange={onNodesChangeProp}
         onEdgesChange={onEdgesChangeProp}

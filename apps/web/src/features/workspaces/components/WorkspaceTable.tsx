@@ -1,4 +1,4 @@
-import { Eye, Edit2, Trash2, CheckCircle, XCircle } from 'lucide-react';
+import { Eye, Edit2, Trash2, CheckCircle, XCircle, Folder } from 'lucide-react';
 import { Button, Badge } from '@repo/ui';
 import { Body, BodySmall, Caption } from '@repo/ui';
 import type { Workspace } from '../types/workspace.types';
@@ -83,13 +83,18 @@ export const WorkspaceTable = ({
                   onClick={() => onWorkspaceClick(workspace)}
                 >
                   <td className="px-6 py-4">
-                    <div className="flex flex-col">
-                      <Body className="font-medium text-gray-900">{workspace.name}</Body>
-                      {workspace.description && (
-                        <BodySmall className="text-gray-500 line-clamp-1 mt-1">
-                          {workspace.description}
-                        </BodySmall>
-                      )}
+                    <div className="flex items-center gap-3">
+                      <div className="flex-shrink-0">
+                        <Folder className="h-5 w-5 text-orange-600" />
+                      </div>
+                      <div className="flex flex-col">
+                        <Body className="font-medium text-gray-900">{workspace.name}</Body>
+                        {workspace.description && (
+                          <BodySmall className="text-gray-500 line-clamp-1 mt-1">
+                            {workspace.description}
+                          </BodySmall>
+                        )}
+                      </div>
                     </div>
                   </td>
                   <td className="px-6 py-4">

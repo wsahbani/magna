@@ -117,6 +117,52 @@ export async function extractProcessMapFromImage(
   return response.data;
 }
 
+export interface AnalyzeProcessMapImageRequest {
+  image: File;
+  contextType?: string;
+  processMapId?: string;
+  description?: string;
+}
+
+export interface AnalyzeProcessMapImageResponse {
+  success: boolean;
+  processes: Array<{
+    label: string;
+    confidence?: number;
+  }>;
+}
+
+/**
+ * Analyse une image pour détecter les processus (sans créer de nodes)
+ */
+export async function analyzeProcessMapImage(
+  request: AnalyzeProcessMapImageRequest,
+): Promise<AnalyzeProcessMapImageResponse> {
+  const formData = new FormData();
+  formData.append('image', request.image);
+  if (request.contextType) {
+    formData.append('contextType', request.contextType);
+  }
+  if (request.processMapId) {
+    formData.append('processMapId', request.processMapId);
+  }
+  if (request.description) {
+    formData.append('description', request.description);
+  }
+
+  // Utiliser l'API client avec FormData
+  const response = await apiClient.post<AnalyzeProcessMapImageResponse>(
+    '/ai/process-map/analyze',
+    formData,
+    {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    },
+  );
+  return response.data;
+}
+
 // ==================== Process (Level 2) AI ====================
 
 export interface GenerateProcessRequest {

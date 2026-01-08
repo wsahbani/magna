@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, BodySmall, Button } from '@repo/ui'
 import { PageWrapper } from '../../../components/layout/PageWrapper'
-import { MapPin, Plus, Sparkles } from 'lucide-react'
+import { MapPin, Plus, Sparkles, Search } from 'lucide-react'
 import { ViewModeToggle } from '../components/ViewModeToggle'
 import { ProcessMapGridView } from '../components/ProcessMapGridView'
 import { ProcessMapTable } from '../components/ProcessMapTable'
@@ -28,9 +28,24 @@ export default function ProcessMapsPage() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [selectedProcessMap, setSelectedProcessMap] = useState<ProcessMap | null>(null)
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string>('')
+  const [searchTerm, setSearchTerm] = useState<string>('')
 
   // Fetch ProcessMaps
   const { data, isLoading } = useProcessMaps()
+
+  // Filter ProcessMaps by search term
+  const filteredProcessMaps = useMemo(() => {
+    if (!data?.data) return []
+    if (!searchTerm.trim()) return data.data
+
+    const term = searchTerm.toLowerCase()
+    return data.data.filter(
+      (pm) =>
+        pm.title.toLowerCase().includes(term) ||
+        pm.code.toLowerCase().includes(term) ||
+        pm.description?.toLowerCase().includes(term),
+    )
+  }, [data?.data, searchTerm])
 
   const createMutation = useCreateProcessMap()
   const updateMutation = useUpdateProcessMap()
@@ -126,8 +141,39 @@ export default function ProcessMapsPage() {
         </div>
       }
     >
-      {/* View Mode Toggle */}
-      <div className="flex justify-end mb-4">
+      {/* Search and View Mode */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+        {/* Search Input */}
+        <div className="relative w-full sm:w-96">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+          <input
+            type="text"
+            placeholder="Rechercher par titre, code ou description..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+          />
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm('')}
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            >
+              <svg
+                className="h-4 w-4"
+                fill="none"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </button>
+          )}
+        </div>
+
+        {/* View Mode Toggle */}
         <ViewModeToggle viewMode={viewMode} onViewModeChange={setViewMode} />
       </div>
 
@@ -136,18 +182,35 @@ export default function ProcessMapsPage() {
         <div className="flex justify-center items-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600"></div>
         </div>
-      ) : data?.data.length === 0 ? (
-        <ProcessMapEmptyState onCreateClick={() => setIsCreateDialogOpen(true)} />
+      ) : filteredProcessMaps.length === 0 ? (
+        searchTerm ? (
+          <div className="text-center py-12">
+            <Search className="mx-auto h-12 w-12 text-gray-400" />
+            <h3 className="mt-4 text-lg font-medium text-gray-900">Aucun résultat</h3>
+            <p className="mt-2 text-sm text-gray-500">
+              Aucune carte des processus ne correspond à votre recherche "{searchTerm}".
+            </p>
+            <Button
+              variant="outline"
+              onClick={() => setSearchTerm('')}
+              className="mt-4"
+            >
+              Effacer la recherche
+            </Button>
+          </div>
+        ) : (
+          <ProcessMapEmptyState onCreateClick={() => setIsCreateDialogOpen(true)} />
+        )
       ) : viewMode === 'grid' ? (
         <ProcessMapGridView
-          processMaps={data?.data || []}
+          processMaps={filteredProcessMaps}
           onEdit={handleEdit}
           onView={handleView}
           onDelete={handleDelete}
         />
       ) : (
         <ProcessMapTable
-          processMaps={data?.data || []}
+          processMaps={filteredProcessMaps}
           onEdit={handleEdit}
           onView={handleView}
           onDelete={handleDelete}

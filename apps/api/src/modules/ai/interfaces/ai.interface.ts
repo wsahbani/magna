@@ -8,6 +8,7 @@ export interface AIGenerateOptions {
   temperature?: number;
   maxTokens?: number;
   stream?: boolean;
+  responseFormat?: { type: 'json_object' | 'text' };
 }
 
 export interface AIGenerateResponse {
@@ -32,12 +33,25 @@ export interface ProcessMapContext {
   }>;
 }
 
-export interface GeneratedProcessMapStructure {
-  title: string;
+export interface ProcessMapGroup {
+  id?: string;
+  name: string;
   description: string;
-  groups: Array<{
-    name: string;
+  parentId?: string | null;
+  position?: {
+    x: number;
+    y: number;
+  };
+  dimensions?: {
+    width: number;
+    height: number;
+  };
+  nestedGroups?: ProcessMapGroup[];
+  processes: Array<{
+    type: 'mainProcess' | 'supportProcess' | 'managementProcess';
+    label: string;
     description: string;
+    parentGroupId?: string;
     position?: {
       x: number;
       y: number;
@@ -46,19 +60,12 @@ export interface GeneratedProcessMapStructure {
       width: number;
       height: number;
     };
-    processes: Array<{
-      type: 'mainProcess' | 'supportProcess' | 'managementProcess';
-      label: string;
-      description: string;
-      position?: {
-        x: number;
-        y: number;
-      };
-      dimensions?: {
-        width: number;
-        height: number;
-      };
-    }>;
   }>;
+}
+
+export interface GeneratedProcessMapStructure {
+  title: string;
+  description: string;
+  groups: ProcessMapGroup[];
 }
 

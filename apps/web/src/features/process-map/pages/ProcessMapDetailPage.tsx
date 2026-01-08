@@ -8,8 +8,8 @@ import { useParams } from '@tanstack/react-router';
 import { PageWrapper, DetailSidebar, DetailFlowViewer } from '../../../components/layout';
 import { ProcessMapFlowDiagram } from '../components/ProcessMapFlowDiagram';
 import { useProcessMap } from '../hooks/useProcessMaps';
-import { MapPin, Edit, ArrowLeft, CheckCircle2 } from 'lucide-react';
-import { Button, Body, BodySmall, Caption } from '@repo/ui';
+import { MapPin, Edit, ArrowLeft, CheckCircle2, Info } from 'lucide-react';
+import { Button, Body, BodySmall, Caption, Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@repo/ui';
 import { useNavigate } from '@tanstack/react-router';
 import { ProcessStatus } from '../types/enums';
 import { useAuth } from '../../auth/context/AuthContext';
@@ -24,6 +24,7 @@ export default function ProcessMapDetailPage() {
   const { data: processMap, isLoading } = useProcessMap(id);
   const { user } = useAuth();
   const [validationDialogOpen, setValidationDialogOpen] = useState(false);
+  const [detailsSheetOpen, setDetailsSheetOpen] = useState(false);
   
   // Fetch validation requests for this processMap
   const { data: validationRequests, isLoading: isLoadingValidationRequests } =
@@ -94,92 +95,111 @@ export default function ProcessMapDetailPage() {
         </div>
       }
     >
-      {/* Split Layout: Details Left, Flow Right */}
-      <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-12rem)]">
-        {/* Left Sidebar - Details */}
-        <div className="w-full lg:w-1/4 xl:w-1/3 overflow-y-auto pr-2">
-          <DetailSidebar
-            metadata={[
-              {
-                label: 'Code',
-                value: processMap.code,
-              },
-              {
-                label: 'Statut',
-                value: (
-                  <span className="flex items-center gap-2">
-                    {processMap.status}
-                    {(processMap.status === ProcessStatus.DRAFT || processMap.status === ProcessStatus.IN_REVIEW) && (
-                      <ProcessMapValidationStatusBadge processMapId={processMap.id} compact={false} />
-                    )}
-                  </span>
-                ),
-              },
-            ]}
-            sections={[
-              ...(processMap.description
-                ? [
-                    {
-                      title: 'Description',
-                      content: <BodySmall className="text-gray-700">{processMap.description}</BodySmall>,
-                    },
-                  ]
-                : []),
-              ...(processMap.status === ProcessStatus.DRAFT ||
-              processMap.status === ProcessStatus.IN_REVIEW
-                ? validationRequests && validationRequests.length > 0
-                  ? [
-                      {
-                        title: 'Statut de validation',
-                        icon: <CheckCircle2 className="h-5 w-5" />,
-                        content: (
-                          <div className="space-y-4">
-                            {validationRequests.map((request: any) => (
-                              <div
-                                key={request.id}
-                                className="flex items-start justify-between p-4 border border-gray-200 rounded-lg shadow-sm"
-                              >
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <BodySmall className="font-semibold text-gray-800">
-                                      {request.validator.firstName} {request.validator.lastName}
-                                    </BodySmall>
-                                    <span
-                                      className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                        request.status === 'PENDING'
-                                          ? 'bg-yellow-100 text-yellow-800'
-                                          : request.status === 'APPROVED'
-                                            ? 'bg-green-100 text-green-800'
-                                            : 'bg-red-100 text-red-800'
-                                      }`}
-                                    >
-                                      {request.status === 'PENDING'
-                                        ? 'En attente'
-                                        : request.status === 'APPROVED'
-                                          ? 'Approuvé'
-                                          : 'Rejeté'}
-                                    </span>
+      {/* Full Width Flow with Floating Info Button */}
+      <div className="relative h-[calc(100vh-12rem)]">
+        {/* Floating Info Button */}
+        <Dialog open={detailsSheetOpen} onOpenChange={setDetailsSheetOpen}>
+          <DialogTrigger asChild>
+            <Button
+              variant="outline"
+              size="icon"
+              className="absolute top-4 right-4 z-10 bg-white/90 backdrop-blur-sm shadow-lg hover:bg-white border-orange-300"
+            >
+              <Info className="h-5 w-5 text-orange-600" />
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-[600px] max-h-[85vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Détails de la carte</DialogTitle>
+              <DialogDescription>
+                Informations et statut de validation
+              </DialogDescription>
+            </DialogHeader>
+            <div className="mt-4">
+              <DetailSidebar
+                metadata={[
+                  {
+                    label: 'Code',
+                    value: processMap.code,
+                  },
+                  {
+                    label: 'Statut',
+                    value: (
+                      <span className="flex items-center gap-2">
+                        {processMap.status}
+                        {(processMap.status === ProcessStatus.DRAFT || processMap.status === ProcessStatus.IN_REVIEW) && (
+                          <ProcessMapValidationStatusBadge processMapId={processMap.id} compact={false} />
+                        )}
+                      </span>
+                    ),
+                  },
+                ]}
+                sections={[
+                  ...(processMap.description
+                    ? [
+                        {
+                          title: 'Description',
+                          content: <BodySmall className="text-gray-700">{processMap.description}</BodySmall>,
+                        },
+                      ]
+                    : []),
+                  ...(processMap.status === ProcessStatus.DRAFT ||
+                  processMap.status === ProcessStatus.IN_REVIEW
+                    ? validationRequests && validationRequests.length > 0
+                      ? [
+                          {
+                            title: 'Statut de validation',
+                            icon: <CheckCircle2 className="h-5 w-5" />,
+                            content: (
+                              <div className="space-y-4">
+                                {validationRequests.map((request: any) => (
+                                  <div
+                                    key={request.id}
+                                    className="flex items-start justify-between p-4 border border-gray-200 rounded-lg shadow-sm"
+                                  >
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <BodySmall className="font-semibold text-gray-800">
+                                          {request.validator.firstName} {request.validator.lastName}
+                                        </BodySmall>
+                                        <span
+                                          className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                            request.status === 'PENDING'
+                                              ? 'bg-yellow-100 text-yellow-800'
+                                              : request.status === 'APPROVED'
+                                                ? 'bg-green-100 text-green-800'
+                                                : 'bg-red-100 text-red-800'
+                                          }`}
+                                        >
+                                          {request.status === 'PENDING'
+                                            ? 'En attente'
+                                            : request.status === 'APPROVED'
+                                              ? 'Approuvé'
+                                              : 'Rejeté'}
+                                        </span>
+                                      </div>
+                                      {request.comment && (
+                                        <BodySmall className="text-gray-600 italic">
+                                          "{request.comment}"
+                                        </BodySmall>
+                                      )}
+                                    </div>
                                   </div>
-                                  {request.comment && (
-                                    <BodySmall className="text-gray-600 italic">
-                                      "{request.comment}"
-                                    </BodySmall>
-                                  )}
-                                </div>
+                                ))}
                               </div>
-                            ))}
-                          </div>
-                        ),
-                      },
-                    ]
-                  : []
-                : []),
-            ]}
-          />
-        </div>
+                            ),
+                          },
+                        ]
+                      : []
+                    : []),
+                ]}
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
 
-        {/* Right Side - Flow */}
-        <div className="w-full lg:w-3/4 xl:w-2/3 flex-1">
+        {/* Full Width Flow */}
+        <div className="w-full h-full">
           <DetailFlowViewer>
             <ProcessMapFlowDiagram processMapId={processMap.id} readOnly={true} />
           </DetailFlowViewer>

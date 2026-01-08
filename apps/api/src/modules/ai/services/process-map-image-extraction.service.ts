@@ -12,6 +12,8 @@ import { PrismaService } from '../../../database/prisma.service';
 import { ProcessMapService } from '../../process-map/services/process-map.service';
 import { ProcessMapFlowService } from '../../process-map/services/process-map-flow.service';
 import { SaveNodeDto } from '../../process/dto/save-flow.dto';
+import * as fs from 'fs';
+import * as path from 'path';
 
 @Injectable()
 export class ProcessMapImageExtractionService {
@@ -68,25 +70,62 @@ export class ProcessMapImageExtractionService {
       tokensUsed = cached.tokensUsed;
       model = cached.model;
     } else {
-      // Appeler l'IA avec vision
+      // Appeler l'IA avec vision avec retry logic pour JSON invalide
       this.logger.log('Calling OpenAI Vision API for image extraction');
-      const response = await this.aiClient.generateFromImage(
-        fullPrompt,
-        imageBase64,
-        mimeType,
-        {
-          maxTokens: 2000, // Limité pour respecter les crédits disponibles
-          temperature: 0.7,
-        },
-      );
+      
+      const MAX_RETRIES = 3;
+      let attempt = 0;
+      let lastError: Error | null = null;
+      
+      while (attempt < MAX_RETRIES) {
+        attempt++;
+        
+        try {
+          const response = await this.aiClient.generateFromImage(
+            fullPrompt,
+            imageBase64,
+            mimeType,
+            {
+              maxTokens: 9000,
+              temperature: attempt === 1 ? 0.7 : 0.5, // Lower temperature on retry for more deterministic output
+              responseFormat: { type: 'json_object' }, // Force JSON mode
+            },
+          );
 
-      // Mettre en cache
-      this.cache.set(cacheKey, response.content, response.tokensUsed, response.model);
+          // Mettre en cache
+          this.cache.set(cacheKey, response.content, response.tokensUsed, response.model);
 
-      // Parser la réponse
-      structure = this.parseAIResponse(response.content);
-      tokensUsed = response.tokensUsed;
-      model = response.model;
+          // Parser la réponse - si ça échoue, on retry
+          structure = this.parseAIResponse(response.content);
+          tokensUsed = response.tokensUsed;
+          model = response.model;
+          
+          this.logger.log(`Successfully parsed AI response on attempt ${attempt}`);
+          break; // Success, exit retry loop
+          
+        } catch (error: any) {
+          lastError = error;
+          this.logger.warn(`Attempt ${attempt}/${MAX_RETRIES} failed: ${error.message}`);
+          
+          if (attempt >= MAX_RETRIES) {
+            this.logger.error(`All ${MAX_RETRIES} attempts failed. Last error: ${error.message}`);
+            throw new Error(
+              `Failed to extract valid ProcessMap structure after ${MAX_RETRIES} attempts. ` +
+              `Last error: ${error.message}. Please try again with a different image or description.`,
+            );
+          }
+          
+          // Wait before retry (exponential backoff: 500ms, 1s, 2s)
+          const waitTime = Math.pow(2, attempt - 1) * 500;
+          this.logger.log(`Waiting ${waitTime}ms before retry...`);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+        }
+      }
+      
+      // This should never happen due to the throw above, but TypeScript needs it
+      if (!structure!) {
+        throw lastError || new Error('Unknown error during image extraction');
+      }
     }
 
     // Transformer la structure IA en nodes ReactFlow
@@ -222,23 +261,48 @@ export class ProcessMapImageExtractionService {
     try {
       // Nettoyer le contenu (enlever markdown code blocks si présents)
       let cleanedContent = content.trim();
+      
+      // Remove markdown code blocks
       if (cleanedContent.startsWith('```json')) {
-        cleanedContent = cleanedContent.replace(/```json\n?/g, '').replace(/```\n?/g, '');
+        cleanedContent = cleanedContent.replace(/```json\n?/g, '').replace(/```\n?$/g, '');
       } else if (cleanedContent.startsWith('```')) {
         cleanedContent = cleanedContent.replace(/```\n?/g, '');
       }
+      
+      // Try to extract JSON if there's text before/after
+      const jsonMatch = cleanedContent.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        cleanedContent = jsonMatch[0];
+      }
+      
+      // Remove any BOM or invisible characters
+      cleanedContent = cleanedContent.replace(/^\uFEFF/, '').trim();
 
       const parsed = JSON.parse(cleanedContent);
 
       // Validation basique
       if (!parsed.title || !parsed.groups || !Array.isArray(parsed.groups)) {
-        throw new Error('Invalid structure: missing title or groups');
+        throw new Error(
+          `Invalid structure: missing title or groups. Got: ${JSON.stringify(Object.keys(parsed))}`,
+        );
+      }
+      
+      if (parsed.groups.length === 0) {
+        throw new Error('Invalid structure: groups array is empty');
       }
 
       // Valider chaque groupe
       for (const group of parsed.groups) {
-        if (!group.name || !Array.isArray(group.processes)) {
-          throw new Error(`Invalid group structure: ${JSON.stringify(group)}`);
+        if (!group.name) {
+          throw new Error(
+            `Invalid group structure: missing name. Got: ${JSON.stringify(Object.keys(group))}`,
+          );
+        }
+        
+        if (!Array.isArray(group.processes)) {
+          throw new Error(
+            `Invalid group structure: processes is not an array. Got type: ${typeof group.processes}`,
+          );
         }
 
         // Valider chaque processus
@@ -294,9 +358,192 @@ export class ProcessMapImageExtractionService {
 
       return parsed as GeneratedProcessMapStructure;
     } catch (error: any) {
+      // Enhanced error logging
       this.logger.error(`Failed to parse AI response: ${error.message}`);
-      this.logger.debug(`Response content: ${content.substring(0, 500)}`);
-      throw new Error(`Invalid AI response format: ${error.message}`);
+      
+      // Write failed response to file for debugging
+      try {
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const logsDir = path.join(process.cwd(), 'logs', 'failed-ai-responses');
+        
+        // Create directory if it doesn't exist
+        if (!fs.existsSync(logsDir)) {
+          fs.mkdirSync(logsDir, { recursive: true });
+        }
+        
+        const filename = `failed-response-${timestamp}.json`;
+        const filepath = path.join(logsDir, filename);
+        
+        // Write debug information
+        const debugInfo = {
+          timestamp: new Date().toISOString(),
+          error: error.message,
+          errorType: error.constructor.name,
+          contentLength: content.length,
+          contentPreview: content.substring(0, 500),
+          fullContent: content,
+        };
+        
+        fs.writeFileSync(filepath, JSON.stringify(debugInfo, null, 2), 'utf-8');
+        this.logger.error(`Failed AI response saved to: ${filepath}`);
+      } catch (writeError: any) {
+        this.logger.warn(`Failed to write debug file: ${writeError.message}`);
+      }
+      
+      // Log first 1000 characters for debugging
+      const preview = content.substring(0, 1000);
+      this.logger.debug(`Response content preview (first 1000 chars): ${preview}`);
+      
+      // Try to identify the specific JSON parsing issue
+      if (error instanceof SyntaxError) {
+        // Extract line and column information if available
+        const match = error.message.match(/position (\d+)/);
+        if (match) {
+          const position = parseInt(match[1]);
+          const contextStart = Math.max(0, position - 50);
+          const contextEnd = Math.min(content.length, position + 50);
+          const context = content.substring(contextStart, contextEnd);
+          this.logger.error(`JSON parse error at position ${position}: "${context}"`);
+        }
+        throw new Error(
+          `Invalid JSON syntax in AI response: ${error.message}. ` +
+          `This may be due to malformed JSON structure. The AI will retry with stricter formatting.`,
+        );
+      }
+      
+      // Re-throw with enhanced error message
+      throw new Error(
+        `Invalid AI response format: ${error.message}. ` +
+        `Expected a valid ProcessMap structure with title, groups, and processes.`,
+      );
+    }
+  }
+
+  /**
+   * Analyse une image pour détecter les processus sans créer de nodes
+   * Retourne juste la liste des processus détectés
+   */
+  async analyzeImage(
+    imageBase64: string,
+    mimeType: string,
+    contextType?: string,
+    description?: string,
+  ): Promise<{
+    processes: Array<{ label: string; confidence?: number }>;
+  }> {
+    // Construire le prompt adapté au contexte
+    let prompt: string;
+    if (contextType === 'domainGroup') {
+      // Pour un groupe de domaine, on veut juste extraire les noms de processus principaux
+      prompt = `Analyze this process diagram image and extract ONLY the main process names.
+Return a JSON object with a "processes" array containing objects with "label" and optional "confidence" fields.
+Focus on extracting text labels from boxes/rectangles that represent main processes.
+Do not include group names or container labels, only the actual process names.
+
+Example output format:
+{
+  "processes": [
+    { "label": "Gestion des commandes", "confidence": 0.95 },
+    { "label": "Livraison", "confidence": 0.90 }
+  ]
+}`;
+    } else {
+      // Prompt générique pour extraction complète
+      const { system, user } = buildExtractProcessMapFromImagePrompt(description);
+      prompt = `${system}\n\n${user}`;
+    }
+
+    // Créer une clé de cache
+    const imageHash = this.hashString(imageBase64.substring(0, 1000));
+    const cacheKey = `image-analyze-${imageHash}-${contextType || 'generic'}-${description || 'no-desc'}`;
+
+    // Vérifier le cache
+    const cached = this.cache.get(cacheKey);
+    let content: string;
+
+    if (cached) {
+      this.logger.log('Using cached response for image analysis');
+      content = cached.content;
+    } else {
+      // Appeler l'IA avec vision
+      this.logger.log('Calling OpenAI Vision API for image analysis');
+      
+      const MAX_RETRIES = 3;
+      let attempt = 0;
+      let lastError: Error | null = null;
+      
+      while (attempt < MAX_RETRIES) {
+        attempt++;
+        
+        try {
+          const response = await this.aiClient.generateFromImage(
+            prompt,
+            imageBase64,
+            mimeType,
+            {
+              maxTokens: contextType === 'domainGroup' ? 2000 : 9000,
+              temperature: attempt === 1 ? 0.7 : 0.5,
+              responseFormat: { type: 'json_object' },
+            },
+          );
+
+          // Mettre en cache
+          this.cache.set(cacheKey, response.content, response.tokensUsed, response.model);
+          content = response.content;
+          break;
+        } catch (error) {
+          lastError = error;
+          this.logger.error(`Attempt ${attempt}/${MAX_RETRIES} failed for image analysis:`, error.message);
+          
+          if (attempt >= MAX_RETRIES) {
+            throw new Error(
+              `Failed to analyze image after ${MAX_RETRIES} attempts. Last error: ${lastError.message}`,
+            );
+          }
+          
+          // Wait before retry
+          await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+        }
+      }
+    }
+
+    // Parser la réponse
+    try {
+      const parsed = JSON.parse(content);
+      
+      // Pour contextType='domainGroup', on s'attend à un format simple
+      if (contextType === 'domainGroup') {
+        if (!parsed.processes || !Array.isArray(parsed.processes)) {
+          throw new Error('Response must contain a "processes" array');
+        }
+        
+        return {
+          processes: parsed.processes.map((p: any) => ({
+            label: p.label || p.name || 'Process',
+            confidence: p.confidence,
+          })),
+        };
+      }
+      
+      // Pour le format complet ProcessMap, extraire tous les processus
+      const structure = this.parseAIResponse(content);
+      const processes: Array<{ label: string; confidence?: number }> = [];
+      
+      // Extraire les processus de tous les groupes
+      for (const group of structure.groups || []) {
+        for (const process of group.processes || []) {
+          processes.push({
+            label: process.label,
+            confidence: 0.9, // Score par défaut
+          });
+        }
+      }
+      
+      return { processes };
+      
+    } catch (error) {
+      this.logger.error('Failed to parse image analysis response:', error.message);
+      throw new Error(`Invalid response format: ${error.message}`);
     }
   }
 

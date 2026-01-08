@@ -3,7 +3,7 @@
  * Handles all SIPOC-related API calls
  */
 
-import { get, post, patch, del, handleApiError } from '../base-api'
+import { get, post, patch, del, handleApiError, put } from '../base-api'
 import type { SipocDiagram } from '../../features/sipoc/types/sipoc.types'
 
 export interface CreateSipocDto {
@@ -98,6 +98,47 @@ class SipocApiService {
   async deleteSipocDiagram(id: string): Promise<void> {
     try {
       await del(`${this.baseUrl}/${id}`)
+    } catch (error) {
+      throw new Error(handleApiError(error))
+    }
+  }
+
+  // ====================================
+  // SIPOC ELEMENTS API
+  // ====================================
+
+  /**
+   * Get elements by SIPOC ID
+   */
+  async getElements(sipocId: string) {
+    try {
+      return await get(`${this.baseUrl}/${sipocId}/elements`)
+    } catch (error) {
+      throw new Error(handleApiError(error))
+    }
+  }
+
+  /**
+   * Update SIPOC element
+   */
+  async updateElement(
+    sipocId: string,
+    elementId: string,
+    data: { title?: string; description?: string; contactInfo?: string }
+  ) {
+    try {
+      return await put(`${this.baseUrl}/${sipocId}/elements/${elementId}`, data)
+    } catch (error) {
+      throw new Error(handleApiError(error))
+    }
+  }
+
+  /**
+   * Delete SIPOC element
+   */
+  async deleteElement(sipocId: string, elementId: string) {
+    try {
+      await del(`${this.baseUrl}/${sipocId}/elements/${elementId}`)
     } catch (error) {
       throw new Error(handleApiError(error))
     }

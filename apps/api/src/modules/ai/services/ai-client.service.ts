@@ -8,6 +8,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
 import type { AIGenerateOptions, AIGenerateResponse } from '../interfaces/ai.interface';
+import { ProxyConfigService } from '../../../common/config/proxy.config';
 
 /**
  * Configuration du proxy LLM OpenRouter
@@ -29,19 +30,38 @@ export class AIClientService implements OnModuleInit {
   private readonly defaultVisionMaxTokens = 2000; // Limite spécifique pour les appels vision
   private readonly defaultTemperature = 0.7;
   private readonly visionModel = process.env.LLM_PROXY_VISION_MODEL;
+  private readonly proxyConfig: ProxyConfigService;
+
   constructor(private readonly configService: ConfigService) {
     // Utiliser gpt-4o-mini pour respecter le budget de $10/mois
     this.defaultModel = LLM_CONFIG.defaultModel;
+    
+    // Initialize proxy configuration
+    this.proxyConfig = new ProxyConfigService();
   }
 
   onModuleInit() {
     this.logger.log(`Initializing AI Client with model: ${LLM_CONFIG.defaultModel}`);
     this.logger.log(`Using OpenRouter LLM proxy: ${LLM_CONFIG.baseURL}`);
     
-    this.openai = new OpenAI({
+    // Configure OpenAI client with proxy if enabled
+    const clientOptions: any = {
       apiKey: LLM_CONFIG.apiKey,
       baseURL: LLM_CONFIG.baseURL,
-    });
+    };
+
+    // Add proxy configuration if enabled
+    if (this.proxyConfig.isEnabled()) {
+      const httpsAgent = this.proxyConfig.getHttpsAgent();
+      if (httpsAgent) {
+        clientOptions.httpAgent = httpsAgent;
+        this.logger.log(`Proxy enabled for OpenAI API calls: ${this.proxyConfig.getProxyUrl()}`);
+      }
+    } else {
+      this.logger.log('Proxy is disabled - direct connection to OpenAI');
+    }
+
+    this.openai = new OpenAI(clientOptions);
     this.logger.log('OpenAI client initialized with OpenRouter LLM proxy');
   }
 
@@ -177,7 +197,7 @@ export class AIClientService implements OnModuleInit {
         ],
         max_tokens: maxTokens,
         temperature,
-        response_format: { type: 'json_object' }, // Force JSON response
+        response_format: options.responseFormat || { type: 'json_object' }, // Use provided format or default to JSON
       });
 
       const content = response.choices[0]?.message?.content || '';

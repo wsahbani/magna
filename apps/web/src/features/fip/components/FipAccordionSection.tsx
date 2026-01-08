@@ -60,47 +60,46 @@ export function FipAccordionSection({
   };
 
   return (
-    <div className={cn('bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden', className)}>
+    <div className={cn('bg-white rounded-lg border border-gray-200 shadow-md hover:shadow-lg transition-all duration-200 overflow-hidden', className)}>
       <button
         onClick={toggleExpanded}
         className={cn(
-          'w-full flex items-center gap-3 px-4 py-3 transition-all duration-200',
-          'hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2',
-          isExpanded && 'bg-gray-50'
+          'w-full flex items-center gap-4 px-6 py-4 transition-all duration-200',
+          'hover:bg-gradient-to-r hover:from-orange-50/50 hover:to-transparent focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2',
+          isExpanded && 'bg-gradient-to-r from-orange-50/50 to-transparent border-b border-gray-200'
         )}
         aria-expanded={isExpanded}
         aria-controls={`fip-section-${id}`}
       >
         <ChevronDown
           className={cn(
-            'w-5 h-5 text-gray-400 transition-transform duration-200 flex-shrink-0',
+            'w-5 h-5 text-orange-500 transition-transform duration-300 flex-shrink-0',
             isExpanded ? 'rotate-0' : '-rotate-90'
           )}
         />
         
         {icon && (
-          <span className="text-orange-600 flex-shrink-0">
+          <span className="text-orange-600 flex-shrink-0 w-6 h-6 flex items-center justify-center">
             {icon}
           </span>
         )}
 
         <div className="flex-1 text-left min-w-0">
-          <Heading2 className="text-base font-semibold text-gray-900 truncate">
+          <span className="text-base font-semibold text-gray-900 truncate">
             {title}
-          </Heading2>
+          </span>
         </div>
 
-        <div className="flex items-center gap-2 flex-shrink-0">
-          {/* Badge de complétude */}
+        <div className="flex items-center gap-3 flex-shrink-0">{/* Badge de complétude */}
           {completionPercentage !== undefined && (
             <div className="flex items-center gap-2">
-              <div className="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
+              <div className="w-20 h-3 bg-gray-200 rounded-full overflow-hidden shadow-inner">
                 <div
-                  className={cn('h-full transition-all duration-300', getCompletionColor(completionPercentage))}
+                  className={cn('h-full transition-all duration-500 rounded-full', getCompletionColor(completionPercentage))}
                   style={{ width: `${completionPercentage}%` }}
                 />
               </div>
-              <Caption className="text-gray-500 text-xs font-medium min-w-[2.5rem]">
+              <Caption className="text-gray-600 text-xs font-bold min-w-[3rem] text-right">
                 {completionPercentage}%
               </Caption>
             </div>
@@ -108,7 +107,7 @@ export function FipAccordionSection({
 
           {/* Badge de compteur */}
           {count !== undefined && (
-            <span className="px-2 py-0.5 bg-orange-100 text-orange-700 text-xs font-semibold rounded-full">
+            <span className="px-3 py-1 bg-orange-100 text-orange-700 text-sm font-bold rounded-full shadow-sm">
               {count}
             </span>
           )}
@@ -119,12 +118,12 @@ export function FipAccordionSection({
       <div
         id={`fip-section-${id}`}
         className={cn(
-          'overflow-hidden transition-all duration-300 ease-in-out',
-          isExpanded ? 'max-h-[5000px] opacity-100' : 'max-h-0 opacity-0'
+          'overflow-hidden transition-all duration-500 ease-in-out',
+          isExpanded ? 'max-h-[8000px] opacity-100' : 'max-h-0 opacity-0'
         )}
         aria-hidden={!isExpanded}
       >
-        <div className="p-4 border-t border-gray-100">
+        <div className="p-6">
           {children}
         </div>
       </div>
