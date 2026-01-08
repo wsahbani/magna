@@ -3,11 +3,14 @@ import { useFipStore } from '../store/fipStore';
 import { useFipByProcess, useCreateFip, useUpdateFip } from '../hooks/useFip';
 import { FipForm } from './FipForm';
 import { FipView } from './FipView';
+import { FipDocumentView } from './FipDocumentView';
+import { FipPdfDocument } from './FipPdfDocument';
 import { Button, Heading2, Heading1, BodySmall, Caption, Badge } from '@repo/ui';
 import { ProcessIdentityCard, UpdateFipDto } from '../types/fip.types';
-import { AlertCircle, Loader2, Plus, Edit, X, FileText, Calendar, User } from 'lucide-react';
+import { AlertCircle, Loader2, Plus, Edit, X, FileText, Calendar, User, Download } from 'lucide-react';
 import { useSipocDiagramsByProcessId, useSipocElements } from '../../sipoc/hooks/useSipoc';
 import { useAuth } from '../../auth/context/AuthContext';
+import { pdf } from '@react-pdf/renderer';
 
 interface FipEditorProps {
   processId: string;
@@ -102,6 +105,29 @@ export const FipEditor: React.FC<FipEditorProps> = ({ processId, onSave }) => {
       console.error('Failed to create FIP:', err);
     }
   }, [processId, createFipMutation, refetch]);
+
+  const handleDownloadPdf = useCallback(async () => {
+    if (!fip) return;
+    
+    try {
+      // Generate PDF blob
+      const blob = await pdf(
+        <FipPdfDocument fip={fip} sipocElements={sipocElements || []} sipocDiagram={sipocDiagram} />
+      ).toBlob();
+      
+      // Create download link
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `FIP_${fip.process?.name || 'Document'}_${new Date().toLocaleDateString('fr-FR')}.pdf`;
+      link.click();
+      
+      // Cleanup
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Failed to generate PDF:', err);
+    }
+  }, [fip, sipocElements, sipocDiagram]);
 
   // Loading state
   if (isLoading) {
@@ -213,6 +239,14 @@ export const FipEditor: React.FC<FipEditorProps> = ({ processId, onSave }) => {
             
             {/* Action Buttons */}
             <div className="flex items-center gap-2 flex-shrink-0">
+              <Button
+                variant="outline"
+                onClick={handleDownloadPdf}
+                className="border-orange-500 text-orange-600 hover:bg-orange-50"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Télécharger PDF
+              </Button>
               {fip.status !== 'published' && (
                 <Button
                   variant={isEditMode ? 'outline' : 'default'}
@@ -268,9 +302,10 @@ export const FipEditor: React.FC<FipEditorProps> = ({ processId, onSave }) => {
                 refetchSipoc={refetchSipoc}
               />
             ) : (
-              <FipView 
+              <FipDocumentView 
                 fip={fip} 
-                sipocElements={sipocElements || []} 
+                sipocElements={sipocElements || []}
+                sipocDiagram={sipocDiagram}
                 sipocLoading={sipocLoading || sipocElementsLoading}
                 processId={processId}
               />

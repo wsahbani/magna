@@ -78,7 +78,7 @@ export const PageWrapper = ({
   maxWidth = 'full',
 }: PageWrapperProps) => {
   return (
-    <div className={`min-h-screen bg-gray-50 ${noPadding ? '' : 'p-6'}`}>
+    <div className={`min-h-screen bg-white ${noPadding ? '' : 'p-6'}`}>
       <div className={`mx-auto ${maxWidthClasses[maxWidth]} space-y-6`}>
         {/* Breadcrumbs */}
         {breadcrumbs && breadcrumbs.length > 0 && (

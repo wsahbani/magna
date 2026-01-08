@@ -420,6 +420,134 @@ export class ProcessMapImageExtractionService {
   }
 
   /**
+   * Analyse une image pour détecter les processus sans créer de nodes
+   * Retourne juste la liste des processus détectés
+   */
+  async analyzeImage(
+    imageBase64: string,
+    mimeType: string,
+    contextType?: string,
+    description?: string,
+  ): Promise<{
+    processes: Array<{ label: string; confidence?: number }>;
+  }> {
+    // Construire le prompt adapté au contexte
+    let prompt: string;
+    if (contextType === 'domainGroup') {
+      // Pour un groupe de domaine, on veut juste extraire les noms de processus principaux
+      prompt = `Analyze this process diagram image and extract ONLY the main process names.
+Return a JSON object with a "processes" array containing objects with "label" and optional "confidence" fields.
+Focus on extracting text labels from boxes/rectangles that represent main processes.
+Do not include group names or container labels, only the actual process names.
+
+Example output format:
+{
+  "processes": [
+    { "label": "Gestion des commandes", "confidence": 0.95 },
+    { "label": "Livraison", "confidence": 0.90 }
+  ]
+}`;
+    } else {
+      // Prompt générique pour extraction complète
+      const { system, user } = buildExtractProcessMapFromImagePrompt(description);
+      prompt = `${system}\n\n${user}`;
+    }
+
+    // Créer une clé de cache
+    const imageHash = this.hashString(imageBase64.substring(0, 1000));
+    const cacheKey = `image-analyze-${imageHash}-${contextType || 'generic'}-${description || 'no-desc'}`;
+
+    // Vérifier le cache
+    const cached = this.cache.get(cacheKey);
+    let content: string;
+
+    if (cached) {
+      this.logger.log('Using cached response for image analysis');
+      content = cached.content;
+    } else {
+      // Appeler l'IA avec vision
+      this.logger.log('Calling OpenAI Vision API for image analysis');
+      
+      const MAX_RETRIES = 3;
+      let attempt = 0;
+      let lastError: Error | null = null;
+      
+      while (attempt < MAX_RETRIES) {
+        attempt++;
+        
+        try {
+          const response = await this.aiClient.generateFromImage(
+            prompt,
+            imageBase64,
+            mimeType,
+            {
+              maxTokens: contextType === 'domainGroup' ? 2000 : 9000,
+              temperature: attempt === 1 ? 0.7 : 0.5,
+              responseFormat: { type: 'json_object' },
+            },
+          );
+
+          // Mettre en cache
+          this.cache.set(cacheKey, response.content, response.tokensUsed, response.model);
+          content = response.content;
+          break;
+        } catch (error) {
+          lastError = error;
+          this.logger.error(`Attempt ${attempt}/${MAX_RETRIES} failed for image analysis:`, error.message);
+          
+          if (attempt >= MAX_RETRIES) {
+            throw new Error(
+              `Failed to analyze image after ${MAX_RETRIES} attempts. Last error: ${lastError.message}`,
+            );
+          }
+          
+          // Wait before retry
+          await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+        }
+      }
+    }
+
+    // Parser la réponse
+    try {
+      const parsed = JSON.parse(content);
+      
+      // Pour contextType='domainGroup', on s'attend à un format simple
+      if (contextType === 'domainGroup') {
+        if (!parsed.processes || !Array.isArray(parsed.processes)) {
+          throw new Error('Response must contain a "processes" array');
+        }
+        
+        return {
+          processes: parsed.processes.map((p: any) => ({
+            label: p.label || p.name || 'Process',
+            confidence: p.confidence,
+          })),
+        };
+      }
+      
+      // Pour le format complet ProcessMap, extraire tous les processus
+      const structure = this.parseAIResponse(content);
+      const processes: Array<{ label: string; confidence?: number }> = [];
+      
+      // Extraire les processus de tous les groupes
+      for (const group of structure.groups || []) {
+        for (const process of group.processes || []) {
+          processes.push({
+            label: process.label,
+            confidence: 0.9, // Score par défaut
+          });
+        }
+      }
+      
+      return { processes };
+      
+    } catch (error) {
+      this.logger.error('Failed to parse image analysis response:', error.message);
+      throw new Error(`Invalid response format: ${error.message}`);
+    }
+  }
+
+  /**
    * Hash simple d'une string pour le cache
    */
   private hashString(str: string): string {

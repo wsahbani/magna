@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from '@tanstack/react-router'
 import { Building2, Plus, Users, FileText, Map, FolderPlus, ChevronDown, Search } from 'lucide-react'
-import { Button, Heading3, Body, BodySmall, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Tabs, TabsContent, TabsList, TabsTrigger } from '@repo/ui'
+import { Button, Heading3, Body, BodySmall, Caption, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Tabs, TabsContent, TabsList, TabsTrigger } from '@repo/ui'
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@repo/ui/components/ui/dropdown-menu'
 import { PageWrapper } from '../../../components/layout/PageWrapper'
 import { ProcessCard } from '../../process/components/ProcessCard'
@@ -365,7 +365,7 @@ export default function WorkspaceDetailPage() {
               <FileText className="w-5 h-5 text-blue-600" />
             </div>
             <div>
-              <BodySmall>Processus</BodySmall>
+              <Caption className="text-gray-600">Processus</Caption>
               <p className="text-2xl font-bold text-gray-900">
                 {workspace._count?.processes || 0}
               </p>
@@ -379,7 +379,7 @@ export default function WorkspaceDetailPage() {
               <Map className="w-5 h-5 text-orange-600" />
             </div>
             <div>
-              <BodySmall>Cartes de processus</BodySmall>
+              <Caption className="text-gray-600">Cartes de processus</Caption>
               <p className="text-2xl font-bold text-gray-900">
                 {processMapsData?.data?.length || 0}
               </p>
@@ -393,7 +393,7 @@ export default function WorkspaceDetailPage() {
               <Users className="w-5 h-5 text-green-600" />
             </div>
             <div>
-              <BodySmall>Membres</BodySmall>
+              <Caption className="text-gray-600">Membres</Caption>
               <p className="text-2xl font-bold text-gray-900">
                 {workspace._count?.workspaceMembers || 0}
               </p>
@@ -407,7 +407,7 @@ export default function WorkspaceDetailPage() {
               <Building2 className="w-5 h-5 text-purple-600" />
             </div>
             <div>
-              <BodySmall>Sous-espaces</BodySmall>
+              <Caption className="text-gray-600">Sous-espaces</Caption>
               <p className="text-2xl font-bold text-gray-900">
                 {workspace._count?.children || 0}
               </p>

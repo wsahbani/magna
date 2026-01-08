@@ -198,6 +198,90 @@ export class AIController {
     };
   }
 
+  @Post('process-map/analyze')
+  @HttpCode(HttpStatus.OK)
+  @UseInterceptors(
+    FileInterceptor('image', {
+      storage: memoryStorage(),
+      limits: {
+        fileSize: 5 * 1024 * 1024, // 5MB max
+      },
+      fileFilter: (req, file, cb) => {
+        const allowedMimeTypes = [
+          'image/png',
+          'image/jpeg',
+          'image/jpg',
+          'image/webp',
+          'image/gif',
+          'image/bmp',
+          'image/svg+xml',
+        ];
+        if (allowedMimeTypes.includes(file.mimetype)) {
+          cb(null, true);
+        } else {
+          cb(
+            new BadRequestException(
+              `Format d'image non supporté. Formats acceptés: PNG, JPG, WEBP, GIF, BMP, SVG`,
+            ),
+            false,
+          );
+        }
+      },
+    }),
+  )
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({
+    summary: 'Analyse une image pour détecter les processus (sans créer de nodes)',
+    description:
+      'Utilise l\'IA vision pour analyser une image et retourner les processus détectés. Ne crée pas de nodes dans la base de données.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Image analysée avec succès',
+    schema: {
+      properties: {
+        success: { type: 'boolean' },
+        processes: {
+          type: 'array',
+          items: {
+            properties: {
+              label: { type: 'string' },
+              confidence: { type: 'number', description: 'Score de confiance entre 0 et 1' },
+            },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: 'Requête invalide - format ou taille d\'image invalide' })
+  @ApiResponse({ status: 500, description: 'Erreur lors de l\'analyse' })
+  async analyzeProcessMapImage(
+    @UploadedFile() file: any,
+    @Body('contextType') contextType?: string,
+    @Body('processMapId') processMapId?: string,
+    @Body('description') description?: string,
+  ) {
+    if (!file) {
+      throw new BadRequestException('Aucune image fournie');
+    }
+
+    // Convertir le fichier en base64
+    const imageBase64 = file.buffer.toString('base64');
+
+    // Analyser l'image avec l'IA
+    const result = await this.processMapImageExtractionService.analyzeImage(
+      imageBase64,
+      file.mimetype,
+      contextType,
+      description,
+    );
+
+    return {
+      success: true,
+      processes: result.processes,
+    };
+  }
+
   @Post('process/generate')
   @ApiOperation({
     summary: 'Génère un processus à partir d une description textuelle',

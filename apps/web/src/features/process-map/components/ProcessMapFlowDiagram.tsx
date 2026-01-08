@@ -29,8 +29,14 @@ import { PaletteConfigFactory } from '../config/palette-config';
 import { getBackgroundVariant } from '../../../components/FlowBuilder/utils/gridUtils';
 import { useGroupAttachment } from '../../../components/FlowBuilder/hooks/useGroupAttachment';
 import { ImageExtractionModal } from './ImageExtractionModal';
+import { AddMultipleProcessesModal } from './AddMultipleProcessesModal';
+import { AIGenerateModal } from '../../../components/FlowBuilder/modals/AIGenerateModal';
+import { AIGenerateProcessModal } from '../../process/components/AIGenerateProcessModal';
 import { processMapFlowKeys } from '../hooks/useProcessMapFlow';
 import { exportFlowToImage } from '../../../components/FlowBuilder/utils/exportFlowImage';
+import { useAIAnalyzeProcessMapImage } from '../hooks/useAIGenerateProcessMap';
+import { createProcessFromAI } from '../../../lib/api/ai.api';
+import { toast } from 'sonner';
 
 interface ProcessMapFlowDiagramProps {
   processMapId: string;
@@ -65,6 +71,19 @@ export function ProcessMapFlowDiagram({
   // Image extraction modal state
   const [isImageExtractionModalOpen, setIsImageExtractionModalOpen] = useState(false);
 
+  // Add multiple processes modal state
+  const [isAddMultipleProcessesModalOpen, setIsAddMultipleProcessesModalOpen] = useState(false);
+  const [targetGroupIdForMultipleProcesses, setTargetGroupIdForMultipleProcesses] = useState<string | null>(null);
+  const [processCountToAdd, setProcessCountToAdd] = useState(1);
+
+  // AI Generate modal state
+  const [isAIGenerateModalOpen, setIsAIGenerateModalOpen] = useState(false);
+  const [targetGroupIdForAIGenerate, setTargetGroupIdForAIGenerate] = useState<string | null>(null);
+
+  // AI Generate Level 2 Process modal state
+  const [isAIGenerateLevel2ModalOpen, setIsAIGenerateLevel2ModalOpen] = useState(false);
+  const [targetMainProcessNodeId, setTargetMainProcessNodeId] = useState<string | null>(null);
+
   // Get palette configuration for ProcessMap (level 1)
   const paletteConfig = PaletteConfigFactory.createByEntityType('processMap');
 
@@ -97,6 +116,9 @@ export function ProcessMapFlowDiagram({
     nodes,
     onNodesChange
   );
+
+  // AI Analyze Image mutation
+  const analyzeImageMutation = useAIAnalyzeProcessMapImage();
 
   // Sync selectedNode/selectedEdge with store when nodes/edges change
   useEffect(() => {
@@ -594,6 +616,111 @@ export function ProcessMapFlowDiagram({
     [reactFlowWrapper, processMapId]
   );
 
+  // Handle opening modal for adding multiple processes to a domainGroup
+  const handleOpenAddMultipleProcessesModal = useCallback(
+    (groupId: string) => {
+      if (readOnly) return;
+      setTargetGroupIdForMultipleProcesses(groupId);
+      setProcessCountToAdd(1);
+      setIsAddMultipleProcessesModalOpen(true);
+    },
+    [readOnly]
+  );
+
+  // Handle adding multiple mainProcesses to a domainGroup
+  const handleAddMultipleProcessesToGroup = useCallback(
+    (groupId: string, count: number, nodeType: 'mainProcess' | 'domainGroup' = 'mainProcess') => {
+      if (readOnly || count < 1) return;
+
+      // Get the group node
+      const groupNode = nodes.find((n) => n.id === groupId);
+      if (!groupNode || groupNode.type !== 'domainGroup') return;
+
+      // Get all children of this group
+      const children = nodes.filter((n) => (n as any).parentId === groupId);
+
+      // Constants for node dimensions based on type
+      const NODE_WIDTH = nodeType === 'mainProcess' ? 140 : 200;
+      const NODE_HEIGHT = nodeType === 'mainProcess' ? 80 : 150;
+      const SPACING = 20;
+
+      // Get group dimensions
+      const groupWidth = (groupNode.width as number) || 200;
+      const groupHeight = (groupNode.height as number) || 150;
+
+      // Calculate new positions for all nodes (existing + new)
+      const totalNodes = children.length + count;
+      const totalWidthNeeded = totalNodes * (NODE_WIDTH + SPACING) - SPACING;
+      
+      // Check if group width needs to be increased
+      let finalGroupWidth = groupWidth;
+      if (totalWidthNeeded > groupWidth) {
+        finalGroupWidth = totalWidthNeeded + 100; // 100px margin
+        updateNode(groupId, {
+          width: finalGroupWidth,
+        } as any);
+      }
+
+      // Calculate center position for the group
+      const centerX = finalGroupWidth / 2;
+      const centerY = groupHeight / 2;
+
+      // Sort existing children by current X position to maintain visual order
+      const sortedChildren = [...children].sort((a, b) => a.position.x - b.position.x);
+      
+      // Create new nodes
+      const newNodes: Node[] = [];
+      for (let i = 0; i < count; i++) {
+        const timestamp = Date.now() + i;
+        const newNode: Node = {
+          id: `${nodeType}-${timestamp}`,
+          type: nodeType,
+          position: { x: 0, y: 0 }, // Will be calculated below
+          parentId: groupId,
+          extent: 'parent' as const,
+          width: NODE_WIDTH,
+          height: NODE_HEIGHT,
+          data: {
+            label: nodeType === 'mainProcess' ? `Processus ${i + 1}` : `Groupe ${i + 1}`,
+            processId: undefined,
+          },
+        };
+        newNodes.push(newNode);
+      }
+
+      // Calculate positions for all nodes (new + existing)
+      // New nodes go first (center), then existing nodes shift left
+      const allNodesToPosition = [...newNodes, ...sortedChildren];
+      
+      allNodesToPosition.forEach((node, index) => {
+        // Calculate index relative to center
+        // For center distribution: -n/2, -n/2+1, ..., -1, 0, 1, ..., n/2
+        const centerIndex = (totalNodes - 1) / 2;
+        const relativeIndex = index - centerIndex;
+        const newX = centerX + relativeIndex * (NODE_WIDTH + SPACING) - NODE_WIDTH / 2;
+        
+        const newPosition = {
+          x: newX,
+          y: centerY - NODE_HEIGHT / 2,
+        };
+
+        if (newNodes.includes(node)) {
+          // Update new node position
+          node.position = newPosition;
+        } else {
+          // Update existing node position
+          updateNode(node.id, {
+            position: newPosition,
+          } as any);
+        }
+      });
+
+      // Add all new nodes at once
+      newNodes.forEach((node) => addNode(node));
+    },
+    [nodes, addNode, updateNode, readOnly]
+  );
+
   // Handle adding mainProcess to a domainGroup
   const handleAddMainProcessToGroup = useCallback(
     (groupId: string) => {
@@ -681,6 +808,216 @@ export function ProcessMapFlowDiagram({
       addNode(newNode);
     },
     [nodes, addNode, updateNode, readOnly],
+  );
+
+  // Handle opening AI Generate modal
+  const handleOpenAIGenerateModal = useCallback(
+    (groupId: string) => {
+      if (readOnly) return;
+      setTargetGroupIdForAIGenerate(groupId);
+      setIsAIGenerateModalOpen(true);
+    },
+    [readOnly]
+  );
+
+  // Handle opening AI Generate Level 2 Process modal
+  const handleOpenGenerateLevel2ProcessModal = useCallback(
+    (nodeId: string) => {
+      if (readOnly) return;
+      setTargetMainProcessNodeId(nodeId);
+      setIsAIGenerateLevel2ModalOpen(true);
+    },
+    [readOnly]
+  );
+
+  // Handle AI generation - process image or text prompt
+  const handleAIGenerate = useCallback(
+    async (groupId: string, mode: 'image' | 'text', data: File | string) => {
+      if (readOnly) return []
+
+      // Get the group node
+      const groupNode = nodes.find((n) => n.id === groupId);
+      if (!groupNode || groupNode.type !== 'domainGroup') return []
+
+      try {
+        console.log('AI Generate:', { mode, groupId })
+
+        let processNames: Array<{ label: string; type?: 'mainProcess' | 'domainGroup' }> = []
+
+        if (mode === 'image') {
+          // Use mutation hook to analyze image
+          const result = await analyzeImageMutation.mutateAsync({
+            image: data as File,
+            contextType: 'domainGroup',
+            processMapId: processMapId,
+          });
+          
+          // Extract processes from response
+          if (result.success && Array.isArray(result.processes)) {
+            processNames = result.processes.map((p) => ({
+              label: p.label,
+              type: 'mainProcess' as const, // Force mainProcess for domain group context
+              confidence: p.confidence,
+            }));
+          }
+
+          console.log('Image analyzed:', {
+            filename: (data as File).name,
+            processesDetected: processNames.length,
+          });
+        } else {
+          // TODO: Call AI text processing service
+          // const response = await fetch('/api/process-map-ai/generate-from-text', {
+          //   method: 'POST',
+          //   headers: { 'Content-Type': 'application/json' },
+          //   body: JSON.stringify({ prompt: data }),
+          // });
+          // const result = await response.json();
+          // processNames = result.processes; // [{ label: string, type?: string }]
+          
+          // Mock: Extract process names from prompt
+          const prompt = data as string
+          console.log('Text prompt:', prompt)
+          
+          await new Promise(resolve => setTimeout(resolve, 1000)) // Simulate API call
+          
+          // Simple extraction: look for numbers or lists
+          const lines = prompt.split(/[,\n]/).map(l => l.trim()).filter(l => l.length > 0)
+          processNames = lines.slice(0, 5).map(label => ({ label, type: 'mainProcess' as const }))
+          
+          if (processNames.length === 0) {
+            processNames = [
+              { label: 'Processus généré 1', type: 'mainProcess' },
+              { label: 'Processus généré 2', type: 'mainProcess' },
+            ]
+          }
+        }
+
+        return processNames
+      } catch (error) {
+        console.error('Error in AI generation:', error)
+        return []
+      }
+    },
+    [nodes, readOnly, analyzeImageMutation, processMapId]
+  )
+
+  // Handle confirming AI generated nodes - create them in the diagram
+  const handleConfirmAINodes = useCallback(
+    (groupId: string, generatedNodes: Array<{ label: string; type?: 'mainProcess' | 'domainGroup' }>) => {
+      if (readOnly) return
+
+      const groupNode = nodes.find((n) => n.id === groupId)
+      if (!groupNode || groupNode.type !== 'domainGroup') return
+
+      const children = nodes.filter((n) => (n as any).parentId === groupId)
+      
+      const groupWidth = (groupNode.width as number) || 200
+      const groupHeight = (groupNode.height as number) || 150
+      
+      const SPACING = 20
+      const centerX = groupWidth / 2
+      const centerY = groupHeight / 2
+
+      // Create new nodes with proper dimensions based on type
+      const newNodes: Node[] = generatedNodes.map((node, idx) => {
+        const nodeType = node.type || 'mainProcess'
+        const NODE_WIDTH = nodeType === 'domainGroup' ? 200 : 140
+        const NODE_HEIGHT = nodeType === 'domainGroup' ? 150 : 80
+        
+        const positionIndex = -(children.length + idx + 1)
+        const posX = centerX + positionIndex * (NODE_WIDTH + SPACING) - NODE_WIDTH / 2
+        
+        return {
+          id: `${nodeType}-ai-${Date.now()}-${idx}`,
+          type: nodeType,
+          position: {
+            x: posX,
+            y: centerY - NODE_HEIGHT / 2,
+          },
+          parentId: groupId,
+          extent: 'parent' as const,
+          width: NODE_WIDTH,
+          height: NODE_HEIGHT,
+          data: {
+            label: node.label,
+            processId: undefined,
+          },
+        }
+      })
+
+      // Calculate if we need to expand the group
+      const totalNodes = children.length + newNodes.length
+      const maxNodeWidth = Math.max(...newNodes.map(n => n.width as number))
+      const totalWidthNeeded = totalNodes * (maxNodeWidth + SPACING) - SPACING
+      
+      if (totalWidthNeeded > groupWidth) {
+        const finalGroupWidth = totalWidthNeeded + 100
+        updateNode(groupId, {
+          width: finalGroupWidth,
+        } as any)
+      }
+
+      // Add all new nodes
+      newNodes.forEach((node) => addNode(node))
+
+      console.log(`Created ${generatedNodes.length} processes from AI generation`)
+    },
+    [nodes, addNode, updateNode, readOnly]
+  )
+
+  // Handle AI Generate Level 2 Process success
+  const handleAIGenerateLevel2Success = useCallback(
+    async (response: {
+      structure: any
+      estimatedCost: number
+      cached: boolean
+      tokensUsed: { prompt: number; completion: number; total: number }
+      processMapId?: string
+      workspaceId?: string
+      flowDirection?: 'horizontal' | 'vertical'
+    }) => {
+      if (!targetMainProcessNodeId) return;
+
+      try {
+        // Create the Process using AI
+        const process = await createProcessFromAI({
+          structure: response.structure,
+          processMapId: processMapId,
+          workspaceId: response.workspaceId,
+          departmentId: undefined,
+          code: undefined, // auto-generated
+          flowDirection: response.flowDirection || 'horizontal',
+        });
+
+        // Get the current node to preserve its data
+        const currentNode = nodes.find((n) => n.id === targetMainProcessNodeId);
+        if (!currentNode) {
+          toast.error('Nœud introuvable');
+          return;
+        }
+
+        // Update the mainProcess node with the linked process (preserve all existing data)
+        updateNode(targetMainProcessNodeId, {
+          data: {
+            ...currentNode.data,
+            linkedProcessId: process.id,
+            linkedProcessType: 'FLOW',
+            linkedProcessFlowType: 'process',
+          },
+        } as any);
+
+        toast.success('Processus niveau 2 créé avec succès et lié au nœud');
+        setIsAIGenerateLevel2ModalOpen(false);
+        setTargetMainProcessNodeId(null);
+
+        // Save the flow to persist the link
+        await saveFlow();
+      } catch (error: any) {
+        toast.error(error?.response?.data?.message || 'Erreur lors de la création du processus');
+      }
+    },
+    [targetMainProcessNodeId, processMapId, updateNode, saveFlow, nodes]
   );
 
   /**
@@ -892,6 +1229,8 @@ export function ProcessMapFlowDiagram({
             ...node.data,
             isContainer: true,
             onAddMainProcess: node.type === 'domainGroup' ? handleAddMainProcessToGroup : undefined,
+            onAddMultipleProcesses: node.type === 'domainGroup' ? handleOpenAddMultipleProcessesModal : undefined,
+            onAIGenerate: node.type === 'domainGroup' ? handleOpenAIGenerateModal : undefined,
             onAutoLayout: node.type === 'domainGroup' ? handleAutoLayout : undefined,
             readOnly,
             availableGroups,
@@ -916,10 +1255,11 @@ export function ProcessMapFlowDiagram({
           currentStyle,
           currentHandlePositions: node.data?.handlePositions as { source?: string; target?: string } | undefined,
           flowDirection, // Pass flowDirection to node data
+          onGenerateLevel2Process: node.type === 'mainProcess' ? handleOpenGenerateLevel2ProcessModal : undefined,
         },
       };
     });
-  }, [sortedNodes, handleAddMainProcessToGroup, handleAutoLayout, handleAttachNode, handleDetachNode, handleNodeStyleUpdate, readOnly, isContainerNode, flowDirection]);
+  }, [sortedNodes, handleAddMainProcessToGroup, handleAutoLayout, handleAttachNode, handleDetachNode, handleNodeStyleUpdate, readOnly, isContainerNode, flowDirection, handleOpenGenerateLevel2ProcessModal, handleOpenAIGenerateModal, handleOpenAddMultipleProcessesModal, getAvailableGroups, attachGroupToGroup, detachGroupFromParent]);
 
   if (isLoading) {
     return (
@@ -1089,6 +1429,43 @@ export function ProcessMapFlowDiagram({
               });
               setIsImageExtractionModalOpen(false);
             }}
+          />
+          <AddMultipleProcessesModal
+            open={isAddMultipleProcessesModalOpen}
+            onOpenChange={setIsAddMultipleProcessesModalOpen}
+            initialCount={processCountToAdd}
+            onConfirm={(count, nodeType) => {
+              if (targetGroupIdForMultipleProcesses) {
+                handleAddMultipleProcessesToGroup(targetGroupIdForMultipleProcesses, count, nodeType);
+              }
+              setIsAddMultipleProcessesModalOpen(false);
+            }}
+          />
+          <AIGenerateModal
+            open={isAIGenerateModalOpen}
+            onOpenChange={setIsAIGenerateModalOpen}
+            onConfirm={(nodes) => {
+              if (targetGroupIdForAIGenerate) {
+                handleConfirmAINodes(targetGroupIdForAIGenerate, nodes)
+              }
+              setIsAIGenerateModalOpen(false)
+            }}
+            onGenerate={async (mode, data) => {
+              if (targetGroupIdForAIGenerate) {
+                return await handleAIGenerate(targetGroupIdForAIGenerate, mode, data)
+              }
+              return []
+            }}
+          />
+
+          {/* AI Generate Level 2 Process Modal */}
+          <AIGenerateProcessModal
+            open={isAIGenerateLevel2ModalOpen}
+            onOpenChange={setIsAIGenerateLevel2ModalOpen}
+            processMapId={processMapId}
+            workspaceId={undefined}
+            departmentId={undefined}
+            onSuccess={handleAIGenerateLevel2Success}
           />
         </>
       )}

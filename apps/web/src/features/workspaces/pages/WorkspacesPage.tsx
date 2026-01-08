@@ -32,7 +32,7 @@ type ViewMode = 'grid' | 'table';
 
 export function WorkspacesPage() {
   const navigate = useNavigate();
-  const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const [viewMode, setViewMode] = useState<ViewMode>('table');
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [showForm, setShowForm] = useState(false);

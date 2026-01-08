@@ -24,7 +24,8 @@ import {
   Move,
   ArrowUpDown,
   ArrowLeftRight,
-  Target
+  Target,
+  Sparkles
 } from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
 import { createNode, defineNodeConfig, HANDLE_CONFIGS, COLOR_SCHEMES } from './BaseNode'
@@ -82,7 +83,9 @@ const NodeToolbar = memo(({
   onNodeUpdate,
   currentStyle,
   currentHandlePositions,
-  onCreateProcess
+  onCreateProcess,
+  onGenerateLevel2Process,
+  nodeType
 }: { 
   nodeId: string
   selected: boolean
@@ -95,6 +98,8 @@ const NodeToolbar = memo(({
   currentStyle?: Record<string, any>
   currentHandlePositions?: { source?: string; target?: string }
   onCreateProcess?: (nodeId: string, containerId: string) => void
+  onGenerateLevel2Process?: (nodeId: string) => void
+  nodeType?: string
 }) => {
   const [showAttachMenu, setShowAttachMenu] = useState(false)
   const [showStyleMenu, setShowStyleMenu] = useState(false)
@@ -132,6 +137,10 @@ const NodeToolbar = memo(({
   if (!selected || isContainer) {
     return null
   }
+
+  // Check if this is a mainProcess node
+  const isMainProcess = nodeType === 'mainProcess'
+  const showGenerateLevel2Button = isMainProcess && onGenerateLevel2Process
 
   const handleStyleUpdate = (styleUpdates: Record<string, any>) => {
     if (!onNodeUpdate) return
@@ -191,6 +200,20 @@ const NodeToolbar = memo(({
 
   return (
     <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 flex gap-1 z-10 bg-white rounded-lg shadow-lg border border-gray-200 p-1" onClick={(e) => e.stopPropagation()}>
+      {/* Generate Level 2 Process Button (mainProcess only) */}
+      {showGenerateLevel2Button && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            onGenerateLevel2Process(nodeId)
+          }}
+          className="p-1.5 rounded hover:bg-purple-50 transition-colors bg-purple-500 text-white"
+          title="Générer le processus niveau 2 avec IA"
+        >
+          <Sparkles className="w-4 h-4" />
+        </button>
+      )}
+
       {/* Bouton attach/detach */}
       {parentId ? (
         <button
@@ -519,6 +542,8 @@ export const MainProcessNode = createNode(
             currentStyle={data?.currentStyle}
             currentHandlePositions={data?.currentHandlePositions}
             onCreateProcess={data?.onCreateProcess}
+            onGenerateLevel2Process={data?.onGenerateLevel2Process}
+            nodeType="mainProcess"
           />
           <div
             className={`relative rounded-lg px-5 py-4 min-w-[140px] min-h-[80px] flex items-center justify-center w-full h-full ${selectedClass} transition-all`}
@@ -905,7 +930,9 @@ const DomainGroupNodeWithPlus = memo(({
   const allNodes = useNodes()
   const readOnly = data?.readOnly || false
   const onAddMainProcess = data?.onAddMainProcess
+  const onAddMultipleProcesses = data?.onAddMultipleProcesses
   const onAutoLayout = data?.onAutoLayout
+  const onAIGenerate = data?.onAIGenerate
 
   // State for attachment menu
   const [showAttachMenu, setShowAttachMenu] = useState(false)
@@ -950,6 +977,8 @@ const DomainGroupNodeWithPlus = memo(({
   const isEmpty = children.length === 0
   const showPlusButton = !readOnly && onAddMainProcess
   const showAutoLayoutButton = !readOnly && onAutoLayout && children.length > 0
+  const showAddMultipleButton = !readOnly && onAddMultipleProcesses
+  const showAIGenerateButton = !readOnly && onAIGenerate
 
   return (
     <div
@@ -1026,10 +1055,34 @@ const DomainGroupNodeWithPlus = memo(({
               <LayoutGrid className="w-4 h-4" />
             </button>
           )}
+          {showAddMultipleButton && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onAddMultipleProcesses?.(id)
+              }}
+              className="bg-blue-500 hover:bg-blue-600 text-white rounded p-1.5 shadow-sm transition-colors"
+              title="Ajouter plusieurs processus"
+            >
+              <Plus className="w-4 h-4" />
+            </button>
+          )}
+          {showAIGenerateButton && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onAIGenerate?.(id)
+              }}
+              className="bg-purple-500 hover:bg-purple-600 text-white rounded p-1.5 shadow-sm transition-colors"
+              title="Générer avec l'IA"
+            >
+              <Sparkles className="w-4 h-4" />
+            </button>
+          )}
         </div>
       )}
       <div className="flex items-center justify-between gap-2 mb-3 border-b border-gray-300 pb-2">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center justify-center gap-2">
           {renderIcon()}
           {renderLabel()}
         </div>

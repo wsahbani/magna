@@ -12,11 +12,13 @@ import { PrismaService } from '../../database/prisma.service';
 import { ProcessMapModule } from '../process-map/process-map.module';
 import { ProcessModule } from '../process/process.module';
 import { ProcedureModule } from '../procedure/procedure.module';
+import { ProxyConfigService } from '../../common/config/proxy.config';
 
 @Module({
   imports: [ProcessMapModule, ProcessModule, ProcedureModule],
   controllers: [AIController],
   providers: [
+    ProxyConfigService,
     AIClientService,
     ProcessMapAIService,
     ProcessMapImageExtractionService,
@@ -28,6 +30,7 @@ import { ProcedureModule } from '../procedure/procedure.module';
     PrismaService,
   ],
   exports: [
+    ProxyConfigService,
     ProcessMapAIService,
     ProcessMapImageExtractionService,
     ProcessAIService,

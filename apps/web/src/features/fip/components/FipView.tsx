@@ -4,7 +4,7 @@ import { ProcessIdentityCard } from '../types/fip.types';
 import { FipAccordionSection } from './FipAccordionSection';
 import { Target, MapPin, BarChart3, Users, AlertTriangle, Lightbulb, Briefcase, TrendingUp, Info } from 'lucide-react';
 import { calculateFipSectionCompletions } from '../utils/fipHelpers';
-import { SipocElement } from '../../sipoc/types/sipoc.types';
+import { SipocElement, ElementType } from '../../sipoc/types/sipoc.types';
 
 interface FipViewProps {
   fip: ProcessIdentityCard;
@@ -54,15 +54,15 @@ export const FipView: React.FC<FipViewProps> = ({ fip, sipocElements = [], sipoc
             ) : (
               <div className="space-y-4">
                 {/* Suppliers */}
-                {sipocElements.filter(el => el.type === 'SUPPLIER').length > 0 && (
+                {sipocElements.filter(el => el.type === ElementType.supplier).length > 0 && (
                   <div>
                     <div className="flex items-center gap-2 mb-2">
                       <Badge className="bg-purple-100 text-purple-700 border-purple-200">Fournisseurs</Badge>
-                      <Caption className="text-gray-600">{sipocElements.filter(el => el.type === 'SUPPLIER').length}</Caption>
+                      <Caption className="text-gray-600">{sipocElements.filter(el => el.type === ElementType.supplier).length}</Caption>
                     </div>
                     <div className="space-y-2">
-                      {sipocElements.filter(el => el.type === 'SUPPLIER').map(element => (
-                        <div key={element.element_id} className="bg-white border border-gray-200 rounded-md p-3">
+                      {sipocElements.filter(el => el.type === ElementType.supplier).map(element => (
+                        <div key={element.id} className="bg-white border border-gray-200 rounded-md p-3">
                           <BodySmall className="font-semibold text-gray-900">{element.title}</BodySmall>
                           {element.description && <Caption className="text-gray-600 mt-1">{element.description}</Caption>}
                         </div>
@@ -72,15 +72,15 @@ export const FipView: React.FC<FipViewProps> = ({ fip, sipocElements = [], sipoc
                 )}
 
                 {/* Inputs */}
-                {sipocElements.filter(el => el.type === 'INPUT').length > 0 && (
+                {sipocElements.filter(el => el.type === ElementType.input).length > 0 && (
                   <div>
                     <div className="flex items-center gap-2 mb-2">
                       <Badge className="bg-blue-100 text-blue-700 border-blue-200">Entrées</Badge>
-                      <Caption className="text-gray-600">{sipocElements.filter(el => el.type === 'INPUT').length}</Caption>
+                      <Caption className="text-gray-600">{sipocElements.filter(el => el.type === ElementType.input).length}</Caption>
                     </div>
                     <div className="space-y-2">
-                      {sipocElements.filter(el => el.type === 'INPUT').map(element => (
-                        <div key={element.element_id} className="bg-white border border-gray-200 rounded-md p-3">
+                      {sipocElements.filter(el => el.type === ElementType.input).map(element => (
+                        <div key={element.id} className="bg-white border border-gray-200 rounded-md p-3">
                           <BodySmall className="font-semibold text-gray-900">{element.title}</BodySmall>
                           {element.description && <Caption className="text-gray-600 mt-1">{element.description}</Caption>}
                         </div>
@@ -90,15 +90,15 @@ export const FipView: React.FC<FipViewProps> = ({ fip, sipocElements = [], sipoc
                 )}
 
                 {/* Outputs */}
-                {sipocElements.filter(el => el.type === 'OUTPUT').length > 0 && (
+                {sipocElements.filter(el => el.type === ElementType.output).length > 0 && (
                   <div>
                     <div className="flex items-center gap-2 mb-2">
                       <Badge className="bg-green-100 text-green-700 border-green-200">Sorties</Badge>
-                      <Caption className="text-gray-600">{sipocElements.filter(el => el.type === 'OUTPUT').length}</Caption>
+                      <Caption className="text-gray-600">{sipocElements.filter(el => el.type === ElementType.output).length}</Caption>
                     </div>
                     <div className="space-y-2">
-                      {sipocElements.filter(el => el.type === 'OUTPUT').map(element => (
-                        <div key={element.element_id} className="bg-white border border-gray-200 rounded-md p-3">
+                      {sipocElements.filter(el => el.type === ElementType.output).map(element => (
+                        <div key={element.id} className="bg-white border border-gray-200 rounded-md p-3">
                           <BodySmall className="font-semibold text-gray-900">{element.title}</BodySmall>
                           {element.description && <Caption className="text-gray-600 mt-1">{element.description}</Caption>}
                         </div>
@@ -108,15 +108,15 @@ export const FipView: React.FC<FipViewProps> = ({ fip, sipocElements = [], sipoc
                 )}
 
                 {/* Customers */}
-                {sipocElements.filter(el => el.type === 'CUSTOMER').length > 0 && (
+                {sipocElements.filter(el => el.type === ElementType.customer).length > 0 && (
                   <div>
                     <div className="flex items-center gap-2 mb-2">
                       <Badge className="bg-pink-100 text-pink-700 border-pink-200">Clients</Badge>
-                      <Caption className="text-gray-600">{sipocElements.filter(el => el.type === 'CUSTOMER').length}</Caption>
+                      <Caption className="text-gray-600">{sipocElements.filter(el => el.type === ElementType.customer).length}</Caption>
                     </div>
                     <div className="space-y-2">
-                      {sipocElements.filter(el => el.type === 'CUSTOMER').map(element => (
-                        <div key={element.element_id} className="bg-white border border-gray-200 rounded-md p-3">
+                      {sipocElements.filter(el => el.type === ElementType.customer).map(element => (
+                        <div key={element.id} className="bg-white border border-gray-200 rounded-md p-3">
                           <BodySmall className="font-semibold text-gray-900">{element.title}</BodySmall>
                           {element.description && <Caption className="text-gray-600 mt-1">{element.description}</Caption>}
                         </div>
