@@ -48,7 +48,7 @@ export default function ProcessDetailPage() {
         <div className="text-center py-12">
           <Body>Le processus demandé n'existe pas.</Body>
           <Button
-            onClick={() => navigate({ to: '/processes-level2' })}
+            onClick={() => window.history.back()}
             className="mt-4 bg-orange-600 hover:bg-orange-700"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
@@ -71,7 +71,7 @@ export default function ProcessDetailPage() {
         <div className="flex gap-2">
           <Button
             variant="outline"
-            onClick={() => navigate({ to: '/processes-level2' })}
+          onClick={() => window.history.back()}
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
             Retour

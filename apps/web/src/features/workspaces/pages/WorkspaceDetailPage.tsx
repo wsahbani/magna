@@ -262,7 +262,7 @@ export default function WorkspaceDetailPage() {
         <div className="text-center py-12">
           <Body className="text-gray-500">Espace de travail non trouvé</Body>
           <Button
-            onClick={() => navigate({ to: '/workspaces' })}
+           onClick={() => window.history.back()}
             className="mt-4"
           >
             <Body as="span">Retour aux espaces de travail</Body>

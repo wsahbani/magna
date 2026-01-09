@@ -26,8 +26,8 @@ export class AIClientService implements OnModuleInit {
   private readonly logger = new Logger(AIClientService.name);
   private openai: OpenAI | null = null;
   private readonly defaultModel: string;
-  private readonly defaultMaxTokens = 2000; // Réduit pour respecter les limites de crédits
-  private readonly defaultVisionMaxTokens = 2000; // Limite spécifique pour les appels vision
+  private readonly defaultMaxTokens = 9000; // Réduit pour respecter les limites de crédits
+  private readonly defaultVisionMaxTokens = 9000; // Limite spécifique pour les appels vision
   private readonly defaultTemperature = 0.7;
   private readonly visionModel = process.env.LLM_PROXY_VISION_MODEL;
   private readonly proxyConfig: ProxyConfigService;

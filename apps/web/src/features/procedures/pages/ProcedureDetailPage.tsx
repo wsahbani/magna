@@ -75,7 +75,7 @@ export default function ProcedureDetailPage() {
         <div className="flex gap-2">
           <Button
             variant="outline"
-            onClick={() => navigate({ to: '/procedures-level3' })}
+       onClick={() => window.history.back()}
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
             Retour

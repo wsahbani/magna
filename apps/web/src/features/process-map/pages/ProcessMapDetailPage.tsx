@@ -49,11 +49,11 @@ export default function ProcessMapDetailPage() {
         <div className="text-center py-12">
           <Body>La carte des processus demandée n'existe pas.</Body>
           <Button
-            onClick={() => navigate({ to: '/process-maps' })}
+            onClick={() => window.history.back()}
             className="mt-4 bg-orange-600 hover:bg-orange-700"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Retour à la liste
+            Retour
           </Button>
         </div>
       </PageWrapper>
@@ -72,7 +72,7 @@ export default function ProcessMapDetailPage() {
         <div className="flex gap-2">
           <Button
             variant="outline"
-            onClick={() => navigate({ to: '/process-maps' })}
+            onClick={() => window.history.back()}
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
             Retour

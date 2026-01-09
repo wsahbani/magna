@@ -1402,7 +1402,7 @@ export function ProcessMapFlowDiagram({
               if (data.style && node.data?.style) {
                 updatedData.style = { ...node.data.style, ...data.style };
               }
-
+              console.log({ data })
               updateNode(nodeId, {
                 data: updatedData,
               });

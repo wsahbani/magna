@@ -462,6 +462,7 @@ export function PropertiesPanel({
                 selectedProcessId={selectedNode.data?.linkedProcessId as string | undefined}
                 selectedProcessType={selectedNode.data?.linkedProcessType as 'processMap' | 'process' | 'procedure' | undefined}
                 onSelect={(item) => {
+                  console.log('Selected linked process:', item)
                   onNodeUpdate(selectedNode.id, {
                     linkedProcessId: item.id,
                     linkedProcessType: item.type,

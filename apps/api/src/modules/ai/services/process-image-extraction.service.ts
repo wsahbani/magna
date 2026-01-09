@@ -80,7 +80,7 @@ export class ProcessImageExtractionService {
         imageBase64,
         mimeType,
         {
-          maxTokens: 2000, // Limité pour respecter les crédits disponibles
+          maxTokens: 9000, // Limité pour respecter les crédits disponibles
           temperature: 0.7,
         },
       );

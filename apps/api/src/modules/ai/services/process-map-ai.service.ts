@@ -89,7 +89,7 @@ export class ProcessMapAIService {
     this.logger.log('Calling OpenAI API');
     const fullPrompt = `${system}\n\n${user}`;
     const response = await this.aiClient.generate(fullPrompt, {
-      maxTokens: 2000,
+      maxTokens: 9000,
       temperature: 0.7,
     });
 

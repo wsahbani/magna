@@ -85,7 +85,7 @@ export class ProcessAIService {
     this.logger.log('Calling OpenAI API');
     const fullPrompt = `${system}\n\n${user}`;
     const response = await this.aiClient.generate(fullPrompt, {
-      maxTokens: 3000,
+      maxTokens: 9000,
       temperature: 0.7,
     });
 

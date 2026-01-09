@@ -28,7 +28,7 @@ export default function ProcessFlowEditorPage() {
       <div className="h-screen flex flex-col items-center justify-center bg-gray-50">
         <p className="text-gray-600 mb-4">Le processus demandé n'existe pas.</p>
         <Button
-          onClick={() => navigate({ to: '/processes-level2' })}
+         onClick={() => window.history.back()}
           className="bg-orange-600 hover:bg-orange-700"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
@@ -45,7 +45,7 @@ export default function ProcessFlowEditorPage() {
         <Button
           variant="outline"
           size="sm"
-          onClick={() => navigate({ to: '/processes-level2/$id', params: { id: process.id } })}
+          onClick={() => window.history.back()}
           className="bg-white shadow-lg"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />

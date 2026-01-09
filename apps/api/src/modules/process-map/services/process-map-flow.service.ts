@@ -531,33 +531,46 @@ export class ProcessMapFlowService {
 
     const existingData = (existingNode?.data as any) || {};
 
+    // Handle linkedProcessId changes - update referencedEntityId if linkedProcessId is present
+    const updateData: any = {
+      type: flowNodeType,
+      label: node.label,
+      position: {
+        x: node.positionX,
+        y: node.positionY,
+      },
+      data: {
+        originalType: node.type, // Store original node type for ReactFlow mapping
+        description: node.description,
+        // Preserve width/height if provided, otherwise keep existing values
+        width: node.width !== undefined && node.width !== null ? node.width : (node.data?.width ?? existingData.width),
+        height: node.height !== undefined && node.height !== null ? node.height : (node.data?.height ?? existingData.height),
+        zIndex: node.zIndex,
+        parentNodeId: node.parentId || node.data?.parentNodeId || node.data?.parentNode || node.parentNodeId, // Store parentId from ReactFlow (top level)
+        groupId: node.groupId,
+        sourcePosition: node.sourcePosition,
+        targetPosition: node.targetPosition,
+        isConnectable: node.isConnectable ?? true,
+        isDraggable: node.isDraggable ?? true,
+        isSelectable: node.isSelectable ?? true,
+        style: node.style,
+        ...(node.data || {}),
+      },
+    };
+
+    // Update referencedEntityId if linkedProcessId is present in node.data
+    if (node.data?.linkedProcessId) {
+      updateData.entityType = 'PROCESS';
+      updateData.referencedEntityId = node.data.linkedProcessId;
+    } else if (node.data?.linkedProcessId === null || node.data?.linkedProcessId === undefined) {
+      // If linkedProcessId is explicitly cleared, remove the reference
+      updateData.entityType = null;
+      updateData.referencedEntityId = null;
+    }
+
     return tx.flowNode.update({
       where: { id: nodeId },
-      data: {
-        type: flowNodeType,
-        label: node.label,
-        position: {
-          x: node.positionX,
-          y: node.positionY,
-        },
-        data: {
-          originalType: node.type, // Store original node type for ReactFlow mapping
-          description: node.description,
-          // Preserve width/height if provided, otherwise keep existing values
-          width: node.width !== undefined && node.width !== null ? node.width : (node.data?.width ?? existingData.width),
-          height: node.height !== undefined && node.height !== null ? node.height : (node.data?.height ?? existingData.height),
-          zIndex: node.zIndex,
-          parentNodeId: node.parentId || node.data?.parentNodeId || node.data?.parentNode || node.parentNodeId, // Store parentId from ReactFlow (top level)
-          groupId: node.groupId,
-          sourcePosition: node.sourcePosition,
-          targetPosition: node.targetPosition,
-          isConnectable: node.isConnectable ?? true,
-          isDraggable: node.isDraggable ?? true,
-          isSelectable: node.isSelectable ?? true,
-          style: node.style,
-          ...(node.data || {}),
-        },
-      },
+      data: updateData,
     });
   }
 

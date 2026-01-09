@@ -481,7 +481,7 @@ Example output format:
             imageBase64,
             mimeType,
             {
-              maxTokens: contextType === 'domainGroup' ? 2000 : 9000,
+              maxTokens: contextType === 'domainGroup' ? 9000 : 9000,
               temperature: attempt === 1 ? 0.7 : 0.5,
               responseFormat: { type: 'json_object' },
             },
