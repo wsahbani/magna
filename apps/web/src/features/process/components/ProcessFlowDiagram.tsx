@@ -125,7 +125,7 @@ export function ProcessFlowDiagram({
   // Helper function to check if a node is a container
   const isContainerNode = useCallback((nodeType: string | undefined): boolean => {
     // Only domainGroup is a container node
-    return nodeType === 'domainGroup'
+    return nodeType === 'domainGroup' || nodeType === 'group';
   }, [])
 
   // Helper function to check if a dragged node intersects with a container
@@ -605,8 +605,8 @@ export function ProcessFlowDiagram({
           deleteKeyCode={readOnly ? null : 'Delete'}
           defaultEdgeOptions={{
             type: 'smoothstep',
-            style: { stroke: 'hsl(210, 40%, 98%)', strokeWidth: 2 },
-            markerEnd: { type: 'arrowclosed', color: 'hsl(210, 40%, 98%)' },
+            style: { stroke: '#ff6900', strokeWidth: 2 },
+            markerEnd: { type: 'arrowclosed', color: '#ff6900' },
           }}
           fitView
           className="bg-gray-50"

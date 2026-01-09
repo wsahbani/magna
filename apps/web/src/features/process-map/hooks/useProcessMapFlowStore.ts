@@ -161,15 +161,22 @@ export function useProcessMapFlowStore(
   // Handle connections (create new edge from ReactFlow Connection)
   const onConnect = useCallback(
     (connection: Connection) => {
-      // reactFlowAddEdge returns the updated edges array
-      // We need to update the store with all edges
-      const currentEdges = useStore.getState().edges;
-      const updatedEdges = reactFlowAddEdge(connection, currentEdges);
+      console.log('🔗 ProcessMap onConnect called with:', connection);
       
-      // Update all edges in the store (reactFlowAddEdge handles deduplication)
-      if (updatedEdges && updatedEdges.length !== currentEdges.length) {
-        // Use setEdges to replace all edges with the updated array
-        setEdges(updatedEdges);
+      // Get current edges from store
+      const currentEdges = useStore.getState().edges;
+      console.log('📊 Current edges count:', currentEdges.length);
+      
+      // Use reactFlowAddEdge to create the new edge with proper defaults
+      const newEdges = reactFlowAddEdge(connection, currentEdges);
+      console.log('✨ New edges count:', newEdges.length);
+      
+      // Only update if a new edge was actually added
+      if (newEdges.length > currentEdges.length) {
+        console.log('✅ Updating edges in store');
+        setEdges(newEdges);
+      } else {
+        console.log('⚠️ No new edge added (might be duplicate)');
       }
     },
     [setEdges],

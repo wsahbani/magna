@@ -107,25 +107,7 @@ export function AIGenerateModal({ open, onOpenChange, onConfirm, onGenerate }: A
         // Call the provided generate function
         const data = activeTab === 'image' ? selectedFile! : textPrompt.trim()
         nodes = await onGenerate(activeTab, data)
-      } else {
-        // Mock generation for testing
-        if (activeTab === 'image') {
-          nodes = [
-            { label: 'Processus détecté 1', type: 'mainProcess' },
-            { label: 'Processus détecté 2', type: 'mainProcess' },
-            { label: 'Groupe détecté', type: 'domainGroup' },
-          ]
-        } else {
-          const lines = textPrompt.split(/[,\n]/).map(l => l.trim()).filter(l => l.length > 0)
-          nodes = lines.slice(0, 5).map(label => ({ label, type: 'mainProcess' as const }))
-          if (nodes.length === 0) {
-            nodes = [
-              { label: 'Processus généré 1', type: 'mainProcess' },
-              { label: 'Processus généré 2', type: 'mainProcess' },
-            ]
-          }
-        }
-      }
+      } 
 
       setGeneratedNodes(nodes)
       setStep('preview')

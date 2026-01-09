@@ -1307,8 +1307,8 @@ export function ProcessMapFlowDiagram({
           deleteKeyCode={readOnly ? null : 'Delete'}
           defaultEdgeOptions={{
             type: 'smoothstep',
-            style: { stroke: 'hsl(210, 40%, 98%)', strokeWidth: 2 },
-            markerEnd: { type: 'arrowclosed', color: 'hsl(210, 40%, 98%)' },
+            style: { stroke: '#ff6900', strokeWidth: 2 },
+            markerEnd: { type: 'arrowclosed', color: '#ff6900' },
           }}
           snapToGrid={gridSettings.snapToGrid}
           snapGrid={[gridSettings.gridSize, gridSettings.gridSize]}
