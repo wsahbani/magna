@@ -62,7 +62,7 @@ export class AIClientService implements OnModuleInit {
     }
 
     this.openai = new OpenAI(clientOptions);
-    this.logger.log('OpenAI client initialized with OpenRouter LLM proxy');
+    this.logger.log(`OpenAI client initialized with OpenRouter LLM proxy:' ${clientOptions}`);
   }
 
   /**
@@ -138,7 +138,7 @@ export class AIClientService implements OnModuleInit {
         throw creditError;
       }
       
-      throw new Error(`AI generation failed: ${error.message}`);
+      throw new Error(`AI generation failed: ${error}`);
     }
   }
 
