@@ -62,7 +62,7 @@ export class AIClientService implements OnModuleInit {
     }
 
     this.openai = new OpenAI(clientOptions);
-    this.logger.log(`OpenAI client initialized with OpenRouter LLM proxy:' ${clientOptions}`);
+    this.logger.log(`OpenAI client initialized with OpenRouter LLM proxy:' ${clientOptions.httpAgent}`);
   }
 
   /**
