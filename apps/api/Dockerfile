@@ -8,6 +8,7 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY .npmrc* ./
 
 # Install pnpm
+npm install -g pnpm
 #RUN corepack enable && corepack prepare pnpm@8.15.6 --activate
 
 # Install curl
