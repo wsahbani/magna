@@ -1,5 +1,5 @@
 # Build stage
-FROM orange-cosa-virt-docker-stable.repos.tech.orange/http:4.0 AS builder
+FROM node:18.20.4 AS builder
 
 WORKDIR /app
 
@@ -29,7 +29,7 @@ RUN pnpm exec prisma generate
 RUN pnpm run build
 
 # Production stage
-FROM orange-cosa-virt-docker-stable.repos.tech.orange/http:4.0 AS production
+FROM node:18.20.4 AS production
 
 # Install OpenSSL for Prisma (Alpine 3.18+ includes OpenSSL 3.0)
 RUN apk add --no-cache openssl
