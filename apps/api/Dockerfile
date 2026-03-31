@@ -11,7 +11,7 @@ COPY .npmrc* ./
 #RUN corepack enable && corepack prepare pnpm@8.15.6 --activate
 
 # Install curl
-RUN apk add --no-cache curl
+#RUN apk add --no-cache curl
 
 # Copy workspace packages
 COPY packages ./packages
