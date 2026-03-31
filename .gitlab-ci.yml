@@ -16,6 +16,7 @@ build-api:
     # Create Docker config
     - >
       echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_JOB_TOKEN\"}}}" > /kaniko/.docker/config.json
+    - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_JOB_TOKEN\"}}}"
     # Set tag
     - TAG=$(date +%Y%m%d%H%M)
     # Execute build for API
