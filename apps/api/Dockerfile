@@ -1,5 +1,5 @@
 # Build stage
-FROM dockerproxy.repos.tech.orange/andrewmackrodt/nodejs:20 AS builder
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
