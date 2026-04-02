@@ -97,7 +97,7 @@ RUN mkdir -p /var/cache/nginx/client_temp && \
   chown -R nginx:nginx /var/cache/nginx && \
   chown -R nginx:nginx /usr/share/nginx/html && \
   chown -R nginx:nginx /var/log/nginx
-
+# 
 # Set proper permissions
 RUN chmod -R 755 /usr/share/nginx/html
 
