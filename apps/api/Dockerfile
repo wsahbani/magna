@@ -1,5 +1,5 @@
 # Build stage
-FROM node:20-alpine AS builder
+FROM dockerproxy.repos.tech.orange/andrewmackrodt/nodejs:20 AS builder
 
 WORKDIR /app
 
@@ -19,7 +19,7 @@ RUN pnpm exec prisma generate
 RUN pnpm run build
 
 #Production stage
-FROM node:20-alpine AS production
+FROM dockerproxy.repos.tech.orange/andrewmackrodt/nodejs:20 AS production
 
 # ✅ Fix: switch to root for system-level package installation
 USER root
