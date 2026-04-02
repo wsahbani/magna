@@ -1,7 +1,7 @@
 # Multi-stage build for Vite Web app
 FROM dockerproxy.repos.tech.orange/andrewmackrodt/nodejs:20 AS base
 #node:20-alpine AS base
-
+USER root
 # Install pnpm
 RUN npm install -g pnpm@8.15.6 && \
   npm cache clean --force
@@ -73,7 +73,8 @@ RUN test -d /app/apps/web/dist || \
 # ============================================
 # Production stage - Nginx
 # ============================================
-FROM nginx:1.25-alpine AS production
+FROM dockerproxy.repos.tech.orange/andrewmackrodt/nodejs:20 AS production
+#nginx:1.25-alpine AS production
 
 # Install wget for health checks
 RUN apk add --no-cache wget
