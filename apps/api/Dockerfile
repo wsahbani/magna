@@ -47,6 +47,6 @@ COPY .npmrc* ./
 
 # WORKDIR /app/apps/api
 
-EXPOSE 3001
+# EXPOSE 3001
 
-CMD ["node", "dist/src/main.js"]
+# CMD ["node", "dist/src/main.js"]
