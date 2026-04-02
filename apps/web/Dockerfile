@@ -73,7 +73,7 @@ RUN test -d /app/apps/web/dist || \
 # ============================================
 # Production stage - Nginx
 # ============================================
-FROM node:20-alpine AS production
+FROM nginx:1.25-alpine AS production
 #nginx:1.25-alpine AS production
 
 # Install wget for health checks
