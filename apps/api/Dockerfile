@@ -6,17 +6,17 @@ WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY .npmrc* ./
 
-# RUN npm install -g pnpm
+RUN npm install -g pnpm
 
-# COPY packages ./packages
-# COPY apps/api ./apps/api
+COPY packages ./packages
+COPY apps/api ./apps/api
 
-# RUN pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile
 
-# WORKDIR /app/apps/api
-# RUN pnpm exec prisma generate
+WORKDIR /app/apps/api
+RUN pnpm exec prisma generate
 
-# RUN pnpm run build
+RUN pnpm run build
 
 # Production stage
 # FROM dockerproxy.repos.tech.orange/andrewmackrodt/nodejs:20 AS production
@@ -47,6 +47,6 @@ COPY .npmrc* ./
 
 # WORKDIR /app/apps/api
 
-# EXPOSE 3001
+EXPOSE 3001
 
-# CMD ["node", "dist/src/main.js"]
+CMD ["node", "dist/src/main.js"]
