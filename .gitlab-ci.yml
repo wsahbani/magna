@@ -6,19 +6,17 @@ stages:
   - build
 
 variables:
-  API_IMAGE_NAME: "happy-virt-docker-unstable.repos.tech.orange/magna/api"
-  WEB_IMAGE_NAME: "happy-virt-docker-unstable.repos.tech.orange/magna/web"
-  #WEB_IMAGE_NAME: "$CI_REGISTRY_IMAGE/web"
+  API_IMAGE_NAME: "$CI_REGISTRY_IMAGE/api"
+  WEB_IMAGE_NAME: "$CI_REGISTRY_IMAGE/web"
 
 build-api:
   image: gcr.io/kaniko-project/executor:v1.14.0-debug
   stage: build
   script:
     # Create Docker config
+    
     - >
-      echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"pr-cviyp8ra-happy\",\"password\":\"OC_680b5963c5341-7uP15abcefmtuCDHILTVWZ_\"}}}" > /kaniko/.docker/config.json
-    #- >
-     # echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_JOB_TOKEN\"}}}" > /kaniko/.docker/config.json
+     echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_JOB_TOKEN\"}}}" > /kaniko/.docker/config.json
     # Set tag
     - TAG=$(date +%Y%m%d%H%M)
     # Execute build for API
