@@ -1,5 +1,6 @@
 # Multi-stage build for Vite Web app
-FROM node:20-alpine AS base
+FROM dockerproxy.repos.tech.orange/andrewmackrodt/nodejs:20 AS base
+#node:20-alpine AS base
 
 # Install pnpm
 RUN npm install -g pnpm@8.15.6 && \
