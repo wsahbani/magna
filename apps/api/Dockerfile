@@ -1,5 +1,5 @@
 # Build stage
-FROM node:18.20.4 AS builder
+FROM dockerproxy.repos.tech.orange/andrewmackrodt/nodejs:20 AS builder
 
 WORKDIR /app
 
@@ -9,10 +9,6 @@ COPY .npmrc* ./
 
 # Install pnpm
 RUN npm install -g pnpm
-#RUN corepack enable && corepack prepare pnpm@8.15.6 --activate
-
-# Install curl
-#RUN apk add --no-cache curl
 
 # Copy workspace packages
 COPY packages ./packages
@@ -29,10 +25,13 @@ RUN pnpm exec prisma generate
 RUN pnpm run build
 
 # Production stage
-FROM node:18.20.4 AS production
+FROM dockerproxy.repos.tech.orange/andrewmackrodt/nodejs:20 AS production
 
-# Install OpenSSL for Prisma (Alpine 3.18+ includes OpenSSL 3.0)
+# Install OpenSSL for Prisma
+# If Alpine-based:
 RUN apk add --no-cache openssl
+# If Debian/Ubuntu-based, replace the line above with:
+# RUN apt-get update && apt-get install -y --no-install-recommends openssl && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
