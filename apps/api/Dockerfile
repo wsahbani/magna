@@ -19,7 +19,7 @@ RUN pnpm exec prisma generate
 RUN pnpm run build
 
 #Production stage
-FROM dockerproxy.repos.tech.orange/andrewmackrodt/nodejs:20e AS production
+FROM dockerproxy.repos.tech.orange/andrewmackrodt/nodejs:20 AS production
 
 # ✅ Fix: switch to root for system-level package installation
 USER root
