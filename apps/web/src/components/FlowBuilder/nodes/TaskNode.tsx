@@ -20,6 +20,7 @@ export const TaskNode = createNode(
       HANDLE_CONFIGS.targetTop,
       HANDLE_CONFIGS.sourceBottom,
     ],
+    
     showLabel: true,
     labelPosition: 'inside',
   })
