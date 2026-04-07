@@ -52,9 +52,9 @@ export class AIClientService implements OnModuleInit {
 
     // Add proxy configuration if enabled
     if (this.proxyConfig.isEnabled()) {
-      const httpsAgent = this.proxyConfig.getHttpsAgent();
-      if (httpsAgent) {
-        clientOptions.httpAgent = httpsAgent;
+      const dispatcher = this.proxyConfig.getDispatcher();
+      if (dispatcher) {
+        clientOptions.fetchOptions = { dispatcher };
         this.logger.log(`Proxy enabled for OpenAI API calls: ${this.proxyConfig.getProxyUrl()}`);
       }
     } else {
@@ -62,7 +62,7 @@ export class AIClientService implements OnModuleInit {
     }
 
     this.openai = new OpenAI(clientOptions);
-    this.logger.log(`OpenAI client initialized with OpenRouter LLM proxy:' ${clientOptions.httpAgent}`);
+    this.logger.log(`OpenAI client initialized with OpenRouter LLM proxy: ${clientOptions.fetchOptions?.dispatcher ? 'proxy dispatcher active' : 'no proxy'}`);
   }
 
   /**

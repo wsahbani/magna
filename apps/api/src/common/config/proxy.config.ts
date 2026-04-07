@@ -14,8 +14,7 @@
  */
 
 import { Injectable, Logger } from '@nestjs/common';
-import { HttpsProxyAgent } from 'https-proxy-agent';
-import { HttpProxyAgent } from 'http-proxy-agent';
+import * as undici from 'undici';
 
 export interface ProxyConfig {
   enabled: boolean;
@@ -31,8 +30,7 @@ export class ProxyConfigService {
   private static instance: ProxyConfigService;
   private readonly logger = new Logger(ProxyConfigService.name);
   private readonly config: ProxyConfig;
-  private httpsAgent: HttpsProxyAgent<string> | null = null;
-  private httpAgent: HttpProxyAgent<string> | null = null;
+  private proxyAgent: undici.ProxyAgent | null = null;
 
   constructor() {
     // Singleton pattern
@@ -87,11 +85,10 @@ export class ProxyConfigService {
     const proxyUrl = this.buildProxyUrl();
     
     try {
-      this.httpsAgent = new HttpsProxyAgent(proxyUrl);
-      this.httpAgent = new HttpProxyAgent(proxyUrl);
-      this.logger.log('Proxy agents initialized successfully');
+      this.proxyAgent = new undici.ProxyAgent(proxyUrl);
+      this.logger.log('Proxy agent initialized successfully');
     } catch (error) {
-      this.logger.error('Failed to initialize proxy agents', error);
+      this.logger.error('Failed to initialize proxy agent', error);
       throw error;
     }
   }
@@ -130,24 +127,14 @@ export class ProxyConfigService {
   }
 
   /**
-   * Returns the HTTPS proxy agent for HTTP clients
-   * Use this with OpenAI SDK and other HTTP clients
+   * Returns the undici ProxyAgent dispatcher for fetch-based clients
+   * Use this with OpenAI SDK via fetchOptions.dispatcher
    */
-  getHttpsAgent(): HttpsProxyAgent<string> | null {
+  getDispatcher(): undici.ProxyAgent | null {
     if (!this.config.enabled) {
       return null;
     }
-    return this.httpsAgent;
-  }
-
-  /**
-   * Returns the HTTP proxy agent for HTTP clients
-   */
-  getHttpAgent(): HttpProxyAgent<string> | null {
-    if (!this.config.enabled) {
-      return null;
-    }
-    return this.httpAgent;
+    return this.proxyAgent;
   }
 
   /**

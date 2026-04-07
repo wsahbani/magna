@@ -46,7 +46,8 @@
     "pkce-challenge": "^5.0.1",
     "reflect-metadata": "^0.1.13",
     "rxjs": "^7.8.1",
-    "swagger-ui-express": "^5.0.1"
+    "swagger-ui-express": "^5.0.1",
+    "undici": "^8.0.2"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.0.0",
